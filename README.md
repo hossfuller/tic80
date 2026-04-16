@@ -19,6 +19,11 @@ We can compile TIC-80 Pro by following the directions given on the [TIC-80 READM
 
 For Windows 11, use the [MSYS2/MINGW instructions](https://github.com/nesbox/TIC-80/blob/main/README.md#msys2--mingw).
 
+1. Make sure MSYS2 has the proper prerequisites already installed. Open the MSYS2 terminal and run these two commands:
+    ```bash
+    pacman -Syu
+    pacman -S mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-SDL2 mingw-w64-ucrt-x86_64-freeglut mingw-w64-ucrt-x86_64-ruby
+    ```
 1. `git` should already be installed, so skip that in those directions and just go straight to:
     ```bash
     winget install Kitware.CMake RubyInstallerTeam.RubyWithDevKit.2.7
@@ -36,6 +41,12 @@ For Windows 11, use the [MSYS2/MINGW instructions](https://github.com/nesbox/TIC
     $numCPUs = [Environment]::ProcessorCount
     mingw32-make "-j$numCPUs"
     ```
+
+If the `mingw32-make` command fails, check to see if it's on a specific language. if so, you can selectively enable/disable the languages TIC-80 supports like this:
+```bash
+cmake -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=MinSizeRel -DBUILD_SDLGPU=On -DBUILD_PRO=On -DBUILD_WITH_LUA=On -DBUILD_WITH_MOON=On -DBUILD_WITH_FENNEL=On -DBUILD_WITH_WREN=On -DBUILD_WITH_RUBY=On -DBUILD_WITH_JANET=Off -DBUILD_WITH_JS=On ..
+```
+Note that we disabled `janet` here with the `-DBUILD_WITH_JANET=Off` flag.
 
 The resulting `tic80.exe` in `TIC-80\build\bin`. Create a shortcut to it wherever you need to.
 
