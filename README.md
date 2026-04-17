@@ -182,5 +182,7 @@ cart test-project.tic saved!
 
 ## Interesting/Useful Tutorials
 
-[Intro to Game Programming in TIC 80](https://github.com/nesbox/TIC-80/wiki/Intro-to-Game-Programming-in-TIC-80): talks about the basic way to implement code structure.
-[btn (TIC-80 API wiki)](https://github.com/nesbox/TIC-80/wiki/btn): code example that shows button presses.
+- [Intro to Game Programming in TIC 80](https://github.com/nesbox/TIC-80/wiki/Intro-to-Game-Programming-in-TIC-80): talks about the basic way to implement code structure.
+- [btn (TIC-80 API wiki)](https://github.com/nesbox/TIC-80/wiki/btn): code example that shows button presses.
+- [Classic Games: Pong](https://youtube.com/playlist?list=PLFSr5sRPYh65sNuTylwTiXm3Ma-EygIXz&si=LHqglBfKHIrv4XLK):
+- [Tamara O'Malley's Tutorials](https://www.youtube.com/@tamaraomalley5866/videos): looks like a high school CS instructor
