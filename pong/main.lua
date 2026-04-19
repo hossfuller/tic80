@@ -150,6 +150,7 @@ function BallObj:reset(x, y)
     self.x      = x or math.floor(EDGE_X_RIGHT/2)
     self.y      = y or math.floor(EDGE_Y_BOTTOM/2)
 
+    -- Get the ball moving in a random direction.
     local ball_direction_x = (math.random() < 0.5) and 1 or -1
     local ball_direction_y = (math.random() < 0.5) and 1 or -1
     self.vx = ball_direction_x * GAME_SPEED
@@ -175,18 +176,18 @@ end
 function BallObj:isInPlay()
     return self.inPlay
 end
--- function BallObj:collision(paddle)
---     if self.x < (EDGE_X_LEFT + paddle.width) then
---         if self.y > paddle.y and self.y < paddle.y + paddle.height then
---             self.vx = - self.vx
---         end
---     end
---     if self.x > (EDGE_X_RIGHT - paddle.width) then
---         if self.y > paddle.y and self.y < paddle.y + paddle.height then
---             self.vx = - self.vx
---         end
---     end
--- end
+function BallObj:collision(paddle)
+    if self.x < (EDGE_X_LEFT + paddle.width + self.radius) then
+        if self.y > paddle.y and self.y < (paddle.y + paddle.height) then
+            self.vx = - self.vx
+        end
+    end
+    if self.x > (EDGE_X_RIGHT - paddle.width - self.radius) then
+        if self.y > paddle.y and self.y < paddle.y + paddle.height then
+            self.vx = - self.vx
+        end
+    end
+end
 
 
 --[[ FUNCTIONS ]]--
@@ -217,6 +218,17 @@ function TIC()
     --[[ DRAW GAME GRAPHICS ]]--
     DRAW(paddle1, paddle2, ball)
 
+-- -- Screen Edges
+-- EDGE_X_LEFT   = 0
+-- EDGE_X_RIGHT  = 239
+-- EDGE_Y_TOP    = 0
+-- EDGE_Y_BOTTOM = 135
+
+    if ball.x < EDGE_X_RIGHT/2 then
+        print("ball!", EDGE_X_LEFT+10, EDGE_Y_BOTTOM-28, GREEN_MED)
+    else
+        print("ball!", EDGE_X_LEFT+10, EDGE_Y_BOTTOM-28, BLUE_MED)
+    end
     print(string.format("paddle1: [%3d,%3d]", paddle1.x, paddle1.y), EDGE_X_LEFT+10, EDGE_Y_BOTTOM-21, YELLOW)
     print(string.format("paddle2: [%3d,%3d]", paddle2.x, paddle2.y), EDGE_X_LEFT+10, EDGE_Y_BOTTOM-14, YELLOW)
     print(string.format("ball: [%3.0f,%3.0f]", ball.x, ball.y), EDGE_X_LEFT+10, EDGE_Y_BOTTOM-7, YELLOW)
@@ -239,15 +251,20 @@ end -- INPUT()
 
 --[[ UPDATE FUNCTIONS ]]--
 function UPDATE(paddle1, paddle2, ball)
-
-    -- -- Check for paddle/ball collision.
-    -- ball:collision(paddle1)
-    -- ball:collision(paddle2)
-
-    -- Check if anything has left the screen.
+    -- Keep the paddles on the screen
     paddle1:update()
     paddle2:update()
-    ball:update()
+
+    -- Check for paddle/ball collision.
+    if ball:collision(paddle1) == true then
+        -- If the ball hit paddle 1, then we'll be here.
+    elseif ball:collision(paddle2) == true then
+        -- If the ball hit paddle 2, then we'll be here.
+
+    -- Otherwise the ball is somewhere in the middle
+    else
+        ball:update()
+    end
 end -- UPDATE()
 
 
