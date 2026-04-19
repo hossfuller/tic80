@@ -5,16 +5,41 @@
 
 --[[ CONSTANTS ]]--
 
-BLACK  = 0
-YELLOW = 1
-GREEN  = 2
-WHITE  = 3
+-- Colors
+BLACK      = 0
+PURPLE     = 1
+RED        = 2
+ORANGE     = 3
+YELLOW     = 4
+GREEN_LITE = 5
+GREEN_MED  = 6
+GREEN_DARK = 7
+BLUE_DARK  = 8
+BLUE_MED   = 9
+BLUE_LITE  = 10
+CYAN       = 11
+WHITE      = 12
+GRAY_LITE  = 13
+GRAY_MED   = 14
+GRAY_DARK  = 15
 
+-- Screen Edges
 EDGE_X_LEFT   = 0
 EDGE_X_RIGHT  = 239
 EDGE_Y_TOP    = 0
 EDGE_Y_BOTTOM = 135
 
+-- Controls
+P1_UP    = 0
+P1_DOWN  = 1
+P1_LEFT  = 2
+P1_RIGHT = 3
+P2_UP    = 8
+P2_DOWN  = 9
+P2_LEFT  = 10
+P2_RIGHT = 11
+
+-- Moving Parts Contraints
 PADDLE_WIDTH   = 4
 PADDLE_HEIGHT  = 24
 BALL_RADIUS    = 3
@@ -29,9 +54,9 @@ function PongObject:new(params)
     local obj = {
         x     = params.x or 0,
         y     = params.y or 0,
-        vx    = params.vx or 0,
-        vy    = params.vy or 0,
-        vmax  = params.vmax or 2,
+        vx    = params.vx or 2,
+        vy    = params.vy or 2,
+        -- vmax  = params.vmax or 2,
         color = params.color or WHITE,
     }
     setmetatable(obj, self)
@@ -49,10 +74,48 @@ function PaddleObj:new(params)
     local obj = PongObject.new(self, params)
     setmetatable(obj, self)
     -- PaddleObj-specific properties
-    obj.width  = params.width or PADDLE_WIDTH
-    obj.height = params.height or PADDLE_HEIGHT
+    obj.width      = params.width or PADDLE_WIDTH
+    obj.height     = params.height or PADDLE_HEIGHT
+    obj.player     = params.player or 1
+    obj.upButton   = P1_UP
+    obj.downButton = P1_DOWN
+    obj.leftButton   = P1_LEFT
+    obj.rightButton = P1_RIGHT
+    if obj.player == 2 then
+        obj.upButton    = P2_UP
+        obj.downButton  = P2_DOWN
+        obj.leftButton  = P2_LEFT
+        obj.rightButton = P2_RIGHT
+    end
     return obj
 end
+function PaddleObj:input()
+    if btn(self.upButton) then
+        self.y = self.y - self.vy
+    end
+    if btn(self.downButton) then
+        self.y = self.y + self.vy
+    end
+    if btn(self.leftButton) then
+        self.x = self.x - self.vx
+    end
+    if btn(self.rightButton) then
+        self.x = self.x + self.vx
+    end
+end
+function PongObject:update()
+    if self.x < EDGE_X_LEFT then
+        self.x = EDGE_X_LEFT
+    elseif self.x > (EDGE_X_RIGHT - self.width) then
+        self.x = EDGE_X_RIGHT - self.width + 1
+    end
+    if self.y < EDGE_Y_TOP then
+        self.y = EDGE_Y_TOP
+    elseif self.y > (EDGE_Y_BOTTOM - self.height) then
+        self.y = EDGE_Y_BOTTOM - self.height + 1
+    end
+end
+
 
 --[[ Base Class: BallObj ]]--
 BallObj = setmetatable({}, {__index = PongObject})
@@ -71,8 +134,8 @@ end
 function BallObj:reset(x, y)
     self.x = x or EDGE_X_RIGHT/2
     self.y = y or EDGE_Y_BOTTOM/2
-    self.vx = math.random(2) == 1 and 2 or -2
-    self.vy = math.random(-2, 2)
+    -- self.vx = math.random(2) == 1 and 2 or -2
+    -- self.vy = math.random(-2, 2)
 end
 
 --[[ FUNCTIONS ]]--
@@ -80,18 +143,27 @@ end
 
 
 --[[ INITIALIZATION ]]--
-
+-- Create objects
+local paddle1 = PaddleObj:new({
+    x = EDGE_X_LEFT, 
+    y = EDGE_Y_TOP, 
+    player = 1
+})
+local paddle2 = PaddleObj:new({
+    x = EDGE_X_RIGHT - PADDLE_WIDTH, 
+    y = EDGE_Y_BOTTOM - PADDLE_HEIGHT,
+    player = 2
+})
+local ball    = BallObj:new({
+    x = EDGE_X_RIGHT/2, 
+    y = EDGE_Y_BOTTOM/2
+})
 
 
 --[[ GAME LOOP ]]--
 function TIC()
-    -- Create objects
-    local paddle1 = PaddleObj:new({x = EDGE_X_LEFT, y = EDGE_Y_TOP})
-    local paddle2 = PaddleObj:new({x = EDGE_X_RIGHT - PADDLE_WIDTH, y = EDGE_Y_BOTTOM - PADDLE_HEIGHT})
-    local ball    = BallObj:new({x = EDGE_X_RIGHT/2, y = EDGE_Y_BOTTOM/2})
-
     --[[ CHECK FOR USER INPUT ]]--
-    INPUT()
+    INPUT(paddle1, paddle2)
 
     --[[ UPDATE GAME DATA ]]--
     UPDATE(paddle1, paddle2, ball)
@@ -105,15 +177,17 @@ end --TIC
 
 
 --[[ INPUT FUNCTIONS ]]--
-function INPUT()
+function INPUT(paddle1, paddle2)
+    paddle1:input()
+    paddle2:input()
 end -- INPUT()
 
 
 --[[ UPDATE FUNCTIONS ]]--
 function UPDATE(paddle1, paddle2, ball)
-    -- paddle1:update()
-    -- paddle2:update()
-    -- ball:update()
+    paddle1:update()
+    paddle2:update()
+    ball:update()
 end -- UPDATE()
 
 
@@ -122,14 +196,7 @@ function DRAW(paddle1, paddle2, ball)
     cls(BLACK)
 
     -- Draw the court, which is stationary.
-    -- Net
-    for _i=EDGE_Y_TOP+2,EDGE_Y_BOTTOM,8 do
-        rect(EDGE_X_RIGHT/2, _i, BOUNDARY_WIDTH, 4, GREEN)
-    end
-    -- Court boundaries
-    line(EDGE_X_LEFT, EDGE_Y_TOP, EDGE_X_RIGHT, EDGE_Y_TOP, YELLOW)
-    line(EDGE_X_LEFT, EDGE_Y_BOTTOM, EDGE_X_RIGHT, EDGE_Y_BOTTOM, YELLOW)
-    
+    drawCourt()
 
     -- Draw the moving elements.
     paddle1:draw()
@@ -137,7 +204,16 @@ function DRAW(paddle1, paddle2, ball)
     ball:draw()
 end -- DRAW()
 
-
+function drawCourt()
+    
+    -- Net
+    for _i=EDGE_Y_TOP+2,EDGE_Y_BOTTOM,8 do
+        rect(EDGE_X_RIGHT/2, _i, BOUNDARY_WIDTH, 4, GREEN_LITE)
+    end
+    -- Court boundaries
+    line(EDGE_X_LEFT, EDGE_Y_TOP, EDGE_X_RIGHT, EDGE_Y_TOP, YELLOW)
+    line(EDGE_X_LEFT, EDGE_Y_BOTTOM, EDGE_X_RIGHT, EDGE_Y_BOTTOM, YELLOW)
+end
 
 -- <WAVES>
 -- 000:00000000ffffffff00000000ffffffff
@@ -154,6 +230,6 @@ end -- DRAW()
 -- </TRACKS>
 
 -- <PALETTE>
--- 000:1a1c2cffff0000ae04ffffffffcd75a7f07038b76425717929366f3b5dc941a6f673eff7f4f4f494b0c2566c86333c57
+-- 000:1a1c2c5d275db13e53ef7d57ffcd75a7f07038b76425717929366f3b5dc941a6f673eff7f4f4f494b0c2566c86333c57
 -- </PALETTE>
 
