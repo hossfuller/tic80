@@ -6,7 +6,7 @@
 --[[ TODOs ]]--
 
 -- Add a menu screen to configure paddle size, ball size, and game speed.
--- Add collision detection for the ball and paddles.
+-- Add a way to pause the game.
 -- Add scoring.
 -- Add a way to preserve the score?
 -- Add an option to do one or two players.
@@ -52,9 +52,9 @@ EDGE_Y_BOTTOM = 135
 -- Moving Parts Contraints
 PADDLE_WIDTH   = 4
 PADDLE_HEIGHT  = 24
-BALL_RADIUS    = 3
+BALL_RADIUS    = 20
 BOUNDARY_WIDTH = 2
-GAME_SPEED     = 0.25
+GAME_SPEED     = 1
 
 
 --[[ Base Class: PongObject ]]--
@@ -63,15 +63,24 @@ PongObject.__index = PongObject
 function PongObject:new(params)
     params = params or {}
     local obj = {
-        x     = params.x or 0,
-        y     = params.y or 0,
-        vx    = params.vx or GAME_SPEED,
-        vy    = params.vy or GAME_SPEED,
-        -- vmax  = params.vmax or 2,
-        color = params.color or WHITE,
+        x      = params.x or 0,
+        y      = params.y or 0,
+        vx     = params.vx or GAME_SPEED,
+        vy     = params.vy or GAME_SPEED,
+        width  = params.width or PADDLE_WIDTH,
+        height = params.height or PADDLE_HEIGHT,
+        color  = params.color or WHITE,
     }
     setmetatable(obj, self)
     return obj
+end
+function PongObject:getCollisionBox()
+    return {
+        top    = self.y,
+        bottom = self.y + self.height,
+        left   = self.x,
+        right  = self.x + self.width
+    }
 end
 function PongObject:draw()
     rect(self.x, self.y, self.width, self.height, self.color)
@@ -88,8 +97,6 @@ function PaddleObj:new(params)
     local obj = PongObject.new(self, params)
     setmetatable(obj, self)
     -- PaddleObj-specific properties
-    obj.width      = params.width or PADDLE_WIDTH
-    obj.height     = params.height or PADDLE_HEIGHT
     obj.player     = params.player or 1
     obj.upButton   = P1_UP
     obj.downButton = P1_DOWN
@@ -143,6 +150,14 @@ function BallObj:new(params)
     obj.inPlay = true
     return obj
 end
+function BallObj:getCollisionBox()
+    return {
+        top    = self.y - self.radius,
+        bottom = self.y + self.radius,
+        left   = self.x - self.radius,
+        right  = self.x + self.radius,
+    }
+end
 function BallObj:draw()
     circ(self.x, self.y, self.radius, self.color)
 end
@@ -166,10 +181,12 @@ function BallObj:update()
         self.inPlay = false
     end
     if self.y < (EDGE_Y_TOP + self.radius + 1) then
+        sfx(0)
         self.y = EDGE_Y_TOP + self.radius + 1
         self.vy = - self.vy
     elseif self.y > (EDGE_Y_BOTTOM - (self.radius)) then
-        self.y = math.floor(EDGE_Y_BOTTOM - (2*self.radius))
+        sfx(0)
+        self.y = math.floor(EDGE_Y_BOTTOM - self.radius)
         self.vy = - self.vy
     end
 end
@@ -177,15 +194,16 @@ function BallObj:isInPlay()
     return self.inPlay
 end
 function BallObj:collision(paddle)
-    if self.x < (EDGE_X_LEFT + paddle.width + self.radius) then
-        if self.y > paddle.y and self.y < (paddle.y + paddle.height) then
-            self.vx = - self.vx
-        end
-    end
-    if self.x > (EDGE_X_RIGHT - paddle.width - self.radius) then
-        if self.y > paddle.y and self.y < paddle.y + paddle.height then
-            self.vx = - self.vx
-        end
+    ball_box = self:getCollisionBox()
+    paddle_box = paddle:getCollisionBox()
+    if
+        ball_box['left'] < paddle_box['right']
+        and ball_box['right'] > paddle_box['left']
+        and ball_box['top'] < paddle_box['bottom']
+        and ball_box['bottom'] > paddle_box['top']
+    then
+        sfx(1)
+        self.vx = -self.vx
     end
 end
 
@@ -218,23 +236,21 @@ function TIC()
     --[[ DRAW GAME GRAPHICS ]]--
     DRAW(paddle1, paddle2, ball)
 
--- -- Screen Edges
--- EDGE_X_LEFT   = 0
--- EDGE_X_RIGHT  = 239
--- EDGE_Y_TOP    = 0
--- EDGE_Y_BOTTOM = 135
-
-    if ball.x < EDGE_X_RIGHT/2 then
-        print("ball!", EDGE_X_LEFT+10, EDGE_Y_BOTTOM-28, GREEN_MED)
-    else
-        print("ball!", EDGE_X_LEFT+10, EDGE_Y_BOTTOM-28, BLUE_MED)
-    end
-    print(string.format("paddle1: [%3d,%3d]", paddle1.x, paddle1.y), EDGE_X_LEFT+10, EDGE_Y_BOTTOM-21, YELLOW)
-    print(string.format("paddle2: [%3d,%3d]", paddle2.x, paddle2.y), EDGE_X_LEFT+10, EDGE_Y_BOTTOM-14, YELLOW)
-    print(string.format("ball: [%3.0f,%3.0f]", ball.x, ball.y), EDGE_X_LEFT+10, EDGE_Y_BOTTOM-7, YELLOW)
+    -- if ball.x < EDGE_X_RIGHT/2 then
+    --     print("ball!", EDGE_X_LEFT+10, EDGE_Y_BOTTOM-28, GREEN_MED)
+    -- else
+    --     print("ball!", EDGE_X_LEFT+10, EDGE_Y_BOTTOM-28, BLUE_MED)
+    -- end
+    -- print(string.format("paddle1: [%3d,%3d]", paddle1.x, paddle1.y), EDGE_X_LEFT+10, EDGE_Y_BOTTOM-21, YELLOW)
+    -- print(string.format("paddle2: [%3d,%3d]", paddle2.x, paddle2.y), EDGE_X_LEFT+10, EDGE_Y_BOTTOM-14, YELLOW)
+    -- print(string.format("ball:    [%3.0f,%3.0f]", ball.x, ball.y), EDGE_X_LEFT+10, EDGE_Y_BOTTOM-7, YELLOW)
 
     --[[ CHECK FOR GAME OVER ]]--
     if ball:isInPlay() == false then
+        -- Indicate ball is out of play
+        -- Increment score
+        -- Ask if players are ready to go.
+
         paddle1:reset()
         paddle2:reset()
         ball:reset()
@@ -256,15 +272,9 @@ function UPDATE(paddle1, paddle2, ball)
     paddle2:update()
 
     -- Check for paddle/ball collision.
-    if ball:collision(paddle1) == true then
-        -- If the ball hit paddle 1, then we'll be here.
-    elseif ball:collision(paddle2) == true then
-        -- If the ball hit paddle 2, then we'll be here.
-
-    -- Otherwise the ball is somewhere in the middle
-    else
-        ball:update()
-    end
+    ball:collision(paddle1)
+    ball:collision(paddle2)
+    ball:update()
 end -- UPDATE()
 
 
@@ -298,7 +308,8 @@ end
 -- </WAVES>
 
 -- <SFX>
--- 000:000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000304000000000
+-- 000:00000000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000404000000000
+-- 001:00000000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f00020a000000000
 -- </SFX>
 
 -- <TRACKS>
