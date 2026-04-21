@@ -232,6 +232,8 @@ function SballObj:new(params)
     -- SballObj-specific properties
     obj.radius = params.radius or BALL_RADIUS
 
+    obj.touching_paddle = false
+
     return obj
 end
 
@@ -284,21 +286,45 @@ function SballObj:update()
 end
 
 function SballObj:collision(paddle)
-    ball_box   = self:getCollisionBox()
-    paddle_box = paddle:getCollisionBox()
+    local ball_box   = self:getCollisionBox()
+    local paddle_box = paddle:getCollisionBox()
 
-    if
-        ball_box['left'] < paddle_box['right']
+    local is_colliding = ball_box['left'] < paddle_box['right']
         and ball_box['right'] > paddle_box['left']
         and ball_box['top'] < paddle_box['bottom']
         and ball_box['bottom'] > paddle_box['top']
-    then
-        sfx(1)
-        self.vx = -self.vx
-        paddle:incrementReturns()
+
+    if is_colliding then
+        if self:isTouchingPaddle() == false then
+            sfx(1)
+            self.vx = -self.vx
+
+            -- Push the ball out of the paddle to prevent re-collision
+            if paddle.player == 1 then
+                self.x = paddle_box['right'] + self.radius + 1
+            else
+                self.x = paddle_box['left'] - self.radius - 1
+            end
+
+            self:touchingPaddle()
+            paddle:incrementReturns()
+        end
+    else
+        self:clearOfPaddle()
     end
 end
 
+function SballObj:clearOfPaddle()
+    self.touching_paddle = false
+end
+
+function SballObj:touchingPaddle()
+    self.touching_paddle = true
+end
+
+function SballObj:isTouchingPaddle()
+    return self.touching_paddle
+end
 
 -- [/TQ-Bundler: src.classes.SballObj]
 
@@ -370,7 +396,8 @@ function DRAW()
     -- print_centered_text("P2.player = " .. paddle2.player, 90)
     -- print_centered_text("P2.isInPlay() = " .. tostring(paddle2:isInPlay()), 100)
 
-    -- print_centered_text("Ball.isInPlay() = " .. tostring(ball:isInPlay()), 120)
+    -- print_centered_text("Ball.isInPlay() = " .. tostring(ball:isInPlay()), 110)
+    -- print_centered_text("Ball.isTouchingPaddle() = " .. tostring(ball:isTouchingPaddle()), 120)
 end -- DRAW()
 
 function drawHud(paddle, ball_status)
@@ -385,12 +412,11 @@ function drawHud(paddle, ball_status)
     local score_scale  = 2
     local return_scale = 2
     local score_color  = ORANGE
-    local return_color = GRAY_LITE
+    local return_color = BLUE_LITE
 
     if paddle.player == 2 then
         x_pos = EDGE_X_RIGHT + 1
     end
-    -- rect(x_pos, EDGE_Y_TOP, HUD_WIDTH, EDGE_Y_BOTTOM + 1, GRAY_LITE)
 
     if paddle:isInPlay() == false then
         status_light_spr_id = red_light_spr_id
@@ -411,7 +437,7 @@ function drawHud(paddle, ball_status)
         if paddle:getReturns() > 9 then
             return_scale = 1
         end
-        print(paddle:getReturns(), x_pos + 1, y_pos + 51, return_color + 1, true, return_scale, false)
+        print(paddle:getReturns(), x_pos + 1, y_pos + 51, return_color - 1, true, return_scale, false)
         print(paddle:getReturns(), x_pos, y_pos + 50, return_color, true, return_scale, false)
     end
 end
@@ -485,11 +511,8 @@ function CHECK()
             -- Ball is out of play! Increment score
             if (ball.x + ball.radius) < EDGE_X_LEFT then
                 paddle2:incrementScore()
-                -- paddle2:outOfPlay()
-
             elseif ball.x >= EDGE_X_RIGHT then
                 paddle1:incrementScore()
-                -- paddle1:outOfPlay()
             end
 
             paddle1:reset()

@@ -11,6 +11,8 @@ function SballObj:new(params)
     -- SballObj-specific properties
     obj.radius = params.radius or BALL_RADIUS
 
+    obj.touching_paddle = false
+
     return obj
 end
 
@@ -63,17 +65,42 @@ function SballObj:update()
 end
 
 function SballObj:collision(paddle)
-    ball_box   = self:getCollisionBox()
-    paddle_box = paddle:getCollisionBox()
+    local ball_box   = self:getCollisionBox()
+    local paddle_box = paddle:getCollisionBox()
 
-    if
-        ball_box['left'] < paddle_box['right']
+    local is_colliding = ball_box['left'] < paddle_box['right']
         and ball_box['right'] > paddle_box['left']
         and ball_box['top'] < paddle_box['bottom']
         and ball_box['bottom'] > paddle_box['top']
-    then
-        sfx(1)
-        self.vx = -self.vx
-        paddle:incrementReturns()
+
+    if is_colliding then
+        if self:isTouchingPaddle() == false then
+            sfx(1)
+            self.vx = -self.vx
+
+            -- Push the ball out of the paddle to prevent re-collision
+            if paddle.player == 1 then
+                self.x = paddle_box['right'] + self.radius + 1
+            else
+                self.x = paddle_box['left'] - self.radius - 1
+            end
+
+            self:touchingPaddle()
+            paddle:incrementReturns()
+        end
+    else
+        self:clearOfPaddle()
     end
+end
+
+function SballObj:clearOfPaddle()
+    self.touching_paddle = false
+end
+
+function SballObj:touchingPaddle()
+    self.touching_paddle = true
+end
+
+function SballObj:isTouchingPaddle()
+    return self.touching_paddle
 end

@@ -25,7 +25,8 @@ function DRAW()
     -- print_centered_text("P2.player = " .. paddle2.player, 90)
     -- print_centered_text("P2.isInPlay() = " .. tostring(paddle2:isInPlay()), 100)
 
-    -- print_centered_text("Ball.isInPlay() = " .. tostring(ball:isInPlay()), 120)
+    -- print_centered_text("Ball.isInPlay() = " .. tostring(ball:isInPlay()), 110)
+    -- print_centered_text("Ball.isTouchingPaddle() = " .. tostring(ball:isTouchingPaddle()), 120)
 end -- DRAW()
 
 function drawHud(paddle, ball_status)
@@ -40,12 +41,11 @@ function drawHud(paddle, ball_status)
     local score_scale  = 2
     local return_scale = 2
     local score_color  = ORANGE
-    local return_color = GRAY_LITE
+    local return_color = BLUE_LITE
 
     if paddle.player == 2 then
         x_pos = EDGE_X_RIGHT + 1
     end
-    -- rect(x_pos, EDGE_Y_TOP, HUD_WIDTH, EDGE_Y_BOTTOM + 1, GRAY_LITE)
 
     if paddle:isInPlay() == false then
         status_light_spr_id = red_light_spr_id
@@ -66,7 +66,7 @@ function drawHud(paddle, ball_status)
         if paddle:getReturns() > 9 then
             return_scale = 1
         end
-        print(paddle:getReturns(), x_pos + 1, y_pos + 51, return_color + 1, true, return_scale, false)
+        print(paddle:getReturns(), x_pos + 1, y_pos + 51, return_color - 1, true, return_scale, false)
         print(paddle:getReturns(), x_pos, y_pos + 50, return_color, true, return_scale, false)
     end
 end

@@ -28,11 +28,8 @@ function CHECK()
             -- Ball is out of play! Increment score
             if (ball.x + ball.radius) < EDGE_X_LEFT then
                 paddle2:incrementScore()
-                -- paddle2:outOfPlay()
-
             elseif ball.x >= EDGE_X_RIGHT then
                 paddle1:incrementScore()
-                -- paddle1:outOfPlay()
             end
 
             paddle1:reset()
