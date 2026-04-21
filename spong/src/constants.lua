@@ -29,19 +29,20 @@ P2_LEFT           = 10
 P2_RIGHT          = 11
 
 -- Screen Edges
-EDGE_X_LEFT       = 0
-EDGE_X_RIGHT      = 239
-EDGE_Y_TOP        = 0
-EDGE_Y_BOTTOM     = 135
+HUD_WIDTH     = 12
+EDGE_X_LEFT   = 0   + HUD_WIDTH
+EDGE_X_RIGHT  = 239 - HUD_WIDTH
+EDGE_Y_TOP    = 0
+EDGE_Y_BOTTOM = 135
 
 -- Moving Parts Contraints
-PADDLE_WIDTH      = 4
-PADDLE_HEIGHT     = 24
-BALL_RADIUS       = 10
-BOUNDARY_WIDTH    = 2
+PADDLE_WIDTH   = 4
+PADDLE_HEIGHT  = 24
+BALL_RADIUS    = 3
+BOUNDARY_WIDTH = 2
 
 -- Game Configuration
-GAME_SPEED        = 1
-WINNING_SCORE     = 2
-SHOW_NUM_RETURNS  = true
-ALWAYS_SHOW_SCORE = true
+READY_LIGHT_RADIUS = 4
+GAME_SPEED         = 1
+WINNING_SCORE      = 2
+SHOW_NUM_RETURNS   = true

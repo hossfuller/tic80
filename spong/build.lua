@@ -43,22 +43,23 @@ P2_LEFT           = 10
 P2_RIGHT          = 11
 
 -- Screen Edges
-EDGE_X_LEFT       = 0
-EDGE_X_RIGHT      = 239
-EDGE_Y_TOP        = 0
-EDGE_Y_BOTTOM     = 135
+HUD_WIDTH     = 12
+EDGE_X_LEFT   = 0   + HUD_WIDTH
+EDGE_X_RIGHT  = 239 - HUD_WIDTH
+EDGE_Y_TOP    = 0
+EDGE_Y_BOTTOM = 135
 
 -- Moving Parts Contraints
-PADDLE_WIDTH      = 4
-PADDLE_HEIGHT     = 24
-BALL_RADIUS       = 10
-BOUNDARY_WIDTH    = 2
+PADDLE_WIDTH   = 4
+PADDLE_HEIGHT  = 24
+BALL_RADIUS    = 3
+BOUNDARY_WIDTH = 2
 
 -- Game Configuration
-GAME_SPEED        = 1
-WINNING_SCORE     = 2
-SHOW_NUM_RETURNS  = true
-ALWAYS_SHOW_SCORE = true
+READY_LIGHT_RADIUS = 4
+GAME_SPEED         = 1
+WINNING_SCORE      = 2
+SHOW_NUM_RETURNS   = true
 
 
 -- [/TQ-Bundler: src.constants]
@@ -347,18 +348,12 @@ end -- UPDATE()
 function DRAW()
     cls(BLACK)
 
-    -- Draw the court, which is stationary.
+    --- Draw the court, which is stationary.
     drawCourt()
 
-    -- -- Draw score and other situational information
-    -- -- if ALWAYS_SHOW_SCORE or (
-    -- --     paddle1:isInPlay() == false
-    -- --     or paddle1:isInPlay() == false
-    -- --     or ball:isInPlay() == false
-    -- -- ) then
-    -- --     drawScoreBug()
-    -- -- end
-    -- drawScoreBug()
+    -- Draw the HUD for each user.
+    drawHud(paddle1, ball:isInPlay())
+    drawHud(paddle2, ball:isInPlay())
 
     -- Draw the moving elements.
     paddle1:draw()
@@ -368,15 +363,58 @@ function DRAW()
     -- print_centered_text("P1.x = " .. paddle1.x, 20)
     -- print_centered_text("P1.y = " .. paddle1.y, 30)
     -- print_centered_text("P1.player = " .. paddle1.player, 40)
-    print_centered_text("P1.isInPlay() = " .. tostring(paddle1:isInPlay()), 50)
+    -- print_centered_text("P1.isInPlay() = " .. tostring(paddle1:isInPlay()), 50)
 
     -- print_centered_text("P2.x = " .. paddle2.x, 70)
     -- print_centered_text("P2.y = " .. paddle2.y, 80)
     -- print_centered_text("P2.player = " .. paddle2.player, 90)
-    print_centered_text("P2.isInPlay() = " .. tostring(paddle2:isInPlay()), 100)
+    -- print_centered_text("P2.isInPlay() = " .. tostring(paddle2:isInPlay()), 100)
 
-    print_centered_text("Ball.isInPlay() = " .. tostring(ball:isInPlay()), 120)
+    -- print_centered_text("Ball.isInPlay() = " .. tostring(ball:isInPlay()), 120)
 end -- DRAW()
+
+function drawHud(paddle, ball_status)
+    local x_pos = EDGE_X_LEFT - HUD_WIDTH
+    local y_pos = EDGE_Y_TOP + BOUNDARY_WIDTH
+
+    local red_light_spr_id    = 257
+    local yellow_light_spr_id = 259
+    local green_light_spr_id  = 261
+    local status_light_spr_id = 0
+
+    local score_scale  = 2
+    local return_scale = 2
+    local score_color  = ORANGE
+    local return_color = GRAY_LITE
+
+    if paddle.player == 2 then
+        x_pos = EDGE_X_RIGHT + 1
+    end
+    -- rect(x_pos, EDGE_Y_TOP, HUD_WIDTH, EDGE_Y_BOTTOM + 1, GRAY_LITE)
+
+    if paddle:isInPlay() == false then
+        status_light_spr_id = red_light_spr_id
+    elseif paddle:isInPlay() == true and ball_status == false then
+        status_light_spr_id = yellow_light_spr_id
+    elseif paddle:isInPlay() == true and ball_status == true then
+        status_light_spr_id = green_light_spr_id
+    end
+    spr(status_light_spr_id, x_pos, y_pos, 0, 1, 0, 0, 2, 4)
+
+    if paddle:getScore() > 9 then
+        score_scale = 1
+    end
+    print(paddle:getScore(), x_pos + 1, y_pos + 36, score_color + 1, true, score_scale, false)
+    print(paddle:getScore(), x_pos, y_pos + 35, score_color, true, score_scale, false)
+
+    if SHOW_NUM_RETURNS then
+        if paddle:getReturns() > 9 then
+            return_scale = 1
+        end
+        print(paddle:getReturns(), x_pos + 1, y_pos + 51, return_color + 1, true, return_scale, false)
+        print(paddle:getReturns(), x_pos, y_pos + 50, return_color, true, return_scale, false)
+    end
+end
 
 function drawCourt()
     -- Net
@@ -388,17 +426,7 @@ function drawCourt()
     line(EDGE_X_LEFT, EDGE_Y_BOTTOM, EDGE_X_RIGHT - 1, EDGE_Y_BOTTOM, YELLOW)
 end
 
--- function drawScoreBug()
---     local score_line = string.format("%d - %d", paddle1:getScore(), paddle2:getScore())
---     print_centered_text(score_line, BOUNDARY_WIDTH + 2, BLUE_LITE, true, 2)
-
---     if SHOW_NUM_RETURNS then
---         local returns_line = string.format("%d   %d", paddle1:getReturns(), paddle2:getReturns())
---         print_centered_text(returns_line, EDGE_Y_BOTTOM - 9, GRAY_LITE, true, 1)
---     end
--- end
-
-function print_centered_text(message, height, color, shadow, scale)
+function print_centered_text(message, height, color, shadow, fixed, scale)
     if height == nil then
         height = math.floor(EDGE_Y_BOTTOM/2)
     end
@@ -408,15 +436,18 @@ function print_centered_text(message, height, color, shadow, scale)
     if shadow == nil then
         shadow = false
     end
+    if fixed == nil then
+        fixed = true
+    end
     if scale == nil then
         scale = 1
     end
-    local message_width = print(message, 0, -40, color, true, scale)
+    local message_width = print(message, 0, -40, color, fixed, scale)
     local x_pos = ((EDGE_X_RIGHT - message_width) / 2) + 2
     if shadow then
-        print(message, x_pos + 1, height + 1, color + 1, true, scale)
+        print(message, x_pos + 1, height + 1, color + 1, fixed, scale)
     end
-    print(message, x_pos, height, color, true, scale)
+    print(message, x_pos, height, color, fixed, scale)
 end
 
 
@@ -427,29 +458,20 @@ end
 --[[ CHECK FOR GAME STOPPAGES ]]--
 
 function CHECK()
-
-    -- -- -- There's some sort of game stoppage (someone scored or the game is paused.)
-    -- -- if paddle1:isInPlay() == false and paddle1:isInPlay() == false then
-    -- --     print_centered_text("READY?", math.floor(EDGE_Y_BOTTOM/2), ORANGE, true, 3)
-
-    -- -- elseif paddle1:isInPlay() == true and paddle1:isInPlay() == false then
-    -- --     print_centered_text("READY?", math.floor(EDGE_Y_BOTTOM / 2), ORANGE, true, 3)
-    -- --     print("YES!", EDGE_X_LEFT + 2, BOUNDARY_WIDTH + 2, ORANGE, true, 2)
-
-    -- -- elseif paddle1:isInPlay() == false and paddle1:isInPlay() == true then
-    -- --     print_centered_text("READY?", math.floor(EDGE_Y_BOTTOM / 2), ORANGE, true, 3)
-    -- --     local p2_ready_width = print("YES!", EDGE_X_LEFT + 2, -20, ORANGE, true, 2)
-    -- --     print("YES!", EDGE_X_RIGHT - p2_ready_width, BOUNDARY_WIDTH + 2, ORANGE, true, 2)
-
-    -- --     -- The ball has gone out of play....
-    -- -- elseif
+    
+    -- Check if somebody's score == the WINNING_SCORE
+    if paddle1:getScore() == WINNING_SCORE then
+        GAME_OVER(paddle1)
+    elseif paddle2:getScore() == WINNING_SCORE then
+        GAME_OVER(paddle2)
 
     -- There's some sort of game stoppage (someone scored or the game is paused.)
-    if
+    elseif
         paddle1:isInPlay() == false
         or paddle2:isInPlay() == false
     then
-        print_centered_text("READY?", math.floor(EDGE_Y_BOTTOM/2), ORANGE, true, 3)
+        print_centered_text("READY?", math.floor(EDGE_Y_BOTTOM/2), ORANGE, true, true, 3)
+        print_centered_text("PRESS LEFT TO BEGIN", math.floor(EDGE_Y_BOTTOM/2 + 28), BLUE_LITE, false, false, 1)
 
     -- Both players are ready but the ball has gone out of bounds.
     elseif
@@ -459,30 +481,20 @@ function CHECK()
         
         if ball:isInPlay() == true then
             -- Ball is in play!
-
         else
-            -- Ball is out of play!
+            -- Ball is out of play! Increment score
+            if (ball.x + ball.radius) < EDGE_X_LEFT then
+                paddle2:incrementScore()
+                -- paddle2:outOfPlay()
 
-    --     -- Increment score
-    --     if (ball.x + ball.radius) < EDGE_X_LEFT then
-    --         paddle2:incrementScore()
-    --         -- paddle2:outOfPlay()
+            elseif ball.x >= EDGE_X_RIGHT then
+                paddle1:incrementScore()
+                -- paddle1:outOfPlay()
+            end
 
-    --     elseif ball.x >= EDGE_X_RIGHT then
-    --         paddle1:incrementScore()
-    --         -- paddle1:outOfPlay()
-    --     end
-
-    --     -- Check if somebody's score == the WINNING_SCORE
-    --     if paddle1:getScore() == WINNING_SCORE then
-    --         GAME_OVER(paddle1)
-    --     elseif paddle2:getScore() == WINNING_SCORE then
-    --         GAME_OVER(paddle2)
-    --     else
             paddle1:reset()
             paddle2:reset()
             ball:reset()
-    --     end
         end
 
     -- Everybody is playing, nothing new has happened.
@@ -496,10 +508,12 @@ function CHECK()
 end -- CHECK()
 
 
--- function GAME_OVER(winning_paddle)
---     local winning_message = string.format("PLAYER [%d] WINS!", winning_paddle.player)
---     print_centered_text(winning_message, EDGE_Y_BOTTOM/2, ORANGE, true, 3)
--- end
+function GAME_OVER(winning_paddle)
+    local winning_message = string.format("PLAYER %d WINS!", winning_paddle.player)
+    print_centered_text(winning_message, EDGE_Y_BOTTOM/2, ORANGE, true, false, 2)
+
+    INIT()
+end
 
 
 -- [/TQ-Bundler: src.check]
