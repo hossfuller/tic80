@@ -14,6 +14,9 @@ function SpongObj:new(params)
         height  = params.height or PADDLE_HEIGHT,
         color   = params.color or WHITE,
         play_on = false,
+
+        enable_speed_up = params.enable_speed_up or ENABLE_SPEED_BOOST,
+        speed_booster   = params.speed_booster or SPEED_BOOSTER,
     }
     setmetatable(obj, self)
 
@@ -31,6 +34,22 @@ function SpongObj:getCollisionBox()
         left   = self.x,
         right  = self.x + self.width
     }
+end
+
+
+function SpongObj:speedUp()
+    if self.enable_speed_up then
+        if self.vx < 0 then
+            self.vx = self.vx - self.speed_booster
+        else
+            self.vx = self.vx + self.speed_booster
+        end
+        if self.vy < 0 then
+            self.vy = self.vy - self.speed_booster
+        else
+            self.vy = self.vy + self.speed_booster
+        end
+    end
 end
 
 function SpongObj:reset(x, y)

@@ -43,23 +43,43 @@ P2_LEFT           = 10
 P2_RIGHT          = 11
 
 -- Screen Edges
-HUD_WIDTH     = 12
-EDGE_X_LEFT   = 0   + HUD_WIDTH
-EDGE_X_RIGHT  = 239 - HUD_WIDTH
-EDGE_Y_TOP    = 0
-EDGE_Y_BOTTOM = 135
+BOUNDARY_WIDTH = 2
+HUD_WIDTH      = 12
+EDGE_X_LEFT    = 0   + HUD_WIDTH
+EDGE_X_RIGHT   = 239 - HUD_WIDTH
+EDGE_Y_TOP     = 0
+EDGE_Y_BOTTOM  = 135
 
 -- Moving Parts Contraints
-PADDLE_WIDTH   = 4
-PADDLE_HEIGHT  = 24
-BALL_RADIUS    = 3
-BOUNDARY_WIDTH = 2
+PADDLE_WIDTH     = 4
+PADDLE_HEIGHT    = 24
+BALL_RADIUS      = 3
+GAME_SPEED       = 1
+SPEED_BOOSTER    = 0.25
+RETURN_THRESHOLD = 5
 
 -- Game Configuration
-READY_LIGHT_RADIUS = 4
-GAME_SPEED         = 1
-WINNING_SCORE      = 2
+WINNING_SCORE      = 10
 SHOW_NUM_RETURNS   = true
+ENABLE_SPEED_BOOST = true
+
+
+--[[ TODO LIST ]]--
+
+-- TODO: How do I automatically change the keymapping upon loading?
+-- TODO: Rewrite the boot section once we know how to create start and menu screens.
+-- TODO: Menu screen lets user configure Moving Parts Contraints and Game Configuration settings.
+-- TODO: Figure out how to do game over stuff. Send back to start screen?
+
+-- TODO: Add a way to pause the game.
+-- TODO: Do power ups!
+-- TODO: Should we be able to move the paddles along the x-axis?
+-- TODO: Win by 2?
+
+-- TODO: Add a way to preserve the score?
+-- TODO: Add an option to do one or two players.
+-- TODO: Add computer player 2 logic.
+
 
 
 -- [/TQ-Bundler: src.constants]
@@ -82,6 +102,9 @@ function SpongObj:new(params)
         height  = params.height or PADDLE_HEIGHT,
         color   = params.color or WHITE,
         play_on = false,
+
+        enable_speed_up = params.enable_speed_up or ENABLE_SPEED_BOOST,
+        speed_booster   = params.speed_booster or SPEED_BOOSTER,
     }
     setmetatable(obj, self)
 
@@ -99,6 +122,22 @@ function SpongObj:getCollisionBox()
         left   = self.x,
         right  = self.x + self.width
     }
+end
+
+
+function SpongObj:speedUp()
+    if self.enable_speed_up then
+        if self.vx < 0 then
+            self.vx = self.vx - self.speed_booster
+        else
+            self.vx = self.vx + self.speed_booster
+        end
+        if self.vy < 0 then
+            self.vy = self.vy - self.speed_booster
+        else
+            self.vy = self.vy + self.speed_booster
+        end
+    end
 end
 
 function SpongObj:reset(x, y)
@@ -231,7 +270,6 @@ function SballObj:new(params)
 
     -- SballObj-specific properties
     obj.radius = params.radius or BALL_RADIUS
-
     obj.touching_paddle = false
 
     return obj
@@ -308,6 +346,12 @@ function SballObj:collision(paddle)
 
             self:touchingPaddle()
             paddle:incrementReturns()
+
+            -- Speed up if that's where we're at.
+            if (paddle:getReturns() > 0) and (paddle1:getReturns() % RETURN_THRESHOLD) == 0 then
+                ball:speedUp()
+                paddle:speedUp()
+            end
         end
     else
         self:clearOfPaddle()

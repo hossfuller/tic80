@@ -10,7 +10,6 @@ function SballObj:new(params)
 
     -- SballObj-specific properties
     obj.radius = params.radius or BALL_RADIUS
-
     obj.touching_paddle = false
 
     return obj
@@ -87,6 +86,12 @@ function SballObj:collision(paddle)
 
             self:touchingPaddle()
             paddle:incrementReturns()
+
+            -- Speed up if that's where we're at.
+            if (paddle:getReturns() > 0) and (paddle1:getReturns() % RETURN_THRESHOLD) == 0 then
+                ball:speedUp()
+                paddle:speedUp()
+            end
         end
     else
         self:clearOfPaddle()
