@@ -30,15 +30,15 @@ P2_RIGHT          = 11
 
 -- Screen Edges
 EDGE_X_LEFT       = 0
-EDGE_X_RIGHT      = 240
+EDGE_X_RIGHT      = 239
 EDGE_Y_TOP        = 0
 EDGE_Y_BOTTOM     = 135
 
 -- Moving Parts Contraints
 PADDLE_WIDTH      = 4
 PADDLE_HEIGHT     = 24
-BALL_RADIUS       = 30
-BOUNDARY_WIDTH    = 5
+BALL_RADIUS       = 10
+BOUNDARY_WIDTH    = 2
 
 -- Game Configuration
 GAME_SPEED        = 1

@@ -1,32 +1,54 @@
--- title:  game title
--- author: game developer
--- desc:   short description
--- script: lua
+-- title:   SPong (Son of Pong)
+-- author:  Adam Fuller <the.adam.fuller@gmail.com>
+-- version: 0.2
+-- script:  lua
 
-
--- -- Lua syntax
--- include "macros"      -- will look for ./macros.lua
--- include "tools.utils" -- ./tools/utils.lua
 
 --[[ INCLUDES ]]--
 include "src.constants"
 include "src.classes.SpongObj"
+include "src.classes.SpaddleObj"
+include "src.classes.SballObj"
+
+include "src.input"
+include "src.update"
+include "src.draw"
+include "src.check"
 
 
 
-t=0
-x=96
-y=24
+--[[ INITIALIZATION ]]--
+
+-- Create objects
+paddle1 = SpaddleObj:new({player = 1})
+paddle2 = SpaddleObj:new({player = 2})
+ball    = SballObj:new()
+
+-- TODO: How do I automatically change the keymapping upon loading?
+function BOOT()
+end
+
+function INIT()
+    paddle1:reset()
+    paddle2:reset()
+    ball:reset()
+end
+
+INIT()
+
+
+--[[ GAME LOOP ]]--
 
 function TIC()
+    --[[ CHECK FOR USER INPUT ]]--
+    INPUT()
 
-	if btn(0) then y=y-1 end
-	if btn(1) then y=y+1 end
-	if btn(2) then x=x-1 end
-	if btn(3) then x=x+1 end
+    --[[ UPDATE GAME DATA ]]--
+    UPDATE()
 
-	cls(13)
-	spr(1+t%60//30*2,x,y,14,3,0,0,2,2)
-	print("HELLO WORLD!",84,84)
-	t=t+1
-end
+    --[[ DRAW GAME GRAPHICS ]]--
+    DRAW()
+
+    --[[ CHECK FOR GAME STOPPAGES ]]--
+    CHECK()
+end --TIC
