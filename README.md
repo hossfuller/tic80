@@ -6,7 +6,9 @@ A collection of TIC-80 experiments.
 1. [Developing with VS Code](#developing_with_vscode)
     1. [Accessing TIC-80 Files](#accessing_tic80_files)
     1. [The Development Workflow](#the_development_workflow)
+    1. [TQ-Bundler](#tq-bundler)
 1. [Interesting/Useful Tutorials](#interesting_useful_tutorials)
+
 
 <!-- --------------------------------------------------------------------------- -->
 
@@ -173,6 +175,18 @@ That's it. Make all changes to the `lua` files in VS Code, saving them there as 
 test-project>save test-project
 cart test-project.tic saved!
 ```
+
+
+<!-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ -->
+
+
+<div id='tq-bundler' />
+
+#### TQ-Bundler
+
+[TQ-Bundler](https://github.com/scambier/TQ-Bundler) is an application for bundling multiple files into a single cartridge for playing. TIC-80 only supports using a single file for all code, sprites, sfx, and music. The `tq-bundler.exe` binary in this repository allows the easy setup and compilation of projects that use multiple files.
+
+
 
 
 <!-- --------------------------------------------------------------------------- -->
