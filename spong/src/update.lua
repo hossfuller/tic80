@@ -7,6 +7,7 @@ function UPDATE()
         and paddle2:isInPlay()
         and ball:isInPlay() == false
     then
+        sfx(5)
         ball:inPlay()
     end
 

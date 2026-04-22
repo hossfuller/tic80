@@ -45,20 +45,13 @@ SPEED_BOOSTER    = 0.25
 RETURN_THRESHOLD = 5
 
 -- Game Configuration
-WINNING_SCORE      = 10
-SHOW_NUM_RETURNS   = true
-ENABLE_SPEED_BOOST = true
+CURRENT_SERVE_PLAYER = 1
+WINNING_SCORE        = 10
+SHOW_NUM_RETURNS     = true
+ENABLE_SPEED_BOOST   = true
 
 
 --[[ TODO LIST ]]--
-
--- TODO: Add sound effect for when ball initially launches.
--- TODO: Globally track who the serving player is, and make it so that if they
---       score, they get to "serve".
--- TODO: Change "serve" by having the ball start on a paddle that the user can
---       move up and down and then launch.
--- TODO: When a player is serving, they should be able to change the initial
---       y-direction of the ball.
 
 -- TODO: How do I automatically change the keymapping upon loading?
 -- TODO: Rewrite the boot section once we know how to create start and menu screens.

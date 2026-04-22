@@ -59,9 +59,10 @@ SPEED_BOOSTER    = 0.25
 RETURN_THRESHOLD = 5
 
 -- Game Configuration
-WINNING_SCORE      = 10
-SHOW_NUM_RETURNS   = true
-ENABLE_SPEED_BOOST = true
+CURRENT_SERVE_PLAYER = 1
+WINNING_SCORE        = 10
+SHOW_NUM_RETURNS     = true
+ENABLE_SPEED_BOOST   = true
 
 
 --[[ TODO LIST ]]--
@@ -247,6 +248,7 @@ end
 
 function SpaddleObj:incrementScore()
     self.score = self.score + 1
+    CURRENT_SERVE_PLAYER = self.player
 end
 
 function SpaddleObj:resetScore()
@@ -271,12 +273,47 @@ function SballObj:new(params)
     -- SballObj-specific properties
     obj.radius = params.radius or BALL_RADIUS
     obj.touching_paddle = false
+    obj.serve_direction_x = 1  -- serve the ball right
+    obj.serve_direction_y = 1  -- serve the ball down
 
     return obj
 end
 
 function SballObj:draw()
     circ(self.x, self.y, self.radius, self.color)
+
+    -- Draw the serve direction if the ball is out of play.
+    if self:isInPlay() == false then
+        local serve_dir_arrow_spr_id = 263
+        local serve_dir_arrow_x = self.x - self.radius - 1
+        local serve_dir_arrow_y = self.y + 1
+        local serve_dir_arrow_flip = 0
+        local serve_dir_arrow_rotate = 0
+
+        if self.vx > 0 and self.vy < 0 then -- pointing right and up
+            serve_dir_arrow_x = serve_dir_arrow_x + 1 
+            serve_dir_arrow_y = serve_dir_arrow_y - 2*self.radius - 3
+        elseif self.vx > 0 and self.vy > 0 then -- pointing right and down
+            serve_dir_arrow_rotate = 2
+        elseif self.vx < 0 and self.vy > 0 then -- pointing left and up
+            serve_dir_arrow_x = serve_dir_arrow_x + 1 
+            serve_dir_arrow_y = serve_dir_arrow_y - 2*self.radius - 3
+        elseif self.vx < 0 and self.vy < 0 then -- pointing left and down
+            -- serve_dir_arrow_x = serve_dir_arrow_x - self.radius
+            serve_dir_arrow_rotate = 2
+        end
+
+        spr(
+            serve_dir_arrow_spr_id, 
+            serve_dir_arrow_x, 
+            serve_dir_arrow_y, 
+            0, -- colorkey
+            1, -- scale
+            serve_dir_arrow_flip, 
+            serve_dir_arrow_rotate, 
+            1, 1 -- width and height
+        )
+    end
 end
 
 function SballObj:getCollisionBox()
@@ -288,15 +325,47 @@ function SballObj:getCollisionBox()
     }
 end
 
-function SballObj:reset(x, y)
-    self.x      = x or math.floor(EDGE_X_RIGHT/2)
-    self.y      = y or math.floor(EDGE_Y_BOTTOM/2)
+function SballObj:input()
+    if (
+        (CURRENT_SERVE_PLAYER == 1 and btnp(P1_RIGHT))
+        or (CURRENT_SERVE_PLAYER == 2 and btnp(P2_RIGHT))
+    ) then
+        if self.serve_direction_y > 0 then
+            self.serve_direction_y = -1 -- serve the ball up
+            sfx(3)
+        else
+            self.serve_direction_y = 1 -- serve the ball down
+            sfx(4)
+        end
+    end
+end
 
-    -- Get the ball moving in a random direction.
-    local ball_direction_x = (math.random() < 0.5) and 1 or -1
-    local ball_direction_y = (math.random() < 0.5) and 1 or -1
-    self.vx = ball_direction_x * GAME_SPEED
-    self.vy = ball_direction_y * GAME_SPEED
+function SballObj:preServe(paddle)
+    local serving_x = EDGE_X_LEFT + PADDLE_WIDTH + self.radius + 2
+    local serving_y = paddle.y + math.floor(paddle.height / 2)
+
+    if paddle.player == 2 then
+        serving_x = EDGE_X_RIGHT - PADDLE_WIDTH - self.radius - 3
+    end
+
+    self:reset(serving_x, serving_y)
+end
+
+function SballObj:reset(x, y)
+    self.x = x or EDGE_X_LEFT + PADDLE_WIDTH + self.radius + 2
+    self.y = y or math.floor(EDGE_Y_BOTTOM / 2)
+    if CURRENT_SERVE_PLAYER == 2 then
+        self.x = x or EDGE_X_RIGHT - PADDLE_WIDTH - self.radius - 3
+    end
+
+    if CURRENT_SERVE_PLAYER == 1 then
+        self.serve_direction_x = 1
+    else 
+        self.serve_direction_x = -1
+    end
+
+    self.vx = self.serve_direction_x * GAME_SPEED
+    self.vy = self.serve_direction_y * GAME_SPEED
 
     self:outOfPlay()
 end
@@ -379,6 +448,7 @@ end
 function INPUT()
     paddle1:input()
     paddle2:input()
+    ball:input()
 end -- INPUT()
 
 
@@ -395,6 +465,7 @@ function UPDATE()
         and paddle2:isInPlay()
         and ball:isInPlay() == false
     then
+        sfx(5)
         ball:inPlay()
     end
 
@@ -543,6 +614,13 @@ function CHECK()
         print_centered_text("READY?", math.floor(EDGE_Y_BOTTOM/2), ORANGE, true, true, 3)
         print_centered_text("PRESS LEFT TO BEGIN", math.floor(EDGE_Y_BOTTOM/2 + 28), BLUE_LITE, false, false, 1)
 
+        -- Serving player can move up and down with the ball with this wrapper
+        -- method for ball:reset().
+        if CURRENT_SERVE_PLAYER == 1 then
+            ball:preServe(paddle1)
+        else
+            ball:preServe(paddle2)
+        end
     -- Both players are ready but the ball has gone out of bounds.
     elseif
         paddle1:isInPlay() == true

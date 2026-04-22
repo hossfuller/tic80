@@ -43,24 +43,50 @@ P2_LEFT           = 10
 P2_RIGHT          = 11
 
 -- Screen Edges
-HUD_WIDTH     = 10
-EDGE_X_LEFT   = 0   + HUD_WIDTH
-EDGE_X_RIGHT  = 239 - HUD_WIDTH
-EDGE_Y_TOP    = 0
-EDGE_Y_BOTTOM = 135
+BOUNDARY_WIDTH = 2
+HUD_WIDTH      = 12
+EDGE_X_LEFT    = 0   + HUD_WIDTH
+EDGE_X_RIGHT   = 239 - HUD_WIDTH
+EDGE_Y_TOP     = 0
+EDGE_Y_BOTTOM  = 135
 
 -- Moving Parts Contraints
-PADDLE_WIDTH   = 4
-PADDLE_HEIGHT  = 24
-BALL_RADIUS    = 10
-BOUNDARY_WIDTH = 2
+PADDLE_WIDTH     = 4
+PADDLE_HEIGHT    = 24
+BALL_RADIUS      = 3
+GAME_SPEED       = 1
+SPEED_BOOSTER    = 0.25
+RETURN_THRESHOLD = 5
 
 -- Game Configuration
-READY_LIGHT_RADIUS = 4
-GAME_SPEED         = 1
-WINNING_SCORE      = 2
-SHOW_NUM_RETURNS   = true
-ALWAYS_SHOW_SCORE  = true
+CURRENT_SERVE_PLAYER = 1
+WINNING_SCORE        = 10
+SHOW_NUM_RETURNS     = true
+ENABLE_SPEED_BOOST   = true
+
+
+--[[ TODO LIST ]]--
+
+-- TODO: Add sound effect for when ball initially launches.
+-- TODO: Change "serve" by having the ball start on a paddle that the user can
+--       move up and down and then launch.
+-- TODO: When a player is serving, they should be able to change the initial
+--       y-direction of the ball.
+
+-- TODO: How do I automatically change the keymapping upon loading?
+-- TODO: Rewrite the boot section once we know how to create start and menu screens.
+-- TODO: Menu screen lets user configure Moving Parts Contraints and Game Configuration settings.
+-- TODO: Figure out how to do game over stuff. Send back to start screen?
+
+-- TODO: Add a way to pause the game.
+-- TODO: Do power ups!
+-- TODO: Should we be able to move the paddles along the x-axis?
+-- TODO: Win by 2?
+
+-- TODO: Add a way to preserve the score?
+-- TODO: Add an option to do one or two players.
+-- TODO: Add computer player 2 logic.
+
 
 
 -- [/TQ-Bundler: src.constants]
@@ -83,6 +109,9 @@ function SpongObj:new(params)
         height  = params.height or PADDLE_HEIGHT,
         color   = params.color or WHITE,
         play_on = false,
+
+        enable_speed_up = params.enable_speed_up or ENABLE_SPEED_BOOST,
+        speed_booster   = params.speed_booster or SPEED_BOOSTER,
     }
     setmetatable(obj, self)
 
@@ -100,6 +129,22 @@ function SpongObj:getCollisionBox()
         left   = self.x,
         right  = self.x + self.width
     }
+end
+
+
+function SpongObj:speedUp()
+    if self.enable_speed_up then
+        if self.vx < 0 then
+            self.vx = self.vx - self.speed_booster
+        else
+            self.vx = self.vx + self.speed_booster
+        end
+        if self.vy < 0 then
+            self.vy = self.vy - self.speed_booster
+        else
+            self.vy = self.vy + self.speed_booster
+        end
+    end
 end
 
 function SpongObj:reset(x, y)
@@ -209,6 +254,7 @@ end
 
 function SpaddleObj:incrementScore()
     self.score = self.score + 1
+    CURRENT_SERVE_PLAYER = self.player
 end
 
 function SpaddleObj:resetScore()
@@ -232,12 +278,48 @@ function SballObj:new(params)
 
     -- SballObj-specific properties
     obj.radius = params.radius or BALL_RADIUS
+    obj.touching_paddle = false
+    obj.serve_direction_x = 1  -- serve the ball right
+    obj.serve_direction_y = 1  -- serve the ball down
 
     return obj
 end
 
 function SballObj:draw()
     circ(self.x, self.y, self.radius, self.color)
+
+    -- Draw the serve direction if the ball is out of play.
+    if self:isInPlay() == false then
+        local serve_dir_arrow_spr_id = 263
+        local serve_dir_arrow_x = self.x - self.radius - 1
+        local serve_dir_arrow_y = self.y + 1
+        local serve_dir_arrow_flip = 0
+        local serve_dir_arrow_rotate = 0
+
+        if self.vx > 0 and self.vy < 0 then -- pointing right and up
+            serve_dir_arrow_x = serve_dir_arrow_x + 1 
+            serve_dir_arrow_y = serve_dir_arrow_y - 2*self.radius - 3
+        elseif self.vx > 0 and self.vy > 0 then -- pointing right and down
+            serve_dir_arrow_rotate = 2
+        elseif self.vx < 0 and self.vy > 0 then -- pointing left and up
+            serve_dir_arrow_x = serve_dir_arrow_x + 1 
+            serve_dir_arrow_y = serve_dir_arrow_y - 2*self.radius - 3
+        elseif self.vx < 0 and self.vy < 0 then -- pointing left and down
+            -- serve_dir_arrow_x = serve_dir_arrow_x - self.radius
+            serve_dir_arrow_rotate = 2
+        end
+
+        spr(
+            serve_dir_arrow_spr_id, 
+            serve_dir_arrow_x, 
+            serve_dir_arrow_y, 
+            0, -- colorkey
+            1, -- scale
+            serve_dir_arrow_flip, 
+            serve_dir_arrow_rotate, 
+            1, 1 -- width and height
+        )
+    end
 end
 
 function SballObj:getCollisionBox()
@@ -249,15 +331,47 @@ function SballObj:getCollisionBox()
     }
 end
 
-function SballObj:reset(x, y)
-    self.x      = x or math.floor(EDGE_X_RIGHT/2)
-    self.y      = y or math.floor(EDGE_Y_BOTTOM/2)
+function SballObj:input()
+    if (
+        (CURRENT_SERVE_PLAYER == 1 and btnp(P1_RIGHT))
+        or (CURRENT_SERVE_PLAYER == 2 and btnp(P2_RIGHT))
+    ) then
+        if self.serve_direction_y > 0 then
+            self.serve_direction_y = -1 -- serve the ball up
+            sfx(3)
+        else
+            self.serve_direction_y = 1 -- serve the ball down
+            sfx(4)
+        end
+    end
+end
 
-    -- Get the ball moving in a random direction.
-    local ball_direction_x = (math.random() < 0.5) and 1 or -1
-    local ball_direction_y = (math.random() < 0.5) and 1 or -1
-    self.vx = ball_direction_x * GAME_SPEED
-    self.vy = ball_direction_y * GAME_SPEED
+function SballObj:preServe(paddle)
+    local serving_x = EDGE_X_LEFT + PADDLE_WIDTH + self.radius + 2
+    local serving_y = paddle.y + math.floor(paddle.height / 2)
+
+    if paddle.player == 2 then
+        serving_x = EDGE_X_RIGHT - PADDLE_WIDTH - self.radius - 3
+    end
+
+    self:reset(serving_x, serving_y)
+end
+
+function SballObj:reset(x, y)
+    self.x = x or EDGE_X_LEFT + PADDLE_WIDTH + self.radius + 2
+    self.y = y or math.floor(EDGE_Y_BOTTOM / 2)
+    if CURRENT_SERVE_PLAYER == 2 then
+        self.x = x or EDGE_X_RIGHT - PADDLE_WIDTH - self.radius - 3
+    end
+
+    if CURRENT_SERVE_PLAYER == 1 then
+        self.serve_direction_x = 1
+    else 
+        self.serve_direction_x = -1
+    end
+
+    self.vx = self.serve_direction_x * GAME_SPEED
+    self.vy = self.serve_direction_y * GAME_SPEED
 
     self:outOfPlay()
 end
@@ -285,21 +399,51 @@ function SballObj:update()
 end
 
 function SballObj:collision(paddle)
-    ball_box   = self:getCollisionBox()
-    paddle_box = paddle:getCollisionBox()
+    local ball_box   = self:getCollisionBox()
+    local paddle_box = paddle:getCollisionBox()
 
-    if
-        ball_box['left'] < paddle_box['right']
+    local is_colliding = ball_box['left'] < paddle_box['right']
         and ball_box['right'] > paddle_box['left']
         and ball_box['top'] < paddle_box['bottom']
         and ball_box['bottom'] > paddle_box['top']
-    then
-        sfx(1)
-        self.vx = -self.vx
-        paddle:incrementReturns()
+
+    if is_colliding then
+        if self:isTouchingPaddle() == false then
+            sfx(1)
+            self.vx = -self.vx
+
+            -- Push the ball out of the paddle to prevent re-collision
+            if paddle.player == 1 then
+                self.x = paddle_box['right'] + self.radius + 1
+            else
+                self.x = paddle_box['left'] - self.radius - 1
+            end
+
+            self:touchingPaddle()
+            paddle:incrementReturns()
+
+            -- Speed up if that's where we're at.
+            if (paddle:getReturns() > 0) and (paddle1:getReturns() % RETURN_THRESHOLD) == 0 then
+                ball:speedUp()
+                paddle:speedUp()
+            end
+        end
+    else
+        self:clearOfPaddle()
     end
 end
 
+function SballObj:clearOfPaddle()
+    self.touching_paddle = false
+end
+
+function SballObj:touchingPaddle()
+    self.touching_paddle = true
+end
+
+function SballObj:isTouchingPaddle()
+    return self.touching_paddle
+end
 
 -- [/TQ-Bundler: src.classes.SballObj]
 
@@ -310,6 +454,7 @@ end
 function INPUT()
     paddle1:input()
     paddle2:input()
+    ball:input()
 end -- INPUT()
 
 
@@ -349,29 +494,17 @@ end -- UPDATE()
 function DRAW()
     cls(BLACK)
 
-    -- Draw the court, which is stationary.
+    --- Draw the court, which is stationary.
     drawCourt()
 
-    -- draw the HUD for each user.
-    -- drawHud(paddle1, ball:isInPlay())
-    -- drawHud(paddle2, ball:isInPlay())
+    -- Draw the HUD for each user.
+    drawHud(paddle1, ball:isInPlay())
+    drawHud(paddle2, ball:isInPlay())
 
-    spr(257, 10, 10, 0, 0, 0, 0, 2, 4)
-
-    -- -- Draw score and other situational information
-    -- -- if ALWAYS_SHOW_SCORE or (
-    -- --     paddle1:isInPlay() == false
-    -- --     or paddle1:isInPlay() == false
-    -- --     or ball:isInPlay() == false
-    -- -- ) then
-    -- --     drawScoreBug()
-    -- -- end
-    -- drawScoreBug()
-
-    -- -- Draw the moving elements.
-    -- paddle1:draw()
-    -- paddle2:draw()
-    -- ball:draw()
+    -- Draw the moving elements.
+    paddle1:draw()
+    paddle2:draw()
+    ball:draw()
 
     -- print_centered_text("P1.x = " .. paddle1.x, 20)
     -- print_centered_text("P1.y = " .. paddle1.y, 30)
@@ -383,40 +516,50 @@ function DRAW()
     -- print_centered_text("P2.player = " .. paddle2.player, 90)
     -- print_centered_text("P2.isInPlay() = " .. tostring(paddle2:isInPlay()), 100)
 
-    -- print_centered_text("Ball.isInPlay() = " .. tostring(ball:isInPlay()), 120)
+    -- print_centered_text("Ball.isInPlay() = " .. tostring(ball:isInPlay()), 110)
+    -- print_centered_text("Ball.isTouchingPaddle() = " .. tostring(ball:isTouchingPaddle()), 120)
 end -- DRAW()
 
 function drawHud(paddle, ball_status)
     local x_pos = EDGE_X_LEFT - HUD_WIDTH
+    local y_pos = EDGE_Y_TOP + BOUNDARY_WIDTH
 
-    local red_light_spr_id    = 1
-    local yellow_light_spr_id = 3
-    local green_light_spr_id  = 5
+    local red_light_spr_id    = 257
+    local yellow_light_spr_id = 259
+    local green_light_spr_id  = 261
     local status_light_spr_id = 0
 
-    -- local red_light    = spr(1, 2, 3, 0, scale, flip, rotate, w, h)
-    -- local yellow_light = spr(3, 2, 3, 0, scale, flip, rotate, w, h)
-    -- local green_light  = spr(5, 2, 3, 0, scale, flip, rotate, w, h)
+    local score_scale  = 2
+    local return_scale = 2
+    local score_color  = ORANGE
+    local return_color = BLUE_LITE
 
     if paddle.player == 2 then
-        x_pos = EDGE_X_RIGHT
+        x_pos = EDGE_X_RIGHT + 1
     end
-    -- rect(x_pos, EDGE_Y_TOP, HUD_WIDTH, EDGE_Y_BOTTOM + 1, GRAY_LITE)
 
     if paddle:isInPlay() == false then
         status_light_spr_id = red_light_spr_id
-        print("Player " .. paddle.player .. " is not ready.")
     elseif paddle:isInPlay() == true and ball_status == false then
         status_light_spr_id = yellow_light_spr_id
-        print("Player " .. paddle.player .. " is ready.")
     elseif paddle:isInPlay() == true and ball_status == true then
         status_light_spr_id = green_light_spr_id
-        print("Game on!")
     end
-    -- spr(status_light_spr_id, x_pos, EDGE_Y_TOP, 0, 0, 0, 0, 2, 4)
-    spr(status_light_spr_id, 10, 10, 0, 0, 0, 0, 2, 4)
+    spr(status_light_spr_id, x_pos, y_pos, 0, 1, 0, 0, 2, 4)
 
+    if paddle:getScore() > 9 then
+        score_scale = 1
+    end
+    print(paddle:getScore(), x_pos + 1, y_pos + 36, score_color + 1, true, score_scale, false)
+    print(paddle:getScore(), x_pos, y_pos + 35, score_color, true, score_scale, false)
 
+    if SHOW_NUM_RETURNS then
+        if paddle:getReturns() > 9 then
+            return_scale = 1
+        end
+        print(paddle:getReturns(), x_pos + 1, y_pos + 51, return_color - 1, true, return_scale, false)
+        print(paddle:getReturns(), x_pos, y_pos + 50, return_color, true, return_scale, false)
+    end
 end
 
 function drawCourt()
@@ -429,17 +572,7 @@ function drawCourt()
     line(EDGE_X_LEFT, EDGE_Y_BOTTOM, EDGE_X_RIGHT - 1, EDGE_Y_BOTTOM, YELLOW)
 end
 
--- function drawScoreBug()
---     local score_line = string.format("%d - %d", paddle1:getScore(), paddle2:getScore())
---     print_centered_text(score_line, BOUNDARY_WIDTH + 2, BLUE_LITE, true, 2)
-
---     if SHOW_NUM_RETURNS then
---         local returns_line = string.format("%d   %d", paddle1:getReturns(), paddle2:getReturns())
---         print_centered_text(returns_line, EDGE_Y_BOTTOM - 9, GRAY_LITE, true, 1)
---     end
--- end
-
-function print_centered_text(message, height, color, shadow, scale)
+function print_centered_text(message, height, color, shadow, fixed, scale)
     if height == nil then
         height = math.floor(EDGE_Y_BOTTOM/2)
     end
@@ -449,15 +582,18 @@ function print_centered_text(message, height, color, shadow, scale)
     if shadow == nil then
         shadow = false
     end
+    if fixed == nil then
+        fixed = true
+    end
     if scale == nil then
         scale = 1
     end
-    local message_width = print(message, 0, -40, color, true, scale)
+    local message_width = print(message, 0, -40, color, fixed, scale)
     local x_pos = ((EDGE_X_RIGHT - message_width) / 2) + 2
     if shadow then
-        print(message, x_pos + 1, height + 1, color + 1, true, scale)
+        print(message, x_pos + 1, height + 1, color + 1, fixed, scale)
     end
-    print(message, x_pos, height, color, true, scale)
+    print(message, x_pos, height, color, fixed, scale)
 end
 
 
@@ -468,30 +604,28 @@ end
 --[[ CHECK FOR GAME STOPPAGES ]]--
 
 function CHECK()
-
-    -- -- -- There's some sort of game stoppage (someone scored or the game is paused.)
-    -- -- if paddle1:isInPlay() == false and paddle1:isInPlay() == false then
-    -- --     print_centered_text("READY?", math.floor(EDGE_Y_BOTTOM/2), ORANGE, true, 3)
-
-    -- -- elseif paddle1:isInPlay() == true and paddle1:isInPlay() == false then
-    -- --     print_centered_text("READY?", math.floor(EDGE_Y_BOTTOM / 2), ORANGE, true, 3)
-    -- --     print("YES!", EDGE_X_LEFT + 2, BOUNDARY_WIDTH + 2, ORANGE, true, 2)
-
-    -- -- elseif paddle1:isInPlay() == false and paddle1:isInPlay() == true then
-    -- --     print_centered_text("READY?", math.floor(EDGE_Y_BOTTOM / 2), ORANGE, true, 3)
-    -- --     local p2_ready_width = print("YES!", EDGE_X_LEFT + 2, -20, ORANGE, true, 2)
-    -- --     print("YES!", EDGE_X_RIGHT - p2_ready_width, BOUNDARY_WIDTH + 2, ORANGE, true, 2)
-
-    -- --     -- The ball has gone out of play....
-    -- -- elseif
+    
+    -- Check if somebody's score == the WINNING_SCORE
+    if paddle1:getScore() == WINNING_SCORE then
+        GAME_OVER(paddle1)
+    elseif paddle2:getScore() == WINNING_SCORE then
+        GAME_OVER(paddle2)
 
     -- There's some sort of game stoppage (someone scored or the game is paused.)
-    if
+    elseif
         paddle1:isInPlay() == false
         or paddle2:isInPlay() == false
     then
-        print_centered_text("READY?", math.floor(EDGE_Y_BOTTOM/2), ORANGE, true, 3)
+        print_centered_text("READY?", math.floor(EDGE_Y_BOTTOM/2), ORANGE, true, true, 3)
+        print_centered_text("PRESS LEFT TO BEGIN", math.floor(EDGE_Y_BOTTOM/2 + 28), BLUE_LITE, false, false, 1)
 
+        -- Serving player can move up and down with the ball with this wrapper
+        -- method for ball:reset().
+        if CURRENT_SERVE_PLAYER == 1 then
+            ball:preServe(paddle1)
+        else
+            ball:preServe(paddle2)
+        end
     -- Both players are ready but the ball has gone out of bounds.
     elseif
         paddle1:isInPlay() == true
@@ -500,30 +634,17 @@ function CHECK()
         
         if ball:isInPlay() == true then
             -- Ball is in play!
-
         else
-            -- Ball is out of play!
+            -- Ball is out of play! Increment score
+            if (ball.x + ball.radius) < EDGE_X_LEFT then
+                paddle2:incrementScore()
+            elseif ball.x >= EDGE_X_RIGHT then
+                paddle1:incrementScore()
+            end
 
-    --     -- Increment score
-    --     if (ball.x + ball.radius) < EDGE_X_LEFT then
-    --         paddle2:incrementScore()
-    --         -- paddle2:outOfPlay()
-
-    --     elseif ball.x >= EDGE_X_RIGHT then
-    --         paddle1:incrementScore()
-    --         -- paddle1:outOfPlay()
-    --     end
-
-    --     -- Check if somebody's score == the WINNING_SCORE
-    --     if paddle1:getScore() == WINNING_SCORE then
-    --         GAME_OVER(paddle1)
-    --     elseif paddle2:getScore() == WINNING_SCORE then
-    --         GAME_OVER(paddle2)
-    --     else
             paddle1:reset()
             paddle2:reset()
             ball:reset()
-    --     end
         end
 
     -- Everybody is playing, nothing new has happened.
@@ -537,10 +658,12 @@ function CHECK()
 end -- CHECK()
 
 
--- function GAME_OVER(winning_paddle)
---     local winning_message = string.format("PLAYER [%d] WINS!", winning_paddle.player)
---     print_centered_text(winning_message, EDGE_Y_BOTTOM/2, ORANGE, true, 3)
--- end
+function GAME_OVER(winning_paddle)
+    local winning_message = string.format("PLAYER %d WINS!", winning_paddle.player)
+    print_centered_text(winning_message, EDGE_Y_BOTTOM/2, ORANGE, true, false, 2)
+
+    INIT()
+end
 
 
 -- [/TQ-Bundler: src.check]
@@ -588,6 +711,7 @@ end --TIC
 -- 004:f0000000ef000000eef00000eef00000fef00000fef00000fef00000eef00000
 -- 005:00ffffff0feeeeeefeeefffefeefdddffefdddddfefdddddfefdddddfeefdddf
 -- 006:f0000000ef000000eef00000eef00000fef00000fef00000fef00000eef00000
+-- 007:000d000000ddd0000ddddd00ddddddd000000000000000000000000000000000
 -- 017:feeefffefeeeeeeefeeefffefeefdddffefdddddfefdddddfefdddddfeefdddf
 -- 018:eef00000eef00000eef00000eef00000fef00000fef00000fef00000eef00000
 -- 019:feeefffefeeeeeeefeeefffefeef444ffef44444fef44444fef44444feef444f
@@ -618,6 +742,9 @@ end --TIC
 -- 000:00000000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000404000000000
 -- 001:00000000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f00020a000000000
 -- 002:04f004c0049004600430f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400100000000000
+-- 003:000000000000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f00070b000000000
+-- 004:000000000000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000705000000000
+-- 005:00f00030003000f0f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000302000000000
 -- </SFX>
 
 -- <TRACKS>

@@ -84,6 +84,7 @@ end
 
 function SpaddleObj:incrementScore()
     self.score = self.score + 1
+    CURRENT_SERVE_PLAYER = self.player
 end
 
 function SpaddleObj:resetScore()

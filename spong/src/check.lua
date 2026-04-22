@@ -16,6 +16,13 @@ function CHECK()
         print_centered_text("READY?", math.floor(EDGE_Y_BOTTOM/2), ORANGE, true, true, 3)
         print_centered_text("PRESS LEFT TO BEGIN", math.floor(EDGE_Y_BOTTOM/2 + 28), BLUE_LITE, false, false, 1)
 
+        -- Serving player can move up and down with the ball with this wrapper
+        -- method for ball:reset().
+        if CURRENT_SERVE_PLAYER == 1 then
+            ball:preServe(paddle1)
+        else
+            ball:preServe(paddle2)
+        end
     -- Both players are ready but the ball has gone out of bounds.
     elseif
         paddle1:isInPlay() == true
