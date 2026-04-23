@@ -51,6 +51,10 @@ SHOW_NUM_RETURNS     = true
 ENABLE_SPEED_BOOST   = true
 
 
+GAME_MODES        = {'start', 'menu', 'game'}
+CURRENT_GAME_MODE = 'start'
+
+
 --[[ TODO LIST ]]--
 
 -- TODO: How do I automatically change the keymapping upon loading?

@@ -1,7 +1,7 @@
 --[[ CHECK FOR GAME STOPPAGES ]]--
 
 function CHECK()
-    
+
     -- Check if somebody's score == the WINNING_SCORE
     if paddle1:getScore() == WINNING_SCORE then
         GAME_OVER(paddle1)
@@ -13,8 +13,11 @@ function CHECK()
         paddle1:isInPlay() == false
         or paddle2:isInPlay() == false
     then
-        print_centered_text("READY?", math.floor(EDGE_Y_BOTTOM/2), ORANGE, true, true, 3)
-        print_centered_text("PRESS LEFT TO BEGIN", math.floor(EDGE_Y_BOTTOM/2 + 28), BLUE_LITE, false, false, 1)
+        local ready_msg_height = math.floor(EDGE_Y_BOTTOM / 2) - 20
+        print_centered_text("READY?", ready_msg_height, ORANGE, true, true, 3)
+        print_centered_text("PRESS LEFT TO BEGIN", ready_msg_height + 30, BLUE_LITE, false, false, 1)
+        print_centered_text("PRESS RIGHT TO CHANGE", ready_msg_height + 40, BLUE_LITE, false, false, 1)
+        print_centered_text("SERVE DIRECTION", ready_msg_height + 47, BLUE_LITE, false, false, 1)
 
         -- Serving player can move up and down with the ball with this wrapper
         -- method for ball:reset().
@@ -28,7 +31,7 @@ function CHECK()
         paddle1:isInPlay() == true
         and paddle2:isInPlay() == true
     then
-        
+
         if ball:isInPlay() == true then
             -- Ball is in play!
         else

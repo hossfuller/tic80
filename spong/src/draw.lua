@@ -1,8 +1,6 @@
 --[[ DRAW FUNCTIONS ]]--
 
 function DRAW()
-    cls(BLACK)
-
     --- Draw the court, which is stationary.
     drawCourt()
 
