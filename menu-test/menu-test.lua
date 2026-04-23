@@ -64,37 +64,106 @@ WINNING_SCORE      = 10
 SHOW_NUM_RETURNS   = true
 ENABLE_SPEED_BOOST = true
 
+GAME_MODES = {'start', 'menu', 'game'}
 
 -- -------------------------------------------------------------------------- --
 --[[ NOW THE CODE-CODE ]]--
 
-t=0
-x=96
-y=24
+CURRENT_GAME_MODE = 'start'
 
-function TIC()
-
-	if btn(0) then y=y-1 end
-	if btn(1) then y=y+1 end
-	if btn(2) then x=x-1 end
-	if btn(3) then x=x+1 end
-
-	cls(13)
-	spr(1+t%60//30*2,x,y,14,3,0,0,2,2)
-	print("HELLO WORLD!",84,84)
-	t=t+1
+function BOOT()
 end
 
--- <TILES>
--- 001:eccccccccc888888caaaaaaaca888888cacccccccacc0ccccacc0ccccacc0ccc
--- 002:ccccceee8888cceeaaaa0cee888a0ceeccca0ccc0cca0c0c0cca0c0c0cca0c0c
--- 003:eccccccccc888888caaaaaaaca888888cacccccccacccccccacc0ccccacc0ccc
--- 004:ccccceee8888cceeaaaa0cee888a0ceeccca0cccccca0c0c0cca0c0c0cca0c0c
--- 017:cacccccccaaaaaaacaaacaaacaaaaccccaaaaaaac8888888cc000cccecccccec
--- 018:ccca00ccaaaa0ccecaaa0ceeaaaa0ceeaaaa0cee8888ccee000cceeecccceeee
--- 019:cacccccccaaaaaaacaaacaaacaaaaccccaaaaaaac8888888cc000cccecccccec
--- 020:ccca00ccaaaa0ccecaaa0ceeaaaa0ceeaaaa0cee8888ccee000cceeecccceeee
--- </TILES>
+function INIT()
+end
+
+function INPUT(mode)
+    if mode == 'start' then
+    elseif mode == 'menu' then
+    elseif mode == 'game' then
+    end
+end
+
+function UPDATE(mode)
+    if mode == 'start' then
+    elseif mode == 'menu' then
+    elseif mode == 'game' then
+    end
+end
+
+function DRAW(mode)
+    if mode == 'start' then
+        print_centered_text("SPONG", math.floor(EDGE_Y_BOTTOM * 0.25), ORANGE, true, true, 4)
+
+    elseif mode == 'menu' then
+    elseif mode == 'game' then
+    end
+end
+
+INIT()
+
+function TIC()
+    cls(0)
+
+    INPUT(CURRENT_GAME_MODE)
+
+    UPDATE(CURRENT_GAME_MODE)
+
+    DRAW(CURRENT_GAME_MODE)
+
+end
+
+function print_centered_text(message, height, color, shadow, fixed, scale)
+    if height == nil then
+        height = math.floor(EDGE_Y_BOTTOM / 2)
+    end
+    if color == nil then
+        color = WHITE
+    end
+    if shadow == nil then
+        shadow = false
+    end
+    if fixed == nil then
+        fixed = true
+    end
+    if scale == nil then
+        scale = 1
+    end
+    local message_width = print(message, 0, -40, color, fixed, scale)
+    local x_pos = ((EDGE_X_RIGHT - message_width) / 2) + 2
+    if shadow then
+        print(message, x_pos + 1, height + 1, color + 1, fixed, scale)
+    end
+    print(message, x_pos, height, color, fixed, scale)
+end
+
+-- <SPRITES>
+-- 001:00ffffff0feeeeeefeeefffefeef222ffef22222fef22222fef22222feef222f
+-- 002:f0000000ef000000eef00000eef00000fef00000fef00000fef00000eef00000
+-- 003:00ffffff0feeeeeefeeefffefeefdddffefdddddfefdddddfefdddddfeefdddf
+-- 004:f0000000ef000000eef00000eef00000fef00000fef00000fef00000eef00000
+-- 005:00ffffff0feeeeeefeeefffefeefdddffefdddddfefdddddfefdddddfeefdddf
+-- 006:f0000000ef000000eef00000eef00000fef00000fef00000fef00000eef00000
+-- 007:000d000000ddd0000ddddd00ddddddd000000000000000000000000000000000
+-- 017:feeefffefeeeeeeefeeefffefeefdddffefdddddfefdddddfefdddddfeefdddf
+-- 018:eef00000eef00000eef00000eef00000fef00000fef00000fef00000eef00000
+-- 019:feeefffefeeeeeeefeeefffefeef444ffef44444fef44444fef44444feef444f
+-- 020:eef00000eef00000eef00000eef00000fef00000fef00000fef00000eef00000
+-- 021:feeefffefeeeeeeefeeefffefeefdddffefdddddfefdddddfefdddddfeefdddf
+-- 022:eef00000eef00000eef00000eef00000fef00000fef00000fef00000eef00000
+-- 033:feeefffefeeeeeeefeeefffefeefdddffefdddddfefdddddfefdddddfeefdddf
+-- 034:eef00000eef00000eef00000eef00000fef00000fef00000fef00000eef00000
+-- 035:feeefffefeeeeeeefeeefffefeefdddffefdddddfefdddddfefdddddfeefdddf
+-- 036:eef00000eef00000eef00000eef00000fef00000fef00000fef00000eef00000
+-- 037:feeefffefeeeeeeefeeefffefeef666ffef66666fef66666fef66666feef666f
+-- 038:eef00000eef00000eef00000eef00000fef00000fef00000fef00000eef00000
+-- 049:feeefffe0feeeeee00ffffff0000000000000000000000000000000000000000
+-- 050:eef00000ef000000f00000000000000000000000000000000000000000000000
+-- 051:feeefffe0feeeeee00ffffff0000000000000000000000000000000000000000
+-- 052:eef00000ef000000f00000000000000000000000000000000000000000000000
+-- 053:feeefffe0feeeeee00ffffff0000000000000000000000000000000000000000
+-- 054:eef00000ef000000f00000000000000000000000000000000000000000000000
+-- </SPRITES>
 
 -- <WAVES>
 -- 000:00000000ffffffff00000000ffffffff
@@ -103,7 +172,12 @@ end
 -- </WAVES>
 
 -- <SFX>
--- 000:000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000304000000000
+-- 000:00000000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000404000000000
+-- 001:00000000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f00020a000000000
+-- 002:04f004c0049004600430f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400100000000000
+-- 003:000000000000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f00070b000000000
+-- 004:000000000000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000705000000000
+-- 005:00f00030003000f0f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000f000302000000000
 -- </SFX>
 
 -- <TRACKS>
@@ -113,4 +187,3 @@ end
 -- <PALETTE>
 -- 000:1a1c2c5d275db13e53ef7d57ffcd75a7f07038b76425717929366f3b5dc941a6f673eff7f4f4f494b0c2566c86333c57
 -- </PALETTE>
-

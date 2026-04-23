@@ -186,6 +186,36 @@ cart test-project.tic saved!
 
 [TQ-Bundler](https://github.com/scambier/TQ-Bundler) is an application for bundling multiple files into a single cartridge for playing. TIC-80 only supports using a single file for all code, sprites, sfx, and music. The `tq-bundler.exe` binary in this repository allows the easy setup and compilation of projects that use multiple files.
 
+To run this on a project, try something like this:
+```bash
+C:\Users\afuller\AppData\Roaming\com.nesbox.tic\TIC-80>dir
+ Volume in drive C is OS
+ Volume Serial Number is 8843-9F45
+
+ Directory of C:\Users\afuller\AppData\Roaming\com.nesbox.tic\TIC-80
+
+04/22/2026  09:01 AM    <DIR>          .
+04/16/2026  02:12 PM    <DIR>          ..
+04/16/2026  02:13 PM               382 .gitignore
+04/16/2026  02:12 PM    <DIR>          .local
+04/17/2026  02:44 PM    <DIR>          breakout-tutorial
+04/20/2026  12:54 PM    <DIR>          circuits
+04/20/2026  08:51 AM    <DIR>          critter-code
+04/22/2026  09:01 AM    <DIR>          menu-test
+04/20/2026  08:51 AM    <DIR>          pong
+04/21/2026  12:32 PM             8,186 README.md
+04/22/2026  11:12 AM    <DIR>          scratch
+04/23/2026  08:32 AM    <DIR>          spong
+04/16/2026  02:38 PM    <DIR>          test-project
+04/23/2026  09:27 AM         1,561,088 tq-bundler.exe
+               3 File(s)      1,569,656 bytes
+              11 Dir(s)  377,033,039,872 bytes free
+
+C:\Users\afuller\AppData\Roaming\com.nesbox.tic\TIC-80>cd spong
+
+C:\Users\afuller\AppData\Roaming\com.nesbox.tic\TIC-80\spong>..\tq-bundler.exe run game.lua main.lua --tic C:\Users\afuller\Development\TIC-80\build\bin\tic80.exe
+```
+
 
 
 
