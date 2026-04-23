@@ -65,21 +65,21 @@ SHOW_NUM_RETURNS     = true
 ENABLE_SPEED_BOOST   = true
 
 
+GAME_MODES        = {'start', 'menu', 'game'}
+CURRENT_GAME_MODE = 'start'
+
+
 --[[ TODO LIST ]]--
 
+-- TODO: Add a quit option to the start screen.
+-- TODO: Add a copyright to the bottom of the start screen.
 -- TODO: How do I automatically change the keymapping upon loading?
--- TODO: Rewrite the boot section once we know how to create start and menu screens.
--- TODO: Menu screen lets user configure Moving Parts Contraints and Game Configuration settings.
 -- TODO: Figure out how to do game over stuff. Send back to start screen?
 
 -- TODO: Add a way to pause the game.
 -- TODO: Do power ups!
 -- TODO: Should we be able to move the paddles along the x-axis?
 -- TODO: Win by 2?
-
--- TODO: Add a way to preserve the score?
--- TODO: Add an option to do one or two players.
--- TODO: Add computer player 2 logic.
 
 
 
@@ -441,6 +441,277 @@ end
 
 -- [/TQ-Bundler: src.classes.SballObj]
 
+-- [TQ-Bundler: src.screen_start]
+
+--[[ GAME START SCREEN FUNCTIONS ]] --
+
+
+local start_title_y = math.floor(EDGE_Y_BOTTOM * 0.25)
+local start_subtitle_y = start_title_y + 35
+
+local start_menu_option_x = math.floor(EDGE_X_RIGHT * 0.41)
+local start_menu_option_y = start_subtitle_y + 20
+local start_menu_space_y  = 10
+
+local start_menu_options = {
+    "New Game",
+    "Options"
+}
+local start_menu_options_num = #start_menu_options
+
+local start_menu_ball = {
+    x = start_menu_option_x - 7,
+    y = start_menu_option_y + 2,
+    r = 2,
+    cur = 1,
+    sel = 0,
+}
+
+
+function start_screen()
+    start_screen_input()
+    start_screen_update()
+    start_screen_draw()
+end
+
+
+function start_screen_input()
+    if btnp(P1_UP) or btnp(P1_DOWN) then
+        if start_menu_ball.cur == start_menu_options_num then
+            start_menu_ball.cur = 1
+            start_menu_ball.y   = start_menu_option_y + 2
+        else
+            start_menu_ball.cur = start_menu_ball.cur + 1
+            start_menu_ball.y = start_menu_ball.y + start_menu_space_y
+        end
+    end
+    if btnp(P1_LEFT) or btnp(P1_RIGHT) then
+        start_menu_ball.sel = start_menu_ball.cur
+    end
+end
+
+
+function start_screen_update()
+    if start_menu_ball.sel == 1 then
+        CURRENT_GAME_MODE = 'game'
+    elseif start_menu_ball.sel == 2 then
+        CURRENT_GAME_MODE = 'menu'
+    end
+    start_menu_ball.sel = 0
+end
+
+
+function start_screen_draw()
+    print_centered_text("SPONG", start_title_y, ORANGE, true, true, 6)
+    print_centered_text("Son of PONG", start_subtitle_y, BLUE_DARK, true, true, 2)
+
+    local current_start_menu_option_y = start_menu_option_y
+    for index, start_option_text in ipairs(start_menu_options) do
+        if index == start_menu_ball.cur then
+            circ(start_menu_ball.x, start_menu_ball.y, start_menu_ball.r, WHITE)
+        end
+        print(start_option_text, start_menu_option_x, current_start_menu_option_y, GRAY_LITE)
+        current_start_menu_option_y = current_start_menu_option_y + start_menu_space_y
+    end
+end
+
+
+-- [/TQ-Bundler: src.screen_start]
+
+-- [TQ-Bundler: src.screen_menu]
+
+--[[ GAME MENU SCREEN FUNCTIONS ]] --
+
+
+local menu_title_y       = 0
+local menu_menu_option_x = 20
+local menu_menu_option_y = menu_title_y + 20
+local menu_menu_space_y  = 8
+
+local menu_menu_options = {
+    "< Back to Main Menu",
+    "Player who serves first",
+    "Winning Score",
+    "Starting game speed",
+    "Enable speed boost",
+    "Speed boost multiplier",
+    "Returns before speed boost",
+    "Display number of returns",
+}
+local menu_menu_options_num = #menu_menu_options
+
+local menu_menu_ball = {
+    x = menu_menu_option_x - 7,
+    y = menu_menu_option_y + 2,
+    r = 2,
+    cur = 1,
+    sel = 0,
+    inc = false,
+    dec = false,
+}
+
+
+function menu_screen()
+    menu_screen_input()
+    menu_screen_update()
+    menu_screen_draw()
+end
+
+function menu_screen_input()
+    if btnp(P1_UP) then
+        if menu_menu_ball.cur == 1 then
+            menu_menu_ball.cur = menu_menu_options_num
+        else
+            menu_menu_ball.cur = menu_menu_ball.cur - 1
+        end
+        menu_menu_ball.y = (menu_menu_option_y + 2) + ((menu_menu_ball.cur - 1) * menu_menu_space_y)
+    end
+    if btnp(P1_DOWN) then
+        if menu_menu_ball.cur == menu_menu_options_num then
+            menu_menu_ball.cur = 1
+        else
+            menu_menu_ball.cur = menu_menu_ball.cur + 1
+        end
+        menu_menu_ball.y = (menu_menu_option_y + 2) + ((menu_menu_ball.cur - 1) * menu_menu_space_y)
+    end
+    if btnp(P1_LEFT) then
+        menu_menu_ball.sel = menu_menu_ball.cur
+        menu_menu_ball.inc = false
+        menu_menu_ball.dec = true
+    end
+    if btnp(P1_RIGHT) then
+        menu_menu_ball.sel = menu_menu_ball.cur
+        menu_menu_ball.inc = true
+        menu_menu_ball.dec = false
+    end
+end
+
+function menu_screen_update()
+    local winning_score_limit    = 100
+    local game_speed_limit       = 10
+    local return_threshold_limit = 100
+
+    local multiplier = 1
+    if menu_menu_ball.dec == true and menu_menu_ball.inc == false then
+       multiplier = -1
+    end
+
+    if menu_menu_ball.sel == 1 then
+        CURRENT_GAME_MODE = 'start'
+
+    elseif menu_menu_ball.sel == 2 then
+        CURRENT_SERVE_PLAYER = 1
+        if multiplier > 0 then
+            CURRENT_SERVE_PLAYER = 2
+        end
+    elseif menu_menu_ball.sel == 3 then
+        WINNING_SCORE = WINNING_SCORE + (1 * multiplier)
+        if WINNING_SCORE < 1 then
+            WINNING_SCORE = 1
+        elseif WINNING_SCORE > winning_score_limit then
+            WINNING_SCORE = winning_score_limit
+        end
+    elseif menu_menu_ball.sel == 4 then
+        GAME_SPEED = GAME_SPEED + (1 * multiplier)
+        if GAME_SPEED > game_speed_limit then
+            GAME_SPEED = game_speed_limit
+        elseif GAME_SPEED < 1 then
+            GAME_SPEED = 1
+        end
+    elseif menu_menu_ball.sel == 5 then
+        if ENABLE_SPEED_BOOST == true then
+            ENABLE_SPEED_BOOST = false
+        else
+            ENABLE_SPEED_BOOST = true
+        end
+    elseif menu_menu_ball.sel == 6 then
+        SPEED_BOOSTER = SPEED_BOOSTER + (0.05 * multiplier)
+        if SPEED_BOOSTER > 1.01 then
+            SPEED_BOOSTER = 1.0
+        elseif SPEED_BOOSTER < 0.05 then
+            SPEED_BOOSTER = 0.05
+        end
+    elseif menu_menu_ball.sel == 7 then
+        RETURN_THRESHOLD = RETURN_THRESHOLD + (1 * multiplier)
+        if RETURN_THRESHOLD > return_threshold_limit then
+            RETURN_THRESHOLD = return_threshold_limit
+        elseif RETURN_THRESHOLD < 1 then
+            RETURN_THRESHOLD = 1
+        end
+    elseif menu_menu_ball.sel == 8 then
+        if SHOW_NUM_RETURNS == true then
+            SHOW_NUM_RETURNS = false
+        else
+            SHOW_NUM_RETURNS = true
+        end
+    end
+
+    menu_menu_ball.sel = 0
+    menu_menu_ball.inc = false
+    menu_menu_ball.dec = false
+end
+
+function menu_screen_draw()
+    print_centered_text("OPTIONS", menu_title_y, ORANGE, true, true, 2)
+
+    -- Get longest option length first.
+    local longest_option_width = 0
+    for index, menu_option_text in ipairs(menu_menu_options) do
+        longest_option_width = print(menu_option_text, 0, -10)
+    end
+    longest_option_width = longest_option_width + 30
+
+    local current_menu_menu_option_y = menu_menu_option_y
+    for index, menu_option_text in ipairs(menu_menu_options) do
+        if index == menu_menu_ball.cur then
+            circ(menu_menu_ball.x, menu_menu_ball.y, menu_menu_ball.r, WHITE)
+        end
+        print(menu_option_text, menu_menu_option_x, current_menu_menu_option_y, GRAY_LITE)
+        print(
+            menu_screen_get_option_value(index),
+            longest_option_width + (2 * menu_menu_space_y),
+            current_menu_menu_option_y,
+            GRAY_LITE,
+            true
+        )
+        current_menu_menu_option_y = current_menu_menu_option_y + menu_menu_space_y
+    end
+end
+
+function menu_screen_get_option_value(index)
+    local return_string = " "
+    local true_string   = string.format("%5s", "TRUE")
+    local false_string  = string.format("%5s", "FALSE")
+
+    if index == 2 then
+        return_string = string.format("%5d", tostring(CURRENT_SERVE_PLAYER))
+    elseif index == 3 then
+        return_string = string.format("%5d", tostring(WINNING_SCORE))
+    elseif index == 4 then
+        return_string = string.format("%5d", tostring(GAME_SPEED))
+    elseif index == 5 then
+        if ENABLE_SPEED_BOOST == true then
+            return_string = true_string
+        else
+            return_string = false_string
+        end
+    elseif index == 6 then
+        return_string = string.format(" %0.2f", tostring(SPEED_BOOSTER))
+    elseif index == 7 then
+        return_string = string.format("%5d", tostring(RETURN_THRESHOLD))
+    elseif index == 8 then
+        if SHOW_NUM_RETURNS == true then
+            return_string = true_string
+        else
+            return_string = false_string
+        end
+    end
+    return return_string
+end
+
+
+-- [/TQ-Bundler: src.screen_menu]
+
 -- [TQ-Bundler: src.input]
 
 --[[ INPUT FUNCTIONS ]]--
@@ -487,8 +758,6 @@ end -- UPDATE()
 --[[ DRAW FUNCTIONS ]]--
 
 function DRAW()
-    cls(BLACK)
-
     --- Draw the court, which is stationary.
     drawCourt()
 
@@ -599,7 +868,7 @@ end
 --[[ CHECK FOR GAME STOPPAGES ]]--
 
 function CHECK()
-    
+
     -- Check if somebody's score == the WINNING_SCORE
     if paddle1:getScore() == WINNING_SCORE then
         GAME_OVER(paddle1)
@@ -611,8 +880,11 @@ function CHECK()
         paddle1:isInPlay() == false
         or paddle2:isInPlay() == false
     then
-        print_centered_text("READY?", math.floor(EDGE_Y_BOTTOM/2), ORANGE, true, true, 3)
-        print_centered_text("PRESS LEFT TO BEGIN", math.floor(EDGE_Y_BOTTOM/2 + 28), BLUE_LITE, false, false, 1)
+        local ready_msg_height = math.floor(EDGE_Y_BOTTOM / 2) - 20
+        print_centered_text("READY?", ready_msg_height, ORANGE, true, true, 3)
+        print_centered_text("PRESS LEFT TO BEGIN", ready_msg_height + 30, BLUE_LITE, false, false, 1)
+        print_centered_text("PRESS RIGHT TO CHANGE", ready_msg_height + 40, BLUE_LITE, false, false, 1)
+        print_centered_text("SERVE DIRECTION", ready_msg_height + 47, BLUE_LITE, false, false, 1)
 
         -- Serving player can move up and down with the ball with this wrapper
         -- method for ball:reset().
@@ -626,7 +898,7 @@ function CHECK()
         paddle1:isInPlay() == true
         and paddle2:isInPlay() == true
     then
-        
+
         if ball:isInPlay() == true then
             -- Ball is in play!
         else
@@ -670,7 +942,7 @@ paddle1 = SpaddleObj:new({player = 1})
 paddle2 = SpaddleObj:new({player = 2})
 ball    = SballObj:new()
 
--- TODO: How do I automatically change the keymapping upon loading?
+
 function BOOT()
 end
 
@@ -686,15 +958,27 @@ INIT()
 --[[ GAME LOOP ]]--
 
 function TIC()
-    --[[ CHECK FOR USER INPUT ]]--
-    INPUT()
+    cls(BLACK)
 
-    --[[ UPDATE GAME DATA ]]--
-    UPDATE()
+    if CURRENT_GAME_MODE == 'start' then
+        --[[ START SCREEN ]]--
+        start_screen()
 
-    --[[ DRAW GAME GRAPHICS ]]--
-    DRAW()
+    elseif CURRENT_GAME_MODE == 'menu' then
+        --[[ USER CAN CONFIGURE CONSTANTS ]]--
+        menu_screen()
 
-    --[[ CHECK FOR GAME STOPPAGES ]]--
-    CHECK()
+    elseif CURRENT_GAME_MODE == 'game' then
+        --[[ CHECK FOR USER INPUT ]] --
+        INPUT()
+
+        --[[ UPDATE GAME DATA ]] --
+        UPDATE()
+
+        --[[ DRAW GAME GRAPHICS ]] --
+        DRAW()
+
+        --[[ CHECK FOR GAME STOPPAGES ]] --
+        CHECK()
+    end
 end --TIC

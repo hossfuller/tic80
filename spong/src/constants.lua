@@ -57,17 +57,13 @@ CURRENT_GAME_MODE = 'start'
 
 --[[ TODO LIST ]]--
 
+-- TODO: Add a quit option to the start screen.
+-- TODO: Add a copyright to the bottom of the start screen.
 -- TODO: How do I automatically change the keymapping upon loading?
--- TODO: Rewrite the boot section once we know how to create start and menu screens.
--- TODO: Menu screen lets user configure Moving Parts Contraints and Game Configuration settings.
 -- TODO: Figure out how to do game over stuff. Send back to start screen?
 
 -- TODO: Add a way to pause the game.
 -- TODO: Do power ups!
 -- TODO: Should we be able to move the paddles along the x-axis?
 -- TODO: Win by 2?
-
--- TODO: Add a way to preserve the score?
--- TODO: Add an option to do one or two players.
--- TODO: Add computer player 2 logic.
 

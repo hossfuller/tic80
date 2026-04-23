@@ -1,15 +1,5 @@
 --[[ GAME START SCREEN FUNCTIONS ]] --
 
--- print_centered_text(message, height, color, shadow, fixed, scale)
-
---[[
-text : any string to be printed to the screen
-x, y : coordinates for printing the text
-color : the color to use to draw the text to the screen
-fixed : a flag indicating whether fixed width printing is required
-scale : font scaling
-smallfont : use small font if true
---]]
 
 local start_title_y = math.floor(EDGE_Y_BOTTOM * 0.25)
 local start_subtitle_y = start_title_y + 35
@@ -62,6 +52,7 @@ function start_screen_update()
     elseif start_menu_ball.sel == 2 then
         CURRENT_GAME_MODE = 'menu'
     end
+    start_menu_ball.sel = 0
 end
 
 

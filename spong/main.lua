@@ -44,12 +44,6 @@ INIT()
 function TIC()
     cls(BLACK)
 
-    -- print_centered_text(message, height, color, shadow, fixed, scale)
-    -- print_centered_text("current mode = " .. CURRENT_GAME_MODE, math.floor(EDGE_Y_BOTTOM * 0.80), BLUE_LITE, false, false, 1)
-    -- print_centered_text("start_menu_ball.cur = " .. start_menu_ball.cur, math.floor(EDGE_Y_BOTTOM * 0.80) + 10, BLUE_LITE, false, false, 1)
-    -- print_centered_text("start_menu_ball.sel = " .. start_menu_ball.sel, math.floor(EDGE_Y_BOTTOM * 0.80) + 20, BLUE_LITE, false, false, 1)
-    print_centered_text("current mode = " .. CURRENT_GAME_MODE, math.floor(EDGE_Y_BOTTOM * 0.95), BLUE_LITE, false, false, 1)
-
     if CURRENT_GAME_MODE == 'start' then
         --[[ START SCREEN ]]--
         start_screen()
