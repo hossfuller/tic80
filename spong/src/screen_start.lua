@@ -68,4 +68,11 @@ function start_screen_draw()
         print(start_option_text, start_menu_option_x, current_start_menu_option_y, GRAY_LITE)
         current_start_menu_option_y = current_start_menu_option_y + start_menu_space_y
     end
+
+    local copyright_width = print("  2026 A. H. Fuller", 0, -10, GRAY_LITE)
+    local x_pos = ((EDGE_X_RIGHT - copyright_width) / 2) + 2
+
+    -- print_centered_text(" 2026 Your Name", EDGE_Y_BOTTOM - 7, GRAY_LITE)
+    print(" 2026 A. H. Fuller", x_pos, EDGE_Y_BOTTOM - 7, GRAY_LITE)
+-- Make copyright symbol sprite.
 end

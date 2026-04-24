@@ -34,6 +34,9 @@ function INIT()
     paddle1:reset()
     paddle2:reset()
     ball:reset()
+
+    paddle1:resetScore()
+    paddle2:resetScore()
 end
 
 INIT()
@@ -52,7 +55,7 @@ function TIC()
         --[[ USER CAN CONFIGURE CONSTANTS ]]--
         menu_screen()
 
-    elseif CURRENT_GAME_MODE == 'game' then
+    elseif CURRENT_GAME_MODE == 'game' or CURRENT_GAME_MODE == 'over' then
         --[[ CHECK FOR USER INPUT ]] --
         INPUT()
 
@@ -64,5 +67,5 @@ function TIC()
 
         --[[ CHECK FOR GAME STOPPAGES ]] --
         CHECK()
-    end
+      end
 end --TIC

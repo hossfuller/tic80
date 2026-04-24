@@ -15,6 +15,7 @@ function SpaddleObj:new(params)
     obj.downButton  = P1_DOWN
     obj.leftButton  = P1_LEFT
     obj.rightButton = P1_RIGHT
+    obj.aButton     = P1_A
     if obj.player == 2 then
         obj.upButton    = P2_UP
         obj.downButton  = P2_DOWN

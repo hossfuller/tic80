@@ -61,6 +61,14 @@ end -- CHECK()
 function GAME_OVER(winning_paddle)
     local winning_message = string.format("PLAYER %d WINS!", winning_paddle.player)
     print_centered_text(winning_message, EDGE_Y_BOTTOM/2, ORANGE, true, false, 2)
+    print_centered_text("PRESS A TO RETURN", EDGE_Y_BOTTOM/2 + 20, BLUE_LITE)
+    print_centered_text("TO START SCREEN", EDGE_Y_BOTTOM/2 + 27, BLUE_LITE)
 
-    INIT()
+    CURRENT_GAME_MODE = 'over'
+
+    -- If we're on the game-over screen, wait for A and do nothing else.
+    if btnp(winning_paddle.aButton) then
+        CURRENT_GAME_MODE = 'start'
+        INIT() -- optional reset
+    end
 end
