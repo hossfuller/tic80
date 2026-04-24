@@ -1,12 +1,13 @@
 --[[ DRAW FUNCTIONS ]]--
 
 function DRAW()
-    --- Draw the court, which is stationary.
     drawCourt()
 
-    -- Draw the HUD for each user.
-    drawHud(paddle1, ball:isInPlay())
-    drawHud(paddle2, ball:isInPlay())
+    drawScores()
+
+    if SHOW_NUM_RETURNS then
+        drawReturns()
+    end
 
     -- Draw the moving elements.
     paddle1:draw()
@@ -14,54 +15,11 @@ function DRAW()
     ball:draw()
 end -- DRAW()
 
-function drawHud(paddle, ball_status)
-    local hud_offset = 1
-
-    local x_pos = EDGE_X_LEFT - HUD_WIDTH
-    local y_pos = EDGE_Y_TOP + BOUNDARY_WIDTH
-
-    local red_light_spr_id    = 279
-    local yellow_light_spr_id = 295
-    local green_light_spr_id  = 280
-    local status_light_spr_id = 0
-
-    local score_scale  = 2
-    local return_scale = 2
-    local score_color  = ORANGE
-    local return_color = BLUE_LITE
-
-    if paddle.player == 2 then
-        x_pos = EDGE_X_RIGHT + 1
-    end
-
-    if paddle:isInPlay() == false then
-        status_light_spr_id = red_light_spr_id
-    elseif paddle:isInPlay() == true and ball_status == false then
-        status_light_spr_id = yellow_light_spr_id
-    elseif paddle:isInPlay() == true and ball_status == true then
-        status_light_spr_id = green_light_spr_id
-    end
-    spr(status_light_spr_id, x_pos + hud_offset, y_pos, 0, 1, 0, 0, 1, 1)
-
-    if paddle:getScore() > 9 then
-        score_scale = 1
-    end
-    print(paddle:getScore(), x_pos + 1, y_pos + 11, score_color + 1, true, score_scale, false)
-    print(paddle:getScore(), x_pos, y_pos + 10, score_color, true, score_scale, false)
-
-    if SHOW_NUM_RETURNS then
-        if paddle:getReturns() > 9 then
-            return_scale = 1
-        end
-        print(paddle:getReturns(), x_pos + 1, y_pos + 26, return_color - 1, true, return_scale, false)
-        print(paddle:getReturns(), x_pos, y_pos + 25, return_color, true, return_scale, false)
-    end
-end
 
 function drawCourt()
     -- Net
-    for _i = EDGE_Y_TOP + 2, EDGE_Y_BOTTOM, 8 do
-        rect(EDGE_X_RIGHT / 2, _i, BOUNDARY_WIDTH, 4, GREEN_LITE)
+    for i = EDGE_Y_TOP + 2, EDGE_Y_BOTTOM, 8 do
+        rect(EDGE_X_RIGHT / 2, i, BOUNDARY_WIDTH, 4, GREEN_LITE)
     end
     -- Court boundaries
     line(EDGE_X_LEFT, EDGE_Y_TOP, EDGE_X_RIGHT - 1, EDGE_Y_TOP, YELLOW)
@@ -90,4 +48,38 @@ function print_centered_text(message, height, color, shadow, fixed, scale)
         print(message, x_pos + 1, height + 1, color + 1, fixed, scale)
     end
     print(message, x_pos, height, color, fixed, scale)
+end
+
+function drawScores()
+    local score_scale = 2
+    local score_color = ORANGE
+    local y_pos       = EDGE_Y_BOTTOM - 15
+
+    local p1_score_str   = string.format("%2d", paddle1:getScore())
+    local p1_score_width = print(p1_score_str, 0, -100, WHITE, true, score_scale, false)
+    local p1_x_pos       = math.floor((EDGE_X_RIGHT - BOUNDARY_WIDTH) / 2) - p1_score_width - 4
+    print(p1_score_str, p1_x_pos + 1, y_pos + 1, score_color + 1, true, score_scale, false)
+    print(p1_score_str, p1_x_pos, y_pos, score_color, true, score_scale, false)
+
+    local p2_score_str = string.format("%-2d", paddle2:getScore())
+    local p2_x_pos     = math.floor((EDGE_X_RIGHT - BOUNDARY_WIDTH) / 2) + 10
+    print(p2_score_str, p2_x_pos + 1, y_pos + 1, score_color + 1, true, score_scale, false)
+    print(p2_score_str, p2_x_pos, y_pos, score_color, true, score_scale, false)
+end
+
+function drawReturns()
+    local return_scale = 2
+    local return_color = GRAY_LITE
+    local y_pos        = EDGE_Y_TOP + BOUNDARY_WIDTH + 3
+
+    local p1_return_str   = string.format("%2d", paddle1:getReturns())
+    local p1_return_width = print(p1_return_str, 0, -100, WHITE, true, return_scale, false)
+    local p1_x_pos       = math.floor((EDGE_X_RIGHT - BOUNDARY_WIDTH) / 2) - p1_return_width - 4
+    print(p1_return_str, p1_x_pos + 1, y_pos + 1, return_color + 1, true, return_scale, false)
+    print(p1_return_str, p1_x_pos, y_pos, return_color, true, return_scale, false)
+
+    local p2_return_str = string.format("%-2d", paddle2:getReturns())
+    local p2_x_pos     = math.floor((EDGE_X_RIGHT - BOUNDARY_WIDTH) / 2) + 10
+    print(p2_return_str, p2_x_pos + 1, y_pos + 1, return_color + 1, true, return_scale, false)
+    print(p2_return_str, p2_x_pos, y_pos, return_color, true, return_scale, false)
 end

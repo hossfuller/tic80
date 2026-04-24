@@ -46,15 +46,16 @@ local function update_paddle_colors()
     local p1 = paddle1:isInPlay()
     local p2 = paddle2:isInPlay()
 
-    local c
     if p1 == false and p2 == false then
-        c = RED
-    elseif p1 == false or p2 == false then
-        c = YELLOW
+        paddle1:changeColor(RED)
+        paddle2:changeColor(RED)
+    elseif p1 == true and p2 == false then
+        paddle1:changeColor(YELLOW)
+    elseif p1 == false and p2 == true then
+        paddle2:changeColor(YELLOW)
     else
-        c = WHITE
+        paddle1:changeColor(WHITE)
+        paddle2:changeColor(WHITE)
     end
 
-    paddle1:changeColor(c)
-    paddle2:changeColor(c)
 end
