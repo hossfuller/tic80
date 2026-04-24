@@ -6,6 +6,8 @@ local function state_ready_update()
     paddle2:input()
     ball:input()
 
+    update_paddle_colors()
+
     paddle1:update()
     paddle2:update()
 

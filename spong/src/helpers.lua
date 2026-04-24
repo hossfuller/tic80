@@ -41,3 +41,20 @@ local function check_for_winner()
 
     return nil
 end
+
+local function update_paddle_colors()
+    local p1 = paddle1:isInPlay()
+    local p2 = paddle2:isInPlay()
+
+    local c
+    if p1 == false and p2 == false then
+        c = RED
+    elseif p1 == false or p2 == false then
+        c = YELLOW
+    else
+        c = WHITE
+    end
+
+    paddle1:changeColor(c)
+    paddle2:changeColor(c)
+end

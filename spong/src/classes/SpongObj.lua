@@ -27,6 +27,10 @@ function SpongObj:draw()
     rect(self.x, self.y, self.width, self.height, self.color)
 end
 
+function SpongObj:changeColor(color)
+    self.color = color
+end
+
 function SpongObj:getCollisionBox()
     return {
         top    = self.y,

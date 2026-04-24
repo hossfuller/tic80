@@ -12,13 +12,12 @@ include "src.classes.SpongObj"
 include "src.classes.SpaddleObj"
 include "src.classes.SballObj"
 
+include "src.state_machine"
 include "src.screen_start"
 include "src.screen_menu"
 include "src.input"
 include "src.update"
 include "src.draw"
-include "src.state_machine"
-
 --[[ INITIALIZATION ]]--
 
 -- Create objects
