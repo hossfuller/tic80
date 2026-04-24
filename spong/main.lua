@@ -1,11 +1,13 @@
 -- title:   SPong (Son of Pong)
 -- author:  Adam Fuller <the.adam.fuller@gmail.com>
--- version: 0.2
+-- version: 0.3
 -- script:  lua
 
 
 --[[ INCLUDES ]]--
 include "src.constants"
+include "src.helpers"
+
 include "src.classes.SpongObj"
 include "src.classes.SpaddleObj"
 include "src.classes.SballObj"
@@ -15,15 +17,13 @@ include "src.screen_menu"
 include "src.input"
 include "src.update"
 include "src.draw"
-include "src.check"
-
-
+include "src.state_machine"
 
 --[[ INITIALIZATION ]]--
 
 -- Create objects
-paddle1 = SpaddleObj:new({player = 1})
-paddle2 = SpaddleObj:new({player = 2})
+paddle1 = SpaddleObj:new({ player = 1 })
+paddle2 = SpaddleObj:new({ player = 2 })
 ball    = SballObj:new()
 
 
@@ -44,59 +44,27 @@ INIT()
 
 --[[ GAME LOOP ]]--
 
--- function TIC()
---     cls(BLACK)
-
---     if CURRENT_GAME_MODE == 'start' then
---         --[[ START SCREEN ]]--
---         start_screen()
-
---     elseif CURRENT_GAME_MODE == 'menu' then
---         --[[ USER CAN CONFIGURE CONSTANTS ]]--
---         menu_screen()
-
---     elseif CURRENT_GAME_MODE == 'game' or CURRENT_GAME_MODE == 'over' then
---         --[[ CHECK FOR USER INPUT ]]--
---         INPUT()
-
---         --[[ UPDATE GAME DATA ]]--
---         UPDATE()
-
---         --[[ DRAW GAME GRAPHICS ]]--
---         DRAW()
-
---         --[[ CHECK FOR GAME STOPPAGES ]]--
---         CHECK()
---       end
--- end --TIC
 function TIC()
     cls(BLACK)
 
-    if CURRENT_GAME_MODE == 'start' then
-        --[[ START SCREEN ]]--
-        start_screen()
+    if current_state == STATE.START then
+        --[[ START SCREEN ]] --
+        state_start_update()
 
-    elseif CURRENT_GAME_MODE == 'menu' then
-        --[[ USER CAN CONFIGURE CONSTANTS ]]--
-        menu_screen()
+    elseif current_state == STATE.OPTIONS then
+        --[[ USER CAN CONFIGURE CONSTANTS ]] --
+        state_options_update()
 
-    elseif CURRENT_GAME_MODE == 'game' then
-        --[[ CHECK FOR USER INPUT ]]--
-        INPUT()
+    elseif current_state == STATE.READY then
+        state_ready_update()
+        state_ready_draw()
 
-        --[[ UPDATE GAME DATA ]]--
-        UPDATE()
+    elseif current_state == STATE.PLAY then
+        state_play_update()
+        state_play_draw()
 
-        --[[ DRAW GAME GRAPHICS ]]--
-        DRAW()
-
-        --[[ CHECK FOR GAME STOPPAGES ]]--
-        CHECK()
-
-    elseif CURRENT_GAME_MODE == 'over' then
-        -- Freeze the game state: no INPUT(), no UPDATE(), no CHECK()
-        DRAW()
-
-        GAME_OVER()
+    elseif current_state == STATE.GAMEOVER then
+        state_gameover_update()
+        state_gameover_draw()
     end
 end

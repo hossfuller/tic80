@@ -1,7 +1,7 @@
---[[ GAME START SCREEN FUNCTIONS ]] --
+--[[ GAME START SCREEN FUNCTIONS ]]--
 
 
-local start_title_y = math.floor(EDGE_Y_BOTTOM * 0.25)
+local start_title_y    = math.floor(EDGE_Y_BOTTOM * 0.25)
 local start_subtitle_y = start_title_y + 35
 
 local start_menu_option_x = math.floor(EDGE_X_RIGHT * 0.41)
@@ -22,13 +22,19 @@ local start_menu_ball = {
     sel = 0,
 }
 
+local function state_start_update()
+    start_screen() -- your start screen already does input/update/draw
+    -- your start_screen_update() currently sets CURRENT_GAME_MODE.
+    -- Change that to:
+    --   set_state(STATE.READY) for New Game
+    --   set_state(STATE.OPTIONS) for Options
+end
 
 function start_screen()
     start_screen_input()
     start_screen_update()
     start_screen_draw()
 end
-
 
 function start_screen_input()
     if btnp(P1_UP) or btnp(P1_DOWN) then
@@ -45,16 +51,16 @@ function start_screen_input()
     end
 end
 
-
 function start_screen_update()
     if start_menu_ball.sel == 1 then
-        CURRENT_GAME_MODE = 'game'
+        -- New Game
+        INIT()
+        begin_round() -- goes to READY
     elseif start_menu_ball.sel == 2 then
-        CURRENT_GAME_MODE = 'menu'
+        set_state(STATE.OPTIONS)
     end
     start_menu_ball.sel = 0
 end
-
 
 function start_screen_draw()
     print_centered_text("SPONG", start_title_y, ORANGE, true, true, 6)

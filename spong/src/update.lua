@@ -3,7 +3,7 @@
 function UPDATE()
     -- Get the ball moving after being out of play.
     if
-        paddle1:isInPlay() 
+        paddle1:isInPlay()
         and paddle2:isInPlay()
         and ball:isInPlay() == false
     then

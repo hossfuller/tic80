@@ -1,4 +1,4 @@
---[[ GAME MENU SCREEN FUNCTIONS ]] --
+--[[ GAME MENU SCREEN FUNCTIONS ]]--
 
 
 local menu_title_y       = 0
@@ -29,6 +29,13 @@ local menu_menu_ball = {
     dec = false,
 }
 
+local function state_options_update()
+    menu_screen() -- your menu screen already does input/update/draw
+    -- In menu_screen_update(), where you currently do:
+    --   CURRENT_GAME_MODE = 'start'
+    -- change it to:
+    --   set_state(STATE.START)
+end
 
 function menu_screen()
     menu_screen_input()
@@ -72,12 +79,12 @@ function menu_screen_update()
 
     local multiplier = 1
     if menu_menu_ball.dec == true and menu_menu_ball.inc == false then
-       multiplier = -1
+        multiplier = -1
     end
 
     if menu_menu_ball.sel == 1 then
-        CURRENT_GAME_MODE = 'start'
-
+        -- < Back to Main Menu
+        set_state(STATE.START)
     elseif menu_menu_ball.sel == 2 then
         CURRENT_SERVE_PLAYER = 1
         if multiplier > 0 then

@@ -53,7 +53,7 @@ function SpongObj:speedUp()
 end
 
 function SpongObj:reset(x, y)
-    print("This method hasn't been implemented", EDGE_X_LEFT, EDGE_Y_BOTTOM/2, RED)
+    print("This method hasn't been implemented", EDGE_X_LEFT, EDGE_Y_BOTTOM / 2, RED)
 end
 
 function SpongObj:inPlay()

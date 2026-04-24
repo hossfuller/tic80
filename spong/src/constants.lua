@@ -1,4 +1,4 @@
---[[ CONSTANTS ]] --
+--[[ CONSTANTS ]]--
 
 -- Colors
 BLACK      = 0
@@ -53,9 +53,21 @@ SHOW_NUM_RETURNS     = true
 ENABLE_SPEED_BOOST   = true
 WIN_BY_TWO           = true
 
-GAME_MODES        = {'start', 'menu', 'game', 'over'}
-CURRENT_GAME_MODE = 'start'
+-- State Machine Parts
+local STATE = {
+    START    = "START",
+    OPTIONS  = "OPTIONS",
+    READY    = "READY",
+    PLAY     = "PLAY",
+    GAMEOVER = "GAMEOVER",
+}
 
+local current_state = STATE.START
+local winner_paddle = nil
+
+local function set_state(s)
+    current_state = s
+end
 
 --[[ TODO LIST ]]--
 

@@ -5,14 +5,14 @@
 
 -- title:   SPong (Son of Pong)
 -- author:  Adam Fuller <the.adam.fuller@gmail.com>
--- version: 0.2
+-- version: 0.3
 -- script:  lua
 
 
 --[[ INCLUDES ]]--
 -- [TQ-Bundler: src.constants]
 
---[[ CONSTANTS ]] --
+--[[ CONSTANTS ]]--
 
 -- Colors
 BLACK      = 0
@@ -67,9 +67,21 @@ SHOW_NUM_RETURNS     = true
 ENABLE_SPEED_BOOST   = true
 WIN_BY_TWO           = true
 
-GAME_MODES        = {'start', 'menu', 'game', 'over'}
-CURRENT_GAME_MODE = 'start'
+-- State Machine Parts
+local STATE = {
+    START    = "START",
+    OPTIONS  = "OPTIONS",
+    READY    = "READY",
+    PLAY     = "PLAY",
+    GAMEOVER = "GAMEOVER",
+}
 
+local current_state = STATE.START
+local winner_paddle = nil
+
+local function set_state(s)
+    current_state = s
+end
 
 --[[ TODO LIST ]]--
 
@@ -79,6 +91,55 @@ CURRENT_GAME_MODE = 'start'
 
 
 -- [/TQ-Bundler: src.constants]
+
+-- [TQ-Bundler: src.helpers]
+
+--[[ HELPERS ]]--
+
+local function begin_round()
+    -- after a point, nobody is ready
+    paddle1:reset()
+    paddle2:reset()
+    ball:reset()
+    winner_paddle = nil
+    set_state(STATE.READY)
+end
+
+local function award_point_if_ball_out()
+    if ball:isInPlay() then return false end
+
+    if (ball.x + ball.radius) < EDGE_X_LEFT then
+        paddle2:incrementScore()
+    elseif ball.x >= EDGE_X_RIGHT then
+        paddle1:incrementScore()
+    else
+        -- ball is "out of play" for some other reason; don't score
+        return false
+    end
+
+    return true
+end
+
+local function check_for_winner()
+    local score_one  = paddle1:getScore()
+    local score_two  = paddle2:getScore()
+    local max_score  = math.max(score_one, score_two)
+    local diff_score = math.abs(score_one - score_two)
+
+    if WIN_BY_TWO then
+        if max_score >= WINNING_SCORE and diff_score >= 2 then
+            return (score_one > score_two) and paddle1 or paddle2
+        end
+    else
+        if score_one >= WINNING_SCORE then return paddle1 end
+        if score_two >= WINNING_SCORE then return paddle2 end
+    end
+
+    return nil
+end
+
+
+-- [/TQ-Bundler: src.helpers]
 
 -- [TQ-Bundler: src.classes.SpongObj]
 
@@ -137,7 +198,7 @@ function SpongObj:speedUp()
 end
 
 function SpongObj:reset(x, y)
-    print("This method hasn't been implemented", EDGE_X_LEFT, EDGE_Y_BOTTOM/2, RED)
+    print("This method hasn't been implemented", EDGE_X_LEFT, EDGE_Y_BOTTOM / 2, RED)
 end
 
 function SpongObj:inPlay()
@@ -159,7 +220,7 @@ end
 
 --[[ Base Class: SpaddleObj ]]--
 
-SpaddleObj = setmetatable({}, {__index = SpongObj})
+SpaddleObj = setmetatable({}, { __index = SpongObj })
 SpaddleObj.__index = SpaddleObj
 
 function SpaddleObj:new(params)
@@ -262,7 +323,7 @@ end
 
 --[[ Base Class: SballObj ]]--
 
-SballObj = setmetatable({}, {__index = SpongObj})
+SballObj = setmetatable({}, { __index = SpongObj })
 SballObj.__index = SballObj
 
 function SballObj:new(params)
@@ -271,10 +332,10 @@ function SballObj:new(params)
     setmetatable(obj, self)
 
     -- SballObj-specific properties
-    obj.radius = params.radius or BALL_RADIUS
-    obj.touching_paddle = false
-    obj.serve_direction_x = 1  -- serve the ball right
-    obj.serve_direction_y = 1  -- serve the ball down
+    obj.radius            = params.radius or BALL_RADIUS
+    obj.touching_paddle   = false
+    obj.serve_direction_x = 1 -- serve the ball right
+    obj.serve_direction_y = 1 -- serve the ball down
 
     return obj
 end
@@ -381,19 +442,22 @@ function SballObj:update()
         self.y = self.y + self.vy
     end
 
-    if (self.x + 3*self.radius) < EDGE_X_LEFT or (self.x - 3*self.radius) > EDGE_X_RIGHT then
+    if (
+        ((self.x + (3 * self.radius)) < EDGE_X_LEFT)
+        or ((self.x - (3 * self.radius)) > EDGE_X_RIGHT)
+    ) then
         sfx(2)
         self:outOfPlay()
     end
 
     if self.y < (EDGE_Y_TOP + self.radius + 1) then
         sfx(0)
-        self.y = EDGE_Y_TOP + self.radius + 1
-        self.vy = - self.vy
+        self.y  = EDGE_Y_TOP + self.radius + 1
+        self.vy = -self.vy
     elseif self.y > (EDGE_Y_BOTTOM - (self.radius)) then
         sfx(0)
-        self.y = math.floor(EDGE_Y_BOTTOM - self.radius)
-        self.vy = - self.vy
+        self.y  = math.floor(EDGE_Y_BOTTOM - self.radius)
+        self.vy = -self.vy
     end
 end
 
@@ -448,10 +512,10 @@ end
 
 -- [TQ-Bundler: src.screen_start]
 
---[[ GAME START SCREEN FUNCTIONS ]] --
+--[[ GAME START SCREEN FUNCTIONS ]]--
 
 
-local start_title_y = math.floor(EDGE_Y_BOTTOM * 0.25)
+local start_title_y    = math.floor(EDGE_Y_BOTTOM * 0.25)
 local start_subtitle_y = start_title_y + 35
 
 local start_menu_option_x = math.floor(EDGE_X_RIGHT * 0.41)
@@ -472,13 +536,19 @@ local start_menu_ball = {
     sel = 0,
 }
 
+local function state_start_update()
+    start_screen() -- your start screen already does input/update/draw
+    -- your start_screen_update() currently sets CURRENT_GAME_MODE.
+    -- Change that to:
+    --   set_state(STATE.READY) for New Game
+    --   set_state(STATE.OPTIONS) for Options
+end
 
 function start_screen()
     start_screen_input()
     start_screen_update()
     start_screen_draw()
 end
-
 
 function start_screen_input()
     if btnp(P1_UP) or btnp(P1_DOWN) then
@@ -495,16 +565,16 @@ function start_screen_input()
     end
 end
 
-
 function start_screen_update()
     if start_menu_ball.sel == 1 then
-        CURRENT_GAME_MODE = 'game'
+        -- New Game
+        INIT()
+        begin_round() -- goes to READY
     elseif start_menu_ball.sel == 2 then
-        CURRENT_GAME_MODE = 'menu'
+        set_state(STATE.OPTIONS)
     end
     start_menu_ball.sel = 0
 end
-
 
 function start_screen_draw()
     print_centered_text("SPONG", start_title_y, ORANGE, true, true, 6)
@@ -532,7 +602,7 @@ end
 
 -- [TQ-Bundler: src.screen_menu]
 
---[[ GAME MENU SCREEN FUNCTIONS ]] --
+--[[ GAME MENU SCREEN FUNCTIONS ]]--
 
 
 local menu_title_y       = 0
@@ -563,6 +633,13 @@ local menu_menu_ball = {
     dec = false,
 }
 
+local function state_options_update()
+    menu_screen() -- your menu screen already does input/update/draw
+    -- In menu_screen_update(), where you currently do:
+    --   CURRENT_GAME_MODE = 'start'
+    -- change it to:
+    --   set_state(STATE.START)
+end
 
 function menu_screen()
     menu_screen_input()
@@ -606,12 +683,12 @@ function menu_screen_update()
 
     local multiplier = 1
     if menu_menu_ball.dec == true and menu_menu_ball.inc == false then
-       multiplier = -1
+        multiplier = -1
     end
 
     if menu_menu_ball.sel == 1 then
-        CURRENT_GAME_MODE = 'start'
-
+        -- < Back to Main Menu
+        set_state(STATE.START)
     elseif menu_menu_ball.sel == 2 then
         CURRENT_SERVE_PLAYER = 1
         if multiplier > 0 then
@@ -762,7 +839,7 @@ end -- INPUT()
 function UPDATE()
     -- Get the ball moving after being out of play.
     if
-        paddle1:isInPlay() 
+        paddle1:isInPlay()
         and paddle2:isInPlay()
         and ball:isInPlay() == false
     then
@@ -802,6 +879,8 @@ function DRAW()
 end -- DRAW()
 
 function drawHud(paddle, ball_status)
+    local hud_offset = 1
+
     local x_pos = EDGE_X_LEFT - HUD_WIDTH
     local y_pos = EDGE_Y_TOP + BOUNDARY_WIDTH
 
@@ -826,7 +905,7 @@ function drawHud(paddle, ball_status)
     elseif paddle:isInPlay() == true and ball_status == true then
         status_light_spr_id = green_light_spr_id
     end
-    spr(status_light_spr_id, x_pos, y_pos, 0, 1, 0, 0, 1, 1)
+    spr(status_light_spr_id, x_pos + hud_offset, y_pos, 0, 1, 0, 0, 1, 1)
 
     if paddle:getScore() > 9 then
         score_scale = 1
@@ -845,8 +924,8 @@ end
 
 function drawCourt()
     -- Net
-    for _i=EDGE_Y_TOP+2,EDGE_Y_BOTTOM,8 do
-        rect(EDGE_X_RIGHT/2, _i, BOUNDARY_WIDTH, 4, GREEN_LITE)
+    for _i = EDGE_Y_TOP + 2, EDGE_Y_BOTTOM, 8 do
+        rect(EDGE_X_RIGHT / 2, _i, BOUNDARY_WIDTH, 4, GREEN_LITE)
     end
     -- Court boundaries
     line(EDGE_X_LEFT, EDGE_Y_TOP, EDGE_X_RIGHT - 1, EDGE_Y_TOP, YELLOW)
@@ -855,7 +934,7 @@ end
 
 function print_centered_text(message, height, color, shadow, fixed, scale)
     if height == nil then
-        height = math.floor(EDGE_Y_BOTTOM/2)
+        height = math.floor(EDGE_Y_BOTTOM / 2)
     end
     if color == nil then
         color = WHITE
@@ -880,99 +959,89 @@ end
 
 -- [/TQ-Bundler: src.draw]
 
--- [TQ-Bundler: src.check]
+-- [TQ-Bundler: src.state_machine]
 
---[[ CHECK FOR GAME STOPPAGES ]]--
+--[[ STATE MACHINE ]]--
 
-function CHECK()
-    -- Check to see if we've got a winner.
-    local winner = check_for_winner()
-    if winner then
-        GAME_OVER(winner)
-        return
-    end
+local function state_ready_update()
+    -- allow moving paddles and toggling serve direction
+    paddle1:input()
+    paddle2:input()
+    ball:input()
 
-    -- No winner, but there's some sort of game stoppage (someone scored or the
-    -- game is paused.)
-    if paddle1:isInPlay() == false or paddle2:isInPlay() == false then
-        local ready_msg_height = math.floor(EDGE_Y_BOTTOM / 2) - 20
-        print_centered_text("READY?", ready_msg_height, ORANGE, true, true, 3)
-        print_centered_text("PRESS LEFT TO BEGIN", ready_msg_height + 30, BLUE_LITE, false, false, 1)
-        print_centered_text("PRESS RIGHT TO CHANGE", ready_msg_height + 40, BLUE_LITE, false, false, 1)
-        print_centered_text("SERVE DIRECTION", ready_msg_height + 47, BLUE_LITE, false, false, 1)
+    paddle1:update()
+    paddle2:update()
 
-        -- Serving player can move up and down with the ball with this wrapper
-        -- method for ball:reset().
-        if CURRENT_SERVE_PLAYER == 1 then
-            ball:preServe(paddle1)
-        else
-            ball:preServe(paddle2)
-        end
-
-        return
-
-    -- Both players are ready but check if the ball has gone out of bounds.
-    elseif
-        paddle1:isInPlay() == true
-        and paddle2:isInPlay() == true
-        and ball:isInPlay() == false
-    then
-        if (ball.x + ball.radius) < EDGE_X_LEFT then
-            paddle2:incrementScore()
-        elseif ball.x >= EDGE_X_RIGHT then
-            paddle1:incrementScore()
-        end
-
-        paddle1:reset()
-        paddle2:reset()
-        ball:reset()
-        return
-    end
-end -- CHECK()
-
-function check_for_winner()
-    local score_one  = paddle1:getScore()
-    local score_two  = paddle2:getScore()
-    local max_score  = math.max(score_one, score_two)
-    local diff_score = math.abs(score_one - score_two)
-
-    if WIN_BY_TWO then
-        if max_score >= WINNING_SCORE and diff_score >= 2 then
-            return (score_one > score_two) and paddle1 or paddle2
-        end
+    -- keep ball attached to serving paddle
+    if CURRENT_SERVE_PLAYER == 1 then
+        ball:preServe(paddle1)
     else
-        if score_one >= WINNING_SCORE then return paddle1 end
-        if score_two >= WINNING_SCORE then return paddle2 end
+        ball:preServe(paddle2)
     end
 
-    return nil
-end
-
-function GAME_OVER()
-    local winning_paddle = check_for_winner()
-
-    local winning_message = string.format("PLAYER %d WINS!", winning_paddle.player)
-    print_centered_text(winning_message, EDGE_Y_BOTTOM/2, ORANGE, true, false, 2)
-    print_centered_text("PRESS A TO RETURN", EDGE_Y_BOTTOM/2 + 20, BLUE_LITE)
-    print_centered_text("TO START SCREEN", EDGE_Y_BOTTOM/2 + 27, BLUE_LITE)
-
-    CURRENT_GAME_MODE = 'over'
-
-    -- If we're on the game-over screen, wait for A and do nothing else.
-    if btnp(winning_paddle.aButton) then
-        CURRENT_GAME_MODE = 'start'
-        INIT() -- optional reset
+    -- transition when both are ready
+    if paddle1:isInPlay() and paddle2:isInPlay() then
+        sfx(5)
+        ball:inPlay()
+        set_state(STATE.PLAY)
     end
 end
 
+local function state_ready_draw()
+    DRAW()
 
--- [/TQ-Bundler: src.check]
+    local ready_msg_height = math.floor(EDGE_Y_BOTTOM / 2) - 20
+    print_centered_text("READY?", ready_msg_height, ORANGE, true, true, 3)
+    print_centered_text("PRESS LEFT TO BEGIN", ready_msg_height + 30, BLUE_LITE, false, false, 1)
+    print_centered_text("PRESS RIGHT TO CHANGE", ready_msg_height + 40, BLUE_LITE, false, false, 1)
+    print_centered_text("SERVE DIRECTION", ready_msg_height + 47, BLUE_LITE, false, false, 1)
+end
+
+local function state_play_update()
+    INPUT()
+    UPDATE()
+
+    -- scoring / round end
+    if award_point_if_ball_out() then
+        local w = check_for_winner()
+        if w then
+            winner_paddle = w
+            set_state(STATE.GAMEOVER)
+        else
+            begin_round()
+        end
+    end
+end
+
+local function state_play_draw()
+    DRAW()
+end
+
+local function state_gameover_update()
+    -- no INPUT/UPDATE; only wait for A
+    if winner_paddle and btnp(winner_paddle.aButton) then
+        set_state(STATE.START)
+        INIT()
+    end
+end
+
+local function state_gameover_draw()
+    DRAW()
+
+    local winning_message = string.format("PLAYER %d WINS!", winner_paddle.player)
+    print_centered_text(winning_message, EDGE_Y_BOTTOM / 2, ORANGE, true, false, 2)
+    print_centered_text("PRESS A TO RETURN", EDGE_Y_BOTTOM / 2 + 20, BLUE_LITE)
+    print_centered_text("TO START SCREEN", EDGE_Y_BOTTOM / 2 + 27, BLUE_LITE)
+end
+
+
+-- [/TQ-Bundler: src.state_machine]
 
 --[[ INITIALIZATION ]]--
 
 -- Create objects
-paddle1 = SpaddleObj:new({player = 1})
-paddle2 = SpaddleObj:new({player = 2})
+paddle1 = SpaddleObj:new({ player = 1 })
+paddle2 = SpaddleObj:new({ player = 2 })
 ball    = SballObj:new()
 
 
@@ -993,59 +1062,27 @@ INIT()
 
 --[[ GAME LOOP ]]--
 
--- function TIC()
---     cls(BLACK)
-
---     if CURRENT_GAME_MODE == 'start' then
---         --[[ START SCREEN ]]--
---         start_screen()
-
---     elseif CURRENT_GAME_MODE == 'menu' then
---         --[[ USER CAN CONFIGURE CONSTANTS ]]--
---         menu_screen()
-
---     elseif CURRENT_GAME_MODE == 'game' or CURRENT_GAME_MODE == 'over' then
---         --[[ CHECK FOR USER INPUT ]]--
---         INPUT()
-
---         --[[ UPDATE GAME DATA ]]--
---         UPDATE()
-
---         --[[ DRAW GAME GRAPHICS ]]--
---         DRAW()
-
---         --[[ CHECK FOR GAME STOPPAGES ]]--
---         CHECK()
---       end
--- end --TIC
 function TIC()
     cls(BLACK)
 
-    if CURRENT_GAME_MODE == 'start' then
-        --[[ START SCREEN ]]--
-        start_screen()
+    if current_state == STATE.START then
+        --[[ START SCREEN ]] --
+        state_start_update()
 
-    elseif CURRENT_GAME_MODE == 'menu' then
-        --[[ USER CAN CONFIGURE CONSTANTS ]]--
-        menu_screen()
+    elseif current_state == STATE.OPTIONS then
+        --[[ USER CAN CONFIGURE CONSTANTS ]] --
+        state_options_update()
 
-    elseif CURRENT_GAME_MODE == 'game' then
-        --[[ CHECK FOR USER INPUT ]]--
-        INPUT()
+    elseif current_state == STATE.READY then
+        state_ready_update()
+        state_ready_draw()
 
-        --[[ UPDATE GAME DATA ]]--
-        UPDATE()
+    elseif current_state == STATE.PLAY then
+        state_play_update()
+        state_play_draw()
 
-        --[[ DRAW GAME GRAPHICS ]]--
-        DRAW()
-
-        --[[ CHECK FOR GAME STOPPAGES ]]--
-        CHECK()
-
-    elseif CURRENT_GAME_MODE == 'over' then
-        -- Freeze the game state: no INPUT(), no UPDATE(), no CHECK()
-        DRAW()
-
-        GAME_OVER()
+    elseif current_state == STATE.GAMEOVER then
+        state_gameover_update()
+        state_gameover_draw()
     end
 end

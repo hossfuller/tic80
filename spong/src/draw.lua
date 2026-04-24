@@ -15,6 +15,8 @@ function DRAW()
 end -- DRAW()
 
 function drawHud(paddle, ball_status)
+    local hud_offset = 1
+
     local x_pos = EDGE_X_LEFT - HUD_WIDTH
     local y_pos = EDGE_Y_TOP + BOUNDARY_WIDTH
 
@@ -39,7 +41,7 @@ function drawHud(paddle, ball_status)
     elseif paddle:isInPlay() == true and ball_status == true then
         status_light_spr_id = green_light_spr_id
     end
-    spr(status_light_spr_id, x_pos, y_pos, 0, 1, 0, 0, 1, 1)
+    spr(status_light_spr_id, x_pos + hud_offset, y_pos, 0, 1, 0, 0, 1, 1)
 
     if paddle:getScore() > 9 then
         score_scale = 1
@@ -58,8 +60,8 @@ end
 
 function drawCourt()
     -- Net
-    for _i=EDGE_Y_TOP+2,EDGE_Y_BOTTOM,8 do
-        rect(EDGE_X_RIGHT/2, _i, BOUNDARY_WIDTH, 4, GREEN_LITE)
+    for _i = EDGE_Y_TOP + 2, EDGE_Y_BOTTOM, 8 do
+        rect(EDGE_X_RIGHT / 2, _i, BOUNDARY_WIDTH, 4, GREEN_LITE)
     end
     -- Court boundaries
     line(EDGE_X_LEFT, EDGE_Y_TOP, EDGE_X_RIGHT - 1, EDGE_Y_TOP, YELLOW)
@@ -68,7 +70,7 @@ end
 
 function print_centered_text(message, height, color, shadow, fixed, scale)
     if height == nil then
-        height = math.floor(EDGE_Y_BOTTOM/2)
+        height = math.floor(EDGE_Y_BOTTOM / 2)
     end
     if color == nil then
         color = WHITE

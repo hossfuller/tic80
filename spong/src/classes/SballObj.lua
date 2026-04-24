@@ -1,6 +1,6 @@
 --[[ Base Class: SballObj ]]--
 
-SballObj = setmetatable({}, {__index = SpongObj})
+SballObj = setmetatable({}, { __index = SpongObj })
 SballObj.__index = SballObj
 
 function SballObj:new(params)
@@ -9,10 +9,10 @@ function SballObj:new(params)
     setmetatable(obj, self)
 
     -- SballObj-specific properties
-    obj.radius = params.radius or BALL_RADIUS
-    obj.touching_paddle = false
-    obj.serve_direction_x = 1  -- serve the ball right
-    obj.serve_direction_y = 1  -- serve the ball down
+    obj.radius            = params.radius or BALL_RADIUS
+    obj.touching_paddle   = false
+    obj.serve_direction_x = 1 -- serve the ball right
+    obj.serve_direction_y = 1 -- serve the ball down
 
     return obj
 end
@@ -119,19 +119,22 @@ function SballObj:update()
         self.y = self.y + self.vy
     end
 
-    if (self.x + 3*self.radius) < EDGE_X_LEFT or (self.x - 3*self.radius) > EDGE_X_RIGHT then
+    if (
+        ((self.x + (3 * self.radius)) < EDGE_X_LEFT)
+        or ((self.x - (3 * self.radius)) > EDGE_X_RIGHT)
+    ) then
         sfx(2)
         self:outOfPlay()
     end
 
     if self.y < (EDGE_Y_TOP + self.radius + 1) then
         sfx(0)
-        self.y = EDGE_Y_TOP + self.radius + 1
-        self.vy = - self.vy
+        self.y  = EDGE_Y_TOP + self.radius + 1
+        self.vy = -self.vy
     elseif self.y > (EDGE_Y_BOTTOM - (self.radius)) then
         sfx(0)
-        self.y = math.floor(EDGE_Y_BOTTOM - self.radius)
-        self.vy = - self.vy
+        self.y  = math.floor(EDGE_Y_BOTTOM - self.radius)
+        self.vy = -self.vy
     end
 end
 

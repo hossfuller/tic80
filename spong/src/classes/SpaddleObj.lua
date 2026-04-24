@@ -1,6 +1,6 @@
 --[[ Base Class: SpaddleObj ]]--
 
-SpaddleObj = setmetatable({}, {__index = SpongObj})
+SpaddleObj = setmetatable({}, { __index = SpongObj })
 SpaddleObj.__index = SpaddleObj
 
 function SpaddleObj:new(params)
