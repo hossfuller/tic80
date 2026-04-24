@@ -21,6 +21,7 @@ function SpaddleObj:new(params)
         obj.downButton  = P2_DOWN
         obj.leftButton  = P2_LEFT
         obj.rightButton = P2_RIGHT
+        obj.aButton     = P2_A
     end
 
     obj.score   = 0
@@ -62,8 +63,11 @@ function SpaddleObj:reset(x, y)
         self.x = x or EDGE_X_RIGHT - self.width
     end
 
-    self:resetReturns()
+    -- Reset speeds, too!
+    self.vx = GAME_SPEED
+    self.vy = GAME_SPEED
 
+    self:resetReturns()
     self:outOfPlay()
 end
 

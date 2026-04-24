@@ -12,28 +12,15 @@ function DRAW()
     paddle1:draw()
     paddle2:draw()
     ball:draw()
-
-    -- print_centered_text("P1.x = " .. paddle1.x, 20)
-    -- print_centered_text("P1.y = " .. paddle1.y, 30)
-    -- print_centered_text("P1.player = " .. paddle1.player, 40)
-    -- print_centered_text("P1.isInPlay() = " .. tostring(paddle1:isInPlay()), 50)
-
-    -- print_centered_text("P2.x = " .. paddle2.x, 70)
-    -- print_centered_text("P2.y = " .. paddle2.y, 80)
-    -- print_centered_text("P2.player = " .. paddle2.player, 90)
-    -- print_centered_text("P2.isInPlay() = " .. tostring(paddle2:isInPlay()), 100)
-
-    -- print_centered_text("Ball.isInPlay() = " .. tostring(ball:isInPlay()), 110)
-    -- print_centered_text("Ball.isTouchingPaddle() = " .. tostring(ball:isTouchingPaddle()), 120)
 end -- DRAW()
 
 function drawHud(paddle, ball_status)
     local x_pos = EDGE_X_LEFT - HUD_WIDTH
     local y_pos = EDGE_Y_TOP + BOUNDARY_WIDTH
 
-    local red_light_spr_id    = 257
-    local yellow_light_spr_id = 259
-    local green_light_spr_id  = 261
+    local red_light_spr_id    = 279
+    local yellow_light_spr_id = 295
+    local green_light_spr_id  = 280
     local status_light_spr_id = 0
 
     local score_scale  = 2
@@ -52,20 +39,20 @@ function drawHud(paddle, ball_status)
     elseif paddle:isInPlay() == true and ball_status == true then
         status_light_spr_id = green_light_spr_id
     end
-    spr(status_light_spr_id, x_pos, y_pos, 0, 1, 0, 0, 2, 4)
+    spr(status_light_spr_id, x_pos, y_pos, 0, 1, 0, 0, 1, 1)
 
     if paddle:getScore() > 9 then
         score_scale = 1
     end
-    print(paddle:getScore(), x_pos + 1, y_pos + 36, score_color + 1, true, score_scale, false)
-    print(paddle:getScore(), x_pos, y_pos + 35, score_color, true, score_scale, false)
+    print(paddle:getScore(), x_pos + 1, y_pos + 11, score_color + 1, true, score_scale, false)
+    print(paddle:getScore(), x_pos, y_pos + 10, score_color, true, score_scale, false)
 
     if SHOW_NUM_RETURNS then
         if paddle:getReturns() > 9 then
             return_scale = 1
         end
-        print(paddle:getReturns(), x_pos + 1, y_pos + 51, return_color - 1, true, return_scale, false)
-        print(paddle:getReturns(), x_pos, y_pos + 50, return_color, true, return_scale, false)
+        print(paddle:getReturns(), x_pos + 1, y_pos + 26, return_color - 1, true, return_scale, false)
+        print(paddle:getReturns(), x_pos, y_pos + 25, return_color, true, return_scale, false)
     end
 end
 

@@ -28,27 +28,32 @@ function SballObj:draw()
         local serve_dir_arrow_flip = 0
         local serve_dir_arrow_rotate = 0
 
-        if self.vx > 0 and self.vy < 0 then -- pointing right and up
-            serve_dir_arrow_x = serve_dir_arrow_x + 1 
-            serve_dir_arrow_y = serve_dir_arrow_y - 2*self.radius - 3
-        elseif self.vx > 0 and self.vy > 0 then -- pointing right and down
-            serve_dir_arrow_rotate = 2
-        elseif self.vx < 0 and self.vy > 0 then -- pointing left and up
-            serve_dir_arrow_x = serve_dir_arrow_x + 1 
-            serve_dir_arrow_y = serve_dir_arrow_y - 2*self.radius - 3
-        elseif self.vx < 0 and self.vy < 0 then -- pointing left and down
-            -- serve_dir_arrow_x = serve_dir_arrow_x - self.radius
+        -- Use the intended serve direction (not vx/vy) as the source of truth.
+        local dx = self.serve_direction_x
+        local dy = self.serve_direction_y
+
+        -- Sprite 263 is the serve direction arrow, and it's drawn to be
+        -- "right+up" by default.
+        -- For "down" rotate 180 degrees (rotate=2).
+        -- For "left" rely on the art/positioning being symmetric here.
+        if dy < 0 then
+            -- up
+            serve_dir_arrow_x = serve_dir_arrow_x + 1
+            serve_dir_arrow_y = serve_dir_arrow_y - 2 * self.radius - 3
+            serve_dir_arrow_rotate = 0
+        else
+            -- down
             serve_dir_arrow_rotate = 2
         end
 
         spr(
-            serve_dir_arrow_spr_id, 
-            serve_dir_arrow_x, 
-            serve_dir_arrow_y, 
+            serve_dir_arrow_spr_id,
+            serve_dir_arrow_x,
+            serve_dir_arrow_y,
             0, -- colorkey
             1, -- scale
-            serve_dir_arrow_flip, 
-            serve_dir_arrow_rotate, 
+            serve_dir_arrow_flip,
+            serve_dir_arrow_rotate,
             1, 1 -- width and height
         )
     end
@@ -70,10 +75,10 @@ function SballObj:input()
     ) then
         if self.serve_direction_y > 0 then
             self.serve_direction_y = -1 -- serve the ball up
-            sfx(3)
+            sfx(4)
         else
             self.serve_direction_y = 1 -- serve the ball down
-            sfx(4)
+            sfx(3)
         end
     end
 end
@@ -98,7 +103,7 @@ function SballObj:reset(x, y)
 
     if CURRENT_SERVE_PLAYER == 1 then
         self.serve_direction_x = 1
-    else 
+    else
         self.serve_direction_x = -1
     end
 
@@ -155,7 +160,7 @@ function SballObj:collision(paddle)
             paddle:incrementReturns()
 
             -- Speed up if that's where we're at.
-            if (paddle:getReturns() > 0) and (paddle1:getReturns() % RETURN_THRESHOLD) == 0 then
+            if (paddle:getReturns() > 0) and (paddle:getReturns() % RETURN_THRESHOLD) == 0 then
                 ball:speedUp()
                 paddle:speedUp()
             end

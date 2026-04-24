@@ -72,7 +72,7 @@ function start_screen_draw()
     local copyright_width = print("  2026 A. H. Fuller", 0, -10, GRAY_LITE)
     local x_pos = ((EDGE_X_RIGHT - copyright_width) / 2) + 2
 
-    -- print_centered_text(" 2026 Your Name", EDGE_Y_BOTTOM - 7, GRAY_LITE)
-    print(" 2026 A. H. Fuller", x_pos, EDGE_Y_BOTTOM - 7, GRAY_LITE)
--- Make copyright symbol sprite.
+    -- copyright sprite and message.
+    spr(264, x_pos, EDGE_Y_BOTTOM - 8, 0, 1, 0, 0, 1, 1)
+    print(" 2026 A. H. Fuller", x_pos + 8, EDGE_Y_BOTTOM - 7, GRAY_LITE)
 end

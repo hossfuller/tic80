@@ -15,32 +15,33 @@
 --[[ CONSTANTS ]] --
 
 -- Colors
-BLACK             = 0
-PURPLE            = 1
-RED               = 2
-ORANGE            = 3
-YELLOW            = 4
-GREEN_LITE        = 5
-GREEN_MED         = 6
-GREEN_DARK        = 7
-BLUE_DARK         = 8
-BLUE_MED          = 9
-BLUE_LITE         = 10
-CYAN              = 11
-WHITE             = 12
-GRAY_LITE         = 13
-GRAY_MED          = 14
-GRAY_DARK         = 15
+BLACK      = 0
+PURPLE     = 1
+RED        = 2
+ORANGE     = 3
+YELLOW     = 4
+GREEN_LITE = 5
+GREEN_MED  = 6
+GREEN_DARK = 7
+BLUE_DARK  = 8
+BLUE_MED   = 9
+BLUE_LITE  = 10
+CYAN       = 11
+WHITE      = 12
+GRAY_LITE  = 13
+GRAY_MED   = 14
+GRAY_DARK  = 15
 
 -- Controls
-P1_UP             = 0
-P1_DOWN           = 1
-P1_LEFT           = 2
-P1_RIGHT          = 3
-P2_UP             = 8
-P2_DOWN           = 9
-P2_LEFT           = 10
-P2_RIGHT          = 11
+P1_UP    = 0
+P1_DOWN  = 1
+P1_LEFT  = 2
+P1_RIGHT = 3
+P1_A     = 4
+P2_UP    = 8
+P2_DOWN  = 9
+P2_LEFT  = 10
+P2_RIGHT = 11
 
 -- Screen Edges
 BOUNDARY_WIDTH = 2
@@ -60,32 +61,19 @@ RETURN_THRESHOLD = 5
 
 -- Game Configuration
 CURRENT_SERVE_PLAYER = 1
-WINNING_SCORE        = 10
+WINNING_SCORE        = 2
 SHOW_NUM_RETURNS     = true
 ENABLE_SPEED_BOOST   = true
+WIN_BY_TWO           = true
+
+GAME_MODES        = {'start', 'menu', 'game', 'over'}
+CURRENT_GAME_MODE = 'start'
 
 
 --[[ TODO LIST ]]--
 
--- TODO: Add sound effect for when ball initially launches.
--- TODO: Change "serve" by having the ball start on a paddle that the user can
---       move up and down and then launch.
--- TODO: When a player is serving, they should be able to change the initial
---       y-direction of the ball.
-
--- TODO: How do I automatically change the keymapping upon loading?
--- TODO: Rewrite the boot section once we know how to create start and menu screens.
--- TODO: Menu screen lets user configure Moving Parts Contraints and Game Configuration settings.
--- TODO: Figure out how to do game over stuff. Send back to start screen?
-
 -- TODO: Add a way to pause the game.
 -- TODO: Do power ups!
--- TODO: Should we be able to move the paddles along the x-axis?
--- TODO: Win by 2?
-
--- TODO: Add a way to preserve the score?
--- TODO: Add an option to do one or two players.
--- TODO: Add computer player 2 logic.
 
 
 
@@ -185,6 +173,7 @@ function SpaddleObj:new(params)
     obj.downButton  = P1_DOWN
     obj.leftButton  = P1_LEFT
     obj.rightButton = P1_RIGHT
+    obj.aButton     = P1_A
     if obj.player == 2 then
         obj.upButton    = P2_UP
         obj.downButton  = P2_DOWN
@@ -231,8 +220,11 @@ function SpaddleObj:reset(x, y)
         self.x = x or EDGE_X_RIGHT - self.width
     end
 
-    self:resetReturns()
+    -- Reset speeds, too!
+    self.vx = GAME_SPEED
+    self.vy = GAME_SPEED
 
+    self:resetReturns()
     self:outOfPlay()
 end
 
@@ -297,12 +289,12 @@ function SballObj:draw()
         local serve_dir_arrow_rotate = 0
 
         if self.vx > 0 and self.vy < 0 then -- pointing right and up
-            serve_dir_arrow_x = serve_dir_arrow_x + 1 
+            serve_dir_arrow_x = serve_dir_arrow_x + 1
             serve_dir_arrow_y = serve_dir_arrow_y - 2*self.radius - 3
         elseif self.vx > 0 and self.vy > 0 then -- pointing right and down
             serve_dir_arrow_rotate = 2
         elseif self.vx < 0 and self.vy > 0 then -- pointing left and up
-            serve_dir_arrow_x = serve_dir_arrow_x + 1 
+            serve_dir_arrow_x = serve_dir_arrow_x + 1
             serve_dir_arrow_y = serve_dir_arrow_y - 2*self.radius - 3
         elseif self.vx < 0 and self.vy < 0 then -- pointing left and down
             -- serve_dir_arrow_x = serve_dir_arrow_x - self.radius
@@ -310,13 +302,13 @@ function SballObj:draw()
         end
 
         spr(
-            serve_dir_arrow_spr_id, 
-            serve_dir_arrow_x, 
-            serve_dir_arrow_y, 
+            serve_dir_arrow_spr_id,
+            serve_dir_arrow_x,
+            serve_dir_arrow_y,
             0, -- colorkey
             1, -- scale
-            serve_dir_arrow_flip, 
-            serve_dir_arrow_rotate, 
+            serve_dir_arrow_flip,
+            serve_dir_arrow_rotate,
             1, 1 -- width and height
         )
     end
@@ -366,7 +358,7 @@ function SballObj:reset(x, y)
 
     if CURRENT_SERVE_PLAYER == 1 then
         self.serve_direction_x = 1
-    else 
+    else
         self.serve_direction_x = -1
     end
 
@@ -423,7 +415,7 @@ function SballObj:collision(paddle)
             paddle:incrementReturns()
 
             -- Speed up if that's where we're at.
-            if (paddle:getReturns() > 0) and (paddle1:getReturns() % RETURN_THRESHOLD) == 0 then
+            if (paddle:getReturns() > 0) and (paddle:getReturns() % RETURN_THRESHOLD) == 0 then
                 ball:speedUp()
                 paddle:speedUp()
             end
@@ -446,6 +438,302 @@ function SballObj:isTouchingPaddle()
 end
 
 -- [/TQ-Bundler: src.classes.SballObj]
+
+-- [TQ-Bundler: src.screen_start]
+
+--[[ GAME START SCREEN FUNCTIONS ]] --
+
+
+local start_title_y = math.floor(EDGE_Y_BOTTOM * 0.25)
+local start_subtitle_y = start_title_y + 35
+
+local start_menu_option_x = math.floor(EDGE_X_RIGHT * 0.41)
+local start_menu_option_y = start_subtitle_y + 20
+local start_menu_space_y  = 10
+
+local start_menu_options = {
+    "New Game",
+    "Options"
+}
+local start_menu_options_num = #start_menu_options
+
+local start_menu_ball = {
+    x = start_menu_option_x - 7,
+    y = start_menu_option_y + 2,
+    r = 2,
+    cur = 1,
+    sel = 0,
+}
+
+
+function start_screen()
+    start_screen_input()
+    start_screen_update()
+    start_screen_draw()
+end
+
+
+function start_screen_input()
+    if btnp(P1_UP) or btnp(P1_DOWN) then
+        if start_menu_ball.cur == start_menu_options_num then
+            start_menu_ball.cur = 1
+            start_menu_ball.y   = start_menu_option_y + 2
+        else
+            start_menu_ball.cur = start_menu_ball.cur + 1
+            start_menu_ball.y = start_menu_ball.y + start_menu_space_y
+        end
+    end
+    if btnp(P1_LEFT) or btnp(P1_RIGHT) then
+        start_menu_ball.sel = start_menu_ball.cur
+    end
+end
+
+
+function start_screen_update()
+    if start_menu_ball.sel == 1 then
+        CURRENT_GAME_MODE = 'game'
+    elseif start_menu_ball.sel == 2 then
+        CURRENT_GAME_MODE = 'menu'
+    end
+    start_menu_ball.sel = 0
+end
+
+
+function start_screen_draw()
+    print_centered_text("SPONG", start_title_y, ORANGE, true, true, 6)
+    print_centered_text("Son of PONG", start_subtitle_y, BLUE_DARK, true, true, 2)
+
+    local current_start_menu_option_y = start_menu_option_y
+    for index, start_option_text in ipairs(start_menu_options) do
+        if index == start_menu_ball.cur then
+            circ(start_menu_ball.x, start_menu_ball.y, start_menu_ball.r, WHITE)
+        end
+        print(start_option_text, start_menu_option_x, current_start_menu_option_y, GRAY_LITE)
+        current_start_menu_option_y = current_start_menu_option_y + start_menu_space_y
+    end
+
+    local copyright_width = print("  2026 A. H. Fuller", 0, -10, GRAY_LITE)
+    local x_pos = ((EDGE_X_RIGHT - copyright_width) / 2) + 2
+
+    -- copyright sprite and message.
+    spr(264, x_pos, EDGE_Y_BOTTOM - 8, 0, 1, 0, 0, 1, 1)
+    print(" 2026 A. H. Fuller", x_pos + 8, EDGE_Y_BOTTOM - 7, GRAY_LITE)
+end
+
+
+-- [/TQ-Bundler: src.screen_start]
+
+-- [TQ-Bundler: src.screen_menu]
+
+--[[ GAME MENU SCREEN FUNCTIONS ]] --
+
+
+local menu_title_y       = 0
+local menu_menu_option_x = 20
+local menu_menu_option_y = menu_title_y + 20
+local menu_menu_space_y  = 8
+
+local menu_menu_options = {
+    "< Back to Main Menu",
+    "Player who serves first",
+    "Winning Score",
+    "Win by at least 2 points",
+    "Starting game speed",
+    "Enable speed boost",
+    "Speed boost multiplier",
+    "Returns before speed boost",
+    "Display number of returns",
+}
+local menu_menu_options_num = #menu_menu_options
+
+local menu_menu_ball = {
+    x = menu_menu_option_x - 7,
+    y = menu_menu_option_y + 2,
+    r = 2,
+    cur = 1,
+    sel = 0,
+    inc = false,
+    dec = false,
+}
+
+
+function menu_screen()
+    menu_screen_input()
+    menu_screen_update()
+    menu_screen_draw()
+end
+
+function menu_screen_input()
+    if btnp(P1_UP) then
+        if menu_menu_ball.cur == 1 then
+            menu_menu_ball.cur = menu_menu_options_num
+        else
+            menu_menu_ball.cur = menu_menu_ball.cur - 1
+        end
+        menu_menu_ball.y = (menu_menu_option_y + 2) + ((menu_menu_ball.cur - 1) * menu_menu_space_y)
+    end
+    if btnp(P1_DOWN) then
+        if menu_menu_ball.cur == menu_menu_options_num then
+            menu_menu_ball.cur = 1
+        else
+            menu_menu_ball.cur = menu_menu_ball.cur + 1
+        end
+        menu_menu_ball.y = (menu_menu_option_y + 2) + ((menu_menu_ball.cur - 1) * menu_menu_space_y)
+    end
+    if btnp(P1_LEFT) then
+        menu_menu_ball.sel = menu_menu_ball.cur
+        menu_menu_ball.inc = false
+        menu_menu_ball.dec = true
+    end
+    if btnp(P1_RIGHT) then
+        menu_menu_ball.sel = menu_menu_ball.cur
+        menu_menu_ball.inc = true
+        menu_menu_ball.dec = false
+    end
+end
+
+function menu_screen_update()
+    local winning_score_limit    = 100
+    local game_speed_limit       = 10
+    local return_threshold_limit = 100
+
+    local multiplier = 1
+    if menu_menu_ball.dec == true and menu_menu_ball.inc == false then
+       multiplier = -1
+    end
+
+    if menu_menu_ball.sel == 1 then
+        CURRENT_GAME_MODE = 'start'
+
+    elseif menu_menu_ball.sel == 2 then
+        CURRENT_SERVE_PLAYER = 1
+        if multiplier > 0 then
+            CURRENT_SERVE_PLAYER = 2
+        end
+    elseif menu_menu_ball.sel == 3 then
+        WINNING_SCORE = WINNING_SCORE + (1 * multiplier)
+        if WIN_BY_TWO == true and WINNING_SCORE < 2 then
+            WINNING_SCORE = 2
+        elseif WIN_BY_TWO == false and WINNING_SCORE < 1 then
+            WINNING_SCORE = 1
+        elseif WINNING_SCORE > winning_score_limit then
+            WINNING_SCORE = winning_score_limit
+        end
+    elseif menu_menu_ball.sel == 4 then
+        if WIN_BY_TWO == true then
+            WIN_BY_TWO = false
+        else
+            WIN_BY_TWO = true
+            if WINNING_SCORE < 2 then
+                WINNING_SCORE = 2
+            end
+        end
+    elseif menu_menu_ball.sel == 5 then
+        GAME_SPEED = GAME_SPEED + (1 * multiplier)
+        if GAME_SPEED > game_speed_limit then
+            GAME_SPEED = game_speed_limit
+        elseif GAME_SPEED < 1 then
+            GAME_SPEED = 1
+        end
+    elseif menu_menu_ball.sel == 6 then
+        if ENABLE_SPEED_BOOST == true then
+            ENABLE_SPEED_BOOST = false
+        else
+            ENABLE_SPEED_BOOST = true
+        end
+    elseif menu_menu_ball.sel == 7 then
+        SPEED_BOOSTER = SPEED_BOOSTER + (0.05 * multiplier)
+        if SPEED_BOOSTER > 1.01 then
+            SPEED_BOOSTER = 1.0
+        elseif SPEED_BOOSTER < 0.05 then
+            SPEED_BOOSTER = 0.05
+        end
+    elseif menu_menu_ball.sel == 8 then
+        RETURN_THRESHOLD = RETURN_THRESHOLD + (1 * multiplier)
+        if RETURN_THRESHOLD > return_threshold_limit then
+            RETURN_THRESHOLD = return_threshold_limit
+        elseif RETURN_THRESHOLD < 1 then
+            RETURN_THRESHOLD = 1
+        end
+    elseif menu_menu_ball.sel == 9 then
+        if SHOW_NUM_RETURNS == true then
+            SHOW_NUM_RETURNS = false
+        else
+            SHOW_NUM_RETURNS = true
+        end
+    end
+
+    menu_menu_ball.sel = 0
+    menu_menu_ball.inc = false
+    menu_menu_ball.dec = false
+end
+
+function menu_screen_draw()
+    print_centered_text("OPTIONS", menu_title_y, ORANGE, true, true, 2)
+
+    -- Get longest option length first.
+    local longest_option_width = 0
+    for index, menu_option_text in ipairs(menu_menu_options) do
+        longest_option_width = print(menu_option_text, 0, -10)
+    end
+    longest_option_width = longest_option_width + 30
+
+    local current_menu_menu_option_y = menu_menu_option_y
+    for index, menu_option_text in ipairs(menu_menu_options) do
+        if index == menu_menu_ball.cur then
+            circ(menu_menu_ball.x, menu_menu_ball.y, menu_menu_ball.r, WHITE)
+        end
+        print(menu_option_text, menu_menu_option_x, current_menu_menu_option_y, GRAY_LITE)
+        print(
+            menu_screen_get_option_value(index),
+            longest_option_width + (2 * menu_menu_space_y),
+            current_menu_menu_option_y,
+            GRAY_LITE,
+            true
+        )
+        current_menu_menu_option_y = current_menu_menu_option_y + menu_menu_space_y
+    end
+end
+
+function menu_screen_get_option_value(index)
+    local return_string = " "
+    local true_string   = string.format("%5s", "TRUE")
+    local false_string  = string.format("%5s", "FALSE")
+
+    if index == 2 then
+        return_string = string.format("%5d", tostring(CURRENT_SERVE_PLAYER))
+    elseif index == 3 then
+        return_string = string.format("%5d", tostring(WINNING_SCORE))
+    elseif index == 4 then
+        if WIN_BY_TWO == true then
+            return_string = true_string
+        else
+            return_string = false_string
+        end
+    elseif index == 5 then
+        return_string = string.format("%5d", tostring(GAME_SPEED))
+    elseif index == 6 then
+        if ENABLE_SPEED_BOOST == true then
+            return_string = true_string
+        else
+            return_string = false_string
+        end
+    elseif index == 7 then
+        return_string = string.format(" %0.2f", tostring(SPEED_BOOSTER))
+    elseif index == 8 then
+        return_string = string.format("%5d", tostring(RETURN_THRESHOLD))
+    elseif index == 9 then
+        if SHOW_NUM_RETURNS == true then
+            return_string = true_string
+        else
+            return_string = false_string
+        end
+    end
+    return return_string
+end
+
+
+-- [/TQ-Bundler: src.screen_menu]
 
 -- [TQ-Bundler: src.input]
 
@@ -471,6 +759,7 @@ function UPDATE()
         and paddle2:isInPlay()
         and ball:isInPlay() == false
     then
+        sfx(5)
         ball:inPlay()
     end
 
@@ -492,8 +781,6 @@ end -- UPDATE()
 --[[ DRAW FUNCTIONS ]]--
 
 function DRAW()
-    cls(BLACK)
-
     --- Draw the court, which is stationary.
     drawCourt()
 
@@ -505,28 +792,15 @@ function DRAW()
     paddle1:draw()
     paddle2:draw()
     ball:draw()
-
-    -- print_centered_text("P1.x = " .. paddle1.x, 20)
-    -- print_centered_text("P1.y = " .. paddle1.y, 30)
-    -- print_centered_text("P1.player = " .. paddle1.player, 40)
-    -- print_centered_text("P1.isInPlay() = " .. tostring(paddle1:isInPlay()), 50)
-
-    -- print_centered_text("P2.x = " .. paddle2.x, 70)
-    -- print_centered_text("P2.y = " .. paddle2.y, 80)
-    -- print_centered_text("P2.player = " .. paddle2.player, 90)
-    -- print_centered_text("P2.isInPlay() = " .. tostring(paddle2:isInPlay()), 100)
-
-    -- print_centered_text("Ball.isInPlay() = " .. tostring(ball:isInPlay()), 110)
-    -- print_centered_text("Ball.isTouchingPaddle() = " .. tostring(ball:isTouchingPaddle()), 120)
 end -- DRAW()
 
 function drawHud(paddle, ball_status)
     local x_pos = EDGE_X_LEFT - HUD_WIDTH
     local y_pos = EDGE_Y_TOP + BOUNDARY_WIDTH
 
-    local red_light_spr_id    = 257
-    local yellow_light_spr_id = 259
-    local green_light_spr_id  = 261
+    local red_light_spr_id    = 279
+    local yellow_light_spr_id = 295
+    local green_light_spr_id  = 280
     local status_light_spr_id = 0
 
     local score_scale  = 2
@@ -545,7 +819,7 @@ function drawHud(paddle, ball_status)
     elseif paddle:isInPlay() == true and ball_status == true then
         status_light_spr_id = green_light_spr_id
     end
-    spr(status_light_spr_id, x_pos, y_pos, 0, 1, 0, 0, 2, 4)
+    spr(status_light_spr_id, x_pos, y_pos, 0, 1, 0, 0, 1, 1)
 
     if paddle:getScore() > 9 then
         score_scale = 1
@@ -604,20 +878,21 @@ end
 --[[ CHECK FOR GAME STOPPAGES ]]--
 
 function CHECK()
-    
-    -- Check if somebody's score == the WINNING_SCORE
-    if paddle1:getScore() == WINNING_SCORE then
-        GAME_OVER(paddle1)
-    elseif paddle2:getScore() == WINNING_SCORE then
-        GAME_OVER(paddle2)
+    -- Check to see if we've got a winner.
+    local winner = check_for_winner()
+    if winner then
+        GAME_OVER(winner)
+        return
+    end
 
-    -- There's some sort of game stoppage (someone scored or the game is paused.)
-    elseif
-        paddle1:isInPlay() == false
-        or paddle2:isInPlay() == false
-    then
-        print_centered_text("READY?", math.floor(EDGE_Y_BOTTOM/2), ORANGE, true, true, 3)
-        print_centered_text("PRESS LEFT TO BEGIN", math.floor(EDGE_Y_BOTTOM/2 + 28), BLUE_LITE, false, false, 1)
+    -- No winner, but there's some sort of game stoppage (someone scored or the
+    -- game is paused.)
+    if paddle1:isInPlay() == false or paddle2:isInPlay() == false then
+        local ready_msg_height = math.floor(EDGE_Y_BOTTOM / 2) - 20
+        print_centered_text("READY?", ready_msg_height, ORANGE, true, true, 3)
+        print_centered_text("PRESS LEFT TO BEGIN", ready_msg_height + 30, BLUE_LITE, false, false, 1)
+        print_centered_text("PRESS RIGHT TO CHANGE", ready_msg_height + 40, BLUE_LITE, false, false, 1)
+        print_centered_text("SERVE DIRECTION", ready_msg_height + 47, BLUE_LITE, false, false, 1)
 
         -- Serving player can move up and down with the ball with this wrapper
         -- method for ball:reset().
@@ -626,43 +901,61 @@ function CHECK()
         else
             ball:preServe(paddle2)
         end
-    -- Both players are ready but the ball has gone out of bounds.
+
+        return
+
+    -- Both players are ready but check if the ball has gone out of bounds.
     elseif
         paddle1:isInPlay() == true
         and paddle2:isInPlay() == true
+        and ball:isInPlay() == false
     then
-        
-        if ball:isInPlay() == true then
-            -- Ball is in play!
-        else
-            -- Ball is out of play! Increment score
-            if (ball.x + ball.radius) < EDGE_X_LEFT then
-                paddle2:incrementScore()
-            elseif ball.x >= EDGE_X_RIGHT then
-                paddle1:incrementScore()
-            end
-
-            paddle1:reset()
-            paddle2:reset()
-            ball:reset()
+        if (ball.x + ball.radius) < EDGE_X_LEFT then
+            paddle2:incrementScore()
+        elseif ball.x >= EDGE_X_RIGHT then
+            paddle1:incrementScore()
         end
 
-    -- Everybody is playing, nothing new has happened.
-    elseif
-        paddle1:isInPlay() == true
-        and paddle2:isInPlay() == true
-        and ball:isInPlay() == true
-    then
-        -- Do nothing...for now.
+        paddle1:reset()
+        paddle2:reset()
+        ball:reset()
+        return
     end
 end -- CHECK()
 
+function check_for_winner()
+    local score_one  = paddle1:getScore()
+    local score_two  = paddle2:getScore()
+    local max_score  = math.max(score_one, score_two)
+    local diff_score = math.abs(score_one - score_two)
 
-function GAME_OVER(winning_paddle)
+    if WIN_BY_TWO then
+        if max_score >= WINNING_SCORE and diff_score >= 2 then
+            return (score_one > score_two) and paddle1 or paddle2
+        end
+    else
+        if score_one >= WINNING_SCORE then return paddle1 end
+        if score_two >= WINNING_SCORE then return paddle2 end
+    end
+
+    return nil
+end
+
+function GAME_OVER()
+    local winning_paddle = check_for_winner()
+
     local winning_message = string.format("PLAYER %d WINS!", winning_paddle.player)
     print_centered_text(winning_message, EDGE_Y_BOTTOM/2, ORANGE, true, false, 2)
+    print_centered_text("PRESS A TO RETURN", EDGE_Y_BOTTOM/2 + 20, BLUE_LITE)
+    print_centered_text("TO START SCREEN", EDGE_Y_BOTTOM/2 + 27, BLUE_LITE)
 
-    INIT()
+    CURRENT_GAME_MODE = 'over'
+
+    -- If we're on the game-over screen, wait for A and do nothing else.
+    if btnp(winning_paddle.aButton) then
+        CURRENT_GAME_MODE = 'start'
+        INIT() -- optional reset
+    end
 end
 
 
@@ -675,7 +968,7 @@ paddle1 = SpaddleObj:new({player = 1})
 paddle2 = SpaddleObj:new({player = 2})
 ball    = SballObj:new()
 
--- TODO: How do I automatically change the keymapping upon loading?
+
 function BOOT()
 end
 
@@ -683,6 +976,9 @@ function INIT()
     paddle1:reset()
     paddle2:reset()
     ball:reset()
+
+    paddle1:resetScore()
+    paddle2:resetScore()
 end
 
 INIT()
@@ -690,19 +986,62 @@ INIT()
 
 --[[ GAME LOOP ]]--
 
+-- function TIC()
+--     cls(BLACK)
+
+--     if CURRENT_GAME_MODE == 'start' then
+--         --[[ START SCREEN ]]--
+--         start_screen()
+
+--     elseif CURRENT_GAME_MODE == 'menu' then
+--         --[[ USER CAN CONFIGURE CONSTANTS ]]--
+--         menu_screen()
+
+--     elseif CURRENT_GAME_MODE == 'game' or CURRENT_GAME_MODE == 'over' then
+--         --[[ CHECK FOR USER INPUT ]]--
+--         INPUT()
+
+--         --[[ UPDATE GAME DATA ]]--
+--         UPDATE()
+
+--         --[[ DRAW GAME GRAPHICS ]]--
+--         DRAW()
+
+--         --[[ CHECK FOR GAME STOPPAGES ]]--
+--         CHECK()
+--       end
+-- end --TIC
 function TIC()
-    --[[ CHECK FOR USER INPUT ]]--
-    INPUT()
+    cls(BLACK)
 
-    --[[ UPDATE GAME DATA ]]--
-    UPDATE()
+    if CURRENT_GAME_MODE == 'start' then
+        --[[ START SCREEN ]]--
+        start_screen()
 
-    --[[ DRAW GAME GRAPHICS ]]--
-    DRAW()
+    elseif CURRENT_GAME_MODE == 'menu' then
+        --[[ USER CAN CONFIGURE CONSTANTS ]]--
+        menu_screen()
 
-    --[[ CHECK FOR GAME STOPPAGES ]]--
-    CHECK()
-end --TIC
+    elseif CURRENT_GAME_MODE == 'game' then
+        --[[ CHECK FOR USER INPUT ]]--
+        INPUT()
+
+        --[[ UPDATE GAME DATA ]]--
+        UPDATE()
+
+        --[[ DRAW GAME GRAPHICS ]]--
+        DRAW()
+
+        --[[ CHECK FOR GAME STOPPAGES ]]--
+        CHECK()
+
+    elseif CURRENT_GAME_MODE == 'over' then
+        -- Freeze the game state: no INPUT(), no UPDATE(), no CHECK()
+        DRAW()
+
+        GAME_OVER()
+    end
+end
 
 -- <SPRITES>
 -- 001:00ffffff0feeeeeefeeefffefeef222ffef22222fef22222fef22222feef222f
@@ -712,18 +1051,22 @@ end --TIC
 -- 005:00ffffff0feeeeeefeeefffefeefdddffefdddddfefdddddfefdddddfeefdddf
 -- 006:f0000000ef000000eef00000eef00000fef00000fef00000fef00000eef00000
 -- 007:000d000000ddd0000ddddd00ddddddd000000000000000000000000000000000
+-- 008:00dddd000d0000d0d00dd00dd0d0000dd0d0000dd00dd00d0d0000d000dddd00
 -- 017:feeefffefeeeeeeefeeefffefeefdddffefdddddfefdddddfefdddddfeefdddf
 -- 018:eef00000eef00000eef00000eef00000fef00000fef00000fef00000eef00000
 -- 019:feeefffefeeeeeeefeeefffefeef444ffef44444fef44444fef44444feef444f
 -- 020:eef00000eef00000eef00000eef00000fef00000fef00000fef00000eef00000
 -- 021:feeefffefeeeeeeefeeefffefeefdddffefdddddfefdddddfefdddddfeefdddf
 -- 022:eef00000eef00000eef00000eef00000fef00000fef00000fef00000eef00000
+-- 023:00ffff000f2222f0f222222ff222222ff222222ff222222f0f2222f000ffff00
+-- 024:00ffff000f6666f0f666666ff666666ff666666ff666666f0f6666f000ffff00
 -- 033:feeefffefeeeeeeefeeefffefeefdddffefdddddfefdddddfefdddddfeefdddf
 -- 034:eef00000eef00000eef00000eef00000fef00000fef00000fef00000eef00000
 -- 035:feeefffefeeeeeeefeeefffefeefdddffefdddddfefdddddfefdddddfeefdddf
 -- 036:eef00000eef00000eef00000eef00000fef00000fef00000fef00000eef00000
 -- 037:feeefffefeeeeeeefeeefffefeef666ffef66666fef66666fef66666feef666f
 -- 038:eef00000eef00000eef00000eef00000fef00000fef00000fef00000eef00000
+-- 039:00ffff000f4444f0f444444ff444444ff444444ff444444f0f4444f000ffff00
 -- 049:feeefffe0feeeeee00ffffff0000000000000000000000000000000000000000
 -- 050:eef00000ef000000f00000000000000000000000000000000000000000000000
 -- 051:feeefffe0feeeeee00ffffff0000000000000000000000000000000000000000

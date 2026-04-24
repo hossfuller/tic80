@@ -44,6 +44,31 @@ INIT()
 
 --[[ GAME LOOP ]]--
 
+-- function TIC()
+--     cls(BLACK)
+
+--     if CURRENT_GAME_MODE == 'start' then
+--         --[[ START SCREEN ]]--
+--         start_screen()
+
+--     elseif CURRENT_GAME_MODE == 'menu' then
+--         --[[ USER CAN CONFIGURE CONSTANTS ]]--
+--         menu_screen()
+
+--     elseif CURRENT_GAME_MODE == 'game' or CURRENT_GAME_MODE == 'over' then
+--         --[[ CHECK FOR USER INPUT ]]--
+--         INPUT()
+
+--         --[[ UPDATE GAME DATA ]]--
+--         UPDATE()
+
+--         --[[ DRAW GAME GRAPHICS ]]--
+--         DRAW()
+
+--         --[[ CHECK FOR GAME STOPPAGES ]]--
+--         CHECK()
+--       end
+-- end --TIC
 function TIC()
     cls(BLACK)
 
@@ -55,17 +80,23 @@ function TIC()
         --[[ USER CAN CONFIGURE CONSTANTS ]]--
         menu_screen()
 
-    elseif CURRENT_GAME_MODE == 'game' or CURRENT_GAME_MODE == 'over' then
-        --[[ CHECK FOR USER INPUT ]] --
+    elseif CURRENT_GAME_MODE == 'game' then
+        --[[ CHECK FOR USER INPUT ]]--
         INPUT()
 
-        --[[ UPDATE GAME DATA ]] --
+        --[[ UPDATE GAME DATA ]]--
         UPDATE()
 
-        --[[ DRAW GAME GRAPHICS ]] --
+        --[[ DRAW GAME GRAPHICS ]]--
         DRAW()
 
-        --[[ CHECK FOR GAME STOPPAGES ]] --
+        --[[ CHECK FOR GAME STOPPAGES ]]--
         CHECK()
-      end
-end --TIC
+
+    elseif CURRENT_GAME_MODE == 'over' then
+        -- Freeze the game state: no INPUT(), no UPDATE(), no CHECK()
+        DRAW()
+
+        GAME_OVER()
+    end
+end

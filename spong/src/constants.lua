@@ -28,6 +28,7 @@ P2_UP    = 8
 P2_DOWN  = 9
 P2_LEFT  = 10
 P2_RIGHT = 11
+P2_A     = 12
 
 -- Screen Edges
 BOUNDARY_WIDTH = 2
@@ -47,10 +48,10 @@ RETURN_THRESHOLD = 5
 
 -- Game Configuration
 CURRENT_SERVE_PLAYER = 1
-WINNING_SCORE        = 1
+WINNING_SCORE        = 2
 SHOW_NUM_RETURNS     = true
 ENABLE_SPEED_BOOST   = true
-
+WIN_BY_TWO           = true
 
 GAME_MODES        = {'start', 'menu', 'game', 'over'}
 CURRENT_GAME_MODE = 'start'
@@ -58,11 +59,6 @@ CURRENT_GAME_MODE = 'start'
 
 --[[ TODO LIST ]]--
 
--- TODO: Add a copyright to the bottom of the start screen.
--- TODO: How do I automatically change the keymapping upon loading?
-
 -- TODO: Add a way to pause the game.
 -- TODO: Do power ups!
--- TODO: Should we be able to move the paddles along the x-axis?
--- TODO: Win by 2?
 

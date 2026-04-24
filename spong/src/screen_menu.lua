@@ -10,6 +10,7 @@ local menu_menu_options = {
     "< Back to Main Menu",
     "Player who serves first",
     "Winning Score",
+    "Win by at least 2 points",
     "Starting game speed",
     "Enable speed boost",
     "Speed boost multiplier",
@@ -84,39 +85,50 @@ function menu_screen_update()
         end
     elseif menu_menu_ball.sel == 3 then
         WINNING_SCORE = WINNING_SCORE + (1 * multiplier)
-        if WINNING_SCORE < 1 then
+        if WIN_BY_TWO == true and WINNING_SCORE < 2 then
+            WINNING_SCORE = 2
+        elseif WIN_BY_TWO == false and WINNING_SCORE < 1 then
             WINNING_SCORE = 1
         elseif WINNING_SCORE > winning_score_limit then
             WINNING_SCORE = winning_score_limit
         end
     elseif menu_menu_ball.sel == 4 then
+        if WIN_BY_TWO == true then
+            WIN_BY_TWO = false
+        else
+            WIN_BY_TWO = true
+            if WINNING_SCORE < 2 then
+                WINNING_SCORE = 2
+            end
+        end
+    elseif menu_menu_ball.sel == 5 then
         GAME_SPEED = GAME_SPEED + (1 * multiplier)
         if GAME_SPEED > game_speed_limit then
             GAME_SPEED = game_speed_limit
         elseif GAME_SPEED < 1 then
             GAME_SPEED = 1
         end
-    elseif menu_menu_ball.sel == 5 then
+    elseif menu_menu_ball.sel == 6 then
         if ENABLE_SPEED_BOOST == true then
             ENABLE_SPEED_BOOST = false
         else
             ENABLE_SPEED_BOOST = true
         end
-    elseif menu_menu_ball.sel == 6 then
+    elseif menu_menu_ball.sel == 7 then
         SPEED_BOOSTER = SPEED_BOOSTER + (0.05 * multiplier)
         if SPEED_BOOSTER > 1.01 then
             SPEED_BOOSTER = 1.0
         elseif SPEED_BOOSTER < 0.05 then
             SPEED_BOOSTER = 0.05
         end
-    elseif menu_menu_ball.sel == 7 then
+    elseif menu_menu_ball.sel == 8 then
         RETURN_THRESHOLD = RETURN_THRESHOLD + (1 * multiplier)
         if RETURN_THRESHOLD > return_threshold_limit then
             RETURN_THRESHOLD = return_threshold_limit
         elseif RETURN_THRESHOLD < 1 then
             RETURN_THRESHOLD = 1
         end
-    elseif menu_menu_ball.sel == 8 then
+    elseif menu_menu_ball.sel == 9 then
         if SHOW_NUM_RETURNS == true then
             SHOW_NUM_RETURNS = false
         else
@@ -166,18 +178,24 @@ function menu_screen_get_option_value(index)
     elseif index == 3 then
         return_string = string.format("%5d", tostring(WINNING_SCORE))
     elseif index == 4 then
-        return_string = string.format("%5d", tostring(GAME_SPEED))
+        if WIN_BY_TWO == true then
+            return_string = true_string
+        else
+            return_string = false_string
+        end
     elseif index == 5 then
+        return_string = string.format("%5d", tostring(GAME_SPEED))
+    elseif index == 6 then
         if ENABLE_SPEED_BOOST == true then
             return_string = true_string
         else
             return_string = false_string
         end
-    elseif index == 6 then
-        return_string = string.format(" %0.2f", tostring(SPEED_BOOSTER))
     elseif index == 7 then
-        return_string = string.format("%5d", tostring(RETURN_THRESHOLD))
+        return_string = string.format(" %0.2f", tostring(SPEED_BOOSTER))
     elseif index == 8 then
+        return_string = string.format("%5d", tostring(RETURN_THRESHOLD))
+    elseif index == 9 then
         if SHOW_NUM_RETURNS == true then
             return_string = true_string
         else
