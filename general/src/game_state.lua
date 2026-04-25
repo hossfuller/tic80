@@ -1,6 +1,16 @@
 -- ==========================================
--- STATE MACHINE
+-- GAME STATE
 -- ==========================================
+
+local STATE = {
+    START    = "START",
+    OPTIONS  = "OPTIONS",
+    HISCORES = "HISCORES",
+    READY    = "READY",
+    PLAY     = "PLAY",
+    PAUSE    = "PAUSE",
+    GAMEOVER = "GAMEOVER",
+}
 
 local game = {
     state = STATE.START,
@@ -35,43 +45,15 @@ local game = {
     play = {
         score = 0,
         -- Add your game-specific state here
-        playerX = SCREEN_W / 2,
-        playerY = SCREEN_H / 2,
+        playerX = EDGE_X_RIGHT / 2,
+        playerY = EDGE_Y_BOTTOM / 2,
     },
 }
 
 
-local states = {
-    [STATE.START] = {
-        update = updateStart,
-        draw = drawStart,
-    },
-    [STATE.OPTIONS] = {
-        update = updateOptions,
-        draw = drawOptions,
-    },
-    [STATE.HISCORES] = {
-        update = updateHiscores,
-        draw = drawHiscores,
-    },
-    [STATE.READY] = {
-        update = updateReady,
-        draw = drawReady,
-    },
-    [STATE.PLAY] = {
-        update = updatePlay,
-        draw = drawPlay,
-    },
-    [STATE.PAUSE] = {
-        update = updatePause,
-        draw = drawPause,
-    },
-    [STATE.GAMEOVER] = {
-        update = updateGameover,
-        draw = drawGameover,
-    },
-}
-
+-- ==========================================
+-- STATE CHANGE
+-- ==========================================
 
 local function changeState(newState)
     game.prevState = game.state
@@ -81,7 +63,8 @@ local function changeState(newState)
     if newState == STATE.READY then
         -- Reset game state for new game
         game.play.score = 0
-        game.play.playerX = SCREEN_W / 2
-        game.play.playerY = SCREEN_H / 2
+        game.play.playerX = EDGE_X_RIGHT / 2
+        game.play.playerY = EDGE_Y_BOTTOM / 2
     end
 end
+

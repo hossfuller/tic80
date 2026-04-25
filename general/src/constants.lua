@@ -1,14 +1,3 @@
--- title:   Snake Clone
--- author:  Adam Fuller <the.adam.fuller@gmail.com>
--- version: 0.1
--- script:  lua
-
-
--- ==========================================
--- INCLUDES
--- ==========================================
-
-
 -- ==========================================
 -- CONSTANTS
 -- ==========================================
@@ -54,12 +43,3 @@ local EDGE_X_LEFT    = 0
 local EDGE_X_RIGHT   = 240
 local EDGE_Y_TOP     = 0
 local EDGE_Y_BOTTOM  = 136
-
-
--- ==========================================
--- MAIN TIC FUNCTION
--- ==========================================
-
-function TIC()
-    cls(BLACK)
-end
