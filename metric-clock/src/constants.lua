@@ -38,14 +38,15 @@ local BTN_P2_B      = 13
 local BTN_P2_X      = 14
 local BTN_P2_Y      = 15
 
+-- Character dimensions (these scale linearly)
+local FIXED_CHAR_WIDTH  = 6
+local FIXED_CHAR_HEIGHT = 6
+
 -- Screen dimensions
 local EDGE_X_LEFT   = 0
 local EDGE_X_RIGHT  = 240
 local EDGE_Y_TOP    = 0
 local EDGE_Y_BOTTOM = 136
-local BOUNDARY_WIDTH = 10
-
--- Character dimensions (these scale linearly)
-local FIXED_CHAR_WIDTH = 6
-local FIXED_CHAR_HEIGHT = 6
+local X_PADDING     = FIXED_CHAR_WIDTH
+local Y_PADDING     = FIXED_CHAR_HEIGHT
 
