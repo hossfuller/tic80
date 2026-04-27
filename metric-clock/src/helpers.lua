@@ -3,6 +3,25 @@
 -- ==========================================
 
 
+function get_unix_timestamp()
+    return math.tointeger(tstamp())
+end
+
+
+function convert_datetime_obj_to_string(datetime_obj)
+    return string.format(
+        "%04d-%02d-%02d %02d:%02d:%02d",
+        datetime_obj.year,
+        datetime_obj.month,
+        datetime_obj.day,
+        datetime_obj.hour,
+        datetime_obj.min,
+        datetime_obj.sec
+    )
+end
+
+
+
 function print_centered_text(message, height, color, shadow, fixed, scale)
     if height == nil then
         height = math.floor(EDGE_Y_BOTTOM / 2)

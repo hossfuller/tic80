@@ -50,3 +50,6 @@ local EDGE_Y_BOTTOM = 136
 local X_PADDING     = FIXED_CHAR_WIDTH
 local Y_PADDING     = FIXED_CHAR_HEIGHT
 
+-- Clock offsets
+local EST_OFFSET_SECONDS    = -5 * 3600
+local TEHRAN_OFFSET_SECONDS = (3 * 3600) + (30 * 60)

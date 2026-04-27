@@ -67,6 +67,9 @@ local EDGE_Y_BOTTOM = 136
 local X_PADDING     = FIXED_CHAR_WIDTH
 local Y_PADDING     = FIXED_CHAR_HEIGHT
 
+-- Clock offsets
+local EST_OFFSET_SECONDS    = -5 * 3600
+local TEHRAN_OFFSET_SECONDS = (3 * 3600) + (30 * 60)
 
 
 -- [/TQ-Bundler: src.constants]
@@ -76,6 +79,25 @@ local Y_PADDING     = FIXED_CHAR_HEIGHT
 -- ==========================================
 -- HELPER FUNCTIONS
 -- ==========================================
+
+
+function get_unix_timestamp()
+    return math.tointeger(tstamp())
+end
+
+
+function convert_datetime_obj_to_string(datetime_obj)
+    return string.format(
+        "%04d-%02d-%02d %02d:%02d:%02d",
+        datetime_obj.year,
+        datetime_obj.month,
+        datetime_obj.day,
+        datetime_obj.hour,
+        datetime_obj.min,
+        datetime_obj.sec
+    )
+end
+
 
 
 function print_centered_text(message, height, color, shadow, fixed, scale)
@@ -105,100 +127,25 @@ end
 
 -- [/TQ-Bundler: src.helpers]
 
--- [TQ-Bundler: src.timecalc]
+-- [TQ-Bundler: src.std_datetime]
 
 -- ==========================================
--- TIME CALCULATION FUNCTIONS
+-- STANDARD TIME FUNCTIONS
 -- ==========================================
-
--- local epoch = {
---     year = 1970,
---     month = 1,
---     day = 1
--- }
-
--- local days_per_month = {
---     31,
---     28,
---     31,
---     30,
---     31,
---     30,
---     31,
---     31,
---     30,
---     31,
---     30,
---     31,
--- }
-
-function get_unix_timestamp()
-    return math.tointeger(tstamp())
-end
-
--- function get_std_num_of_days_since_epoch(timestamp)
---     return timestamp / 86400
--- end
-
--- -- function get_std_num_of_years_since_epoch(timestamp)
--- --     local num_days = get_std_num_of_days_since_epoch(timestamp)
--- --     local num_years = 0
--- --     local leftover_days = 0
--- --     for i = 0, num_days do
--- --         if (num_years % 4) == 0 then
--- --             if (num_days % 366) == 0 then
--- --                 num_years = num_years + 1
--- --                 leftover_days = 0
--- --             end
--- --         else
--- --             if (num_days % 365) == 0 then
--- --                 num_years = num_years + 1
--- --                 leftover_days = 0
--- --             end
--- --         end
--- --         leftover_days = leftover_days + 1
--- --     end
--- --     return {num_years = num_years, leftover_days = leftover_days}
--- -- end
-
--- -- function get_std_month(timestamp)
--- --     years = get_std_num_of_years_since_epoch(timestamp)
--- --     if (years['leftover_days'] > )
--- -- end
-
--- -- function get_std_year(timestamp)
-
--- -- end
-
-
--- -- function get_std_date(timestamp)
--- --     years = get_std_num_of_years_since_epoch(timestamp)
-
-
-
--- --     return {
--- --         year = epoch['year'] + years['num_years']
--- --     }
--- -- end
-
-
-
--- Pure Lua: Unix timestamp -> UTC calendar date/time
--- Works for integer seconds, including negative timestamps.
-
-local function is_leap(y)
-    return (y % 4 == 0) and ((y % 100 ~= 0) or (y % 400 == 0))
-end
 
 local mdays_common = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
 
-local function days_in_month(y, m)
-    if m == 2 and is_leap(y) then return 29 end
+local function is_greg_leap(y)
+    return (y % 4 == 0) and ((y % 100 ~= 0) or (y % 400 == 0))
+end
+
+local function greg_days_in_month(y, m)
+    if m == 2 and is_greg_leap(y) then return 29 end
     return mdays_common[m]
 end
 
-local function unix_to_utc(ts)
-    -- split into days since epoch and seconds-of-day
+-- Unix seconds -> Gregorian UTC date/time (year,month,day,hour,min,sec)
+local function unix_to_greg_utc(ts)
     local sec_per_day = 86400
     local days        = math.floor(ts / sec_per_day)
     local sod         = ts - days * sec_per_day
@@ -211,11 +158,10 @@ local function unix_to_utc(ts)
     local min  = math.floor(sod / 60)
     local sec  = sod - min * 60
 
-    -- convert day offset to Y-M-D by walking years then months
     local y    = 1970
     if days >= 0 then
         while true do
-            local diy = is_leap(y) and 366 or 365
+            local diy = is_greg_leap(y) and 366 or 365
             if days >= diy then
                 days = days - diy
                 y = y + 1
@@ -226,14 +172,14 @@ local function unix_to_utc(ts)
     else
         while days < 0 do
             y = y - 1
-            local diy = is_leap(y) and 366 or 365
+            local diy = is_greg_leap(y) and 366 or 365
             days = days + diy
         end
     end
 
     local m = 1
     while true do
-        local dim = days_in_month(y, m)
+        local dim = greg_days_in_month(y, m)
         if days >= dim then
             days = days - dim
             m = m + 1
@@ -242,21 +188,110 @@ local function unix_to_utc(ts)
         end
     end
 
-    local d = days + 1 -- days is 0-based within month
+    local d = days + 1
 
     return {
-        year = y,
+        year  = y,
         month = m,
-        day = d,
-        hour = hour,
-        min = min,
-        sec = sec
+        day   = d,
+        hour  = hour,
+        min   = min,
+        sec   = sec
     }
 end
 
+function greg_utc_to_other_timezone(ts, offset)
+    return unix_to_greg_utc(ts + offset)
+end
 
 
--- [/TQ-Bundler: src.timecalc]
+-- [/TQ-Bundler: src.std_datetime]
+
+-- [TQ-Bundler: src.jalali_datetime]
+
+-- ==========================================
+-- JALALI TIME FUNCTIONS
+-- ==========================================
+
+local function greg_to_jalali(gy, gm, gd)
+    local g_d_m = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 }
+
+    local jy
+    if gy > 1600 then
+        jy = 979
+        gy = gy - 1600
+    else
+        jy = 0
+        gy = gy - 621
+    end
+
+    local gy2 = (gm > 2) and (gy + 1) or gy
+
+    local days =
+        365 * gy
+        + math.floor((gy2 + 3) / 4)
+        - math.floor((gy2 + 99) / 100)
+        + math.floor((gy2 + 399) / 400)
+        - 80
+        + gd
+        + g_d_m[gm]
+
+    jy = jy + 33 * math.floor(days / 12053)
+    days = days % 12053
+
+    jy = jy + 4 * math.floor(days / 1461)
+    days = days % 1461
+
+    if days > 365 then
+        jy = jy + math.floor((days - 1) / 365)
+        days = (days - 1) % 365
+    end
+
+    local jm, jd
+    if days < 186 then
+        jm = 1 + math.floor(days / 31)
+        jd = 1 + (days % 31)
+    else
+        jm = 7 + math.floor((days - 186) / 30)
+        jd = 1 + ((days - 186) % 30)
+    end
+
+    return jy, jm, jd
+end
+
+-- Public: Unix timestamp -> Jalali UTC date/time table
+local function unix_to_jalali_utc(ts)
+    local greg_datetime = unix_to_greg_utc(ts)
+    local jy, jm, jd = greg_to_jalali(
+        greg_datetime.year,
+        greg_datetime.month,
+        greg_datetime.day
+    )
+    return {
+        year  = jy,
+        month = jm,
+        day   = jd,
+        hour  = greg_datetime.hour,
+        min   = greg_datetime.min,
+        sec   = greg_datetime.sec,
+    }
+end
+
+local function jalali_tehran_to_other_timezone(ts, offset)
+    return unix_to_jalali_utc(ts + offset)
+end
+
+
+-- [/TQ-Bundler: src.jalali_datetime]
+
+-- [TQ-Bundler: src.metric_datetime]
+
+-- ==========================================
+-- METRIC TIME FUNCTIONS
+-- ==========================================
+
+
+-- [/TQ-Bundler: src.metric_datetime]
 
 
 
@@ -287,50 +322,44 @@ INIT()
 function TIC()
     cls(PURPLE)
 
-    local desc_col = {
+    local datatime_headers = {
         "UNIX Timestamp",
-        "Standard Date",
+        "UTC Standard",
+        "UTC Jalali",
+        " ",
+        "Baltimore Time",
+        "Mashhad Time",
     }
-    local time_col = {
-        get_unix_timestamp(),
-    }
-    current_std_date = unix_to_utc(time_col[1])
-    table.insert(time_col, string.format(
-        "%04d-%02d-%02d %02d:%02d:%02d",
-        current_std_date.year,
-        current_std_date.month,
-        current_std_date.day,
-        current_std_date.hour,
-        current_std_date.min,
-        current_std_date.sec
-    ))
 
-    local longest_str_width = 0
+    local current_datetime         = get_unix_timestamp()
+    local current_std_datetime     = unix_to_greg_utc(current_datetime)
+    local current_balt_datetime    = greg_utc_to_est(current_datetime)
+    local current_jalali_datetime  = unix_to_jalali_utc(current_datetime)
+    local current_mashhad_datetime = unix_to_jalali_tehran(current_datetime)
+
+    local datetime_data = {
+        current_datetime,
+        convert_datetime_obj_to_string(current_std_datetime),
+        convert_datetime_obj_to_string(current_jalali_datetime),
+        '',
+        convert_datetime_obj_to_string(current_balt_datetime),
+        convert_datetime_obj_to_string(current_mashhad_datetime),
+    }
+
+    local num = 0
     local column_one_x = EDGE_X_LEFT + X_PADDING
-    for i, s in ipairs(desc_col) do
-        local str_width = print(s .. ": ", column_one_x, EDGE_Y_TOP + (i * Y_PADDING), WHITE, true, 1)
-        if str_width > longest_str_width then
-            longest_str_width = str_width
-        end
+    for num, header in ipairs(datatime_headers) do
+
+        -- print left column
+        print(header, column_one_x, EDGE_Y_TOP + (num * Y_PADDING), WHITE, true, 1)
+
+        -- print right column
+        local y_pos = EDGE_Y_TOP + (num * Y_PADDING)
+        local value_width = print(tostring(datetime_data[num]), 0, -100, WHITE, true, 1)
+        local x_pos = EDGE_X_RIGHT - X_PADDING - value_width
+        print(tostring(datetime_data[num]), x_pos, y_pos, WHITE, true, 1)
     end
 
-
-    -- local column_two_x = column_one_x + longest_str_width + FIXED_CHAR_WIDTH
-    local key_count = 0
-    for k, v in pairs(time_col) do
-        key_count = key_count + 1
-        local date_string_length = print(string.format("%s", v), 0, -100)
-
-        print_centered_text(date_string_length, EDGE_Y_BOTTOM - (key_count * Y_PADDING), WHITE, true, true, 1)
-
-        -- local x_pos = EDGE_X_RIGHT - date_string_length - X_PADDING
-        local x_pos = longest_str_width + X_PADDING
-
-        print(
-            string.format("%-s", v),
-            x_pos, EDGE_Y_TOP + (key_count * Y_PADDING), WHITE, true, 1
-        )
-    end
 
     -- INPUT();
 

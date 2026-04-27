@@ -10,7 +10,9 @@
 
 include "src.constants"
 include "src.helpers"
-include "src.timecalc"
+include "src.std_dt"
+include "src.jalali_dt"
+include "src.metric_dt"
 
 
 -- ==========================================
@@ -40,50 +42,52 @@ INIT()
 function TIC()
     cls(PURPLE)
 
-    local desc_col = {
+    local datatime_headers = {
         "UNIX Timestamp",
-        "Standard Date",
+        "UTC Standard",
+        "UTC Jalali",
+        -- " ",
+        -- "Baltimore STD Time",
+        -- "Mashhad STD Time",
+        -- " ",
+        -- "Baltimore Jal Time",
+        -- "Mashhad Jal Time",
     }
-    local time_col = {
-        get_unix_timestamp(),
-    }
-    current_std_date = unix_to_utc(time_col[1])
-    table.insert(time_col, string.format(
-        "%04d-%02d-%02d %02d:%02d:%02d",
-        current_std_date.year,
-        current_std_date.month,
-        current_std_date.day,
-        current_std_date.hour,
-        current_std_date.min,
-        current_std_date.sec
-    ))
 
-    local longest_str_width = 0
+    local cur_dt             = get_unix_timestamp()
+    local cur_std_dt         = unix_to_greg_utc(cur_dt)
+    local cur_jalali_dt      = unix_to_jalali_utc(cur_dt)
+    -- local cur_balt_std_dt    = greg_utc_to_other_timezone(cur_dt, EST_OFFSET_SECONDS)
+    -- local cur_mashhad_std_dt = greg_utc_to_other_timezone(cur_dt, TEHRAN_OFFSET_SECONDS)
+    -- local cur_balt_jal_dt    = jalali_tehran_to_other_timezone(cur_dt, EST_OFFSET_SECONDS)
+    -- local cur_mashhad_jal_dt = jalali_tehran_to_other_timezone(cur_dt, TEHRAN_OFFSET_SECONDS)
+
+    local datetime_data = {
+        cur_dt,
+        convert_datetime_obj_to_string(cur_std_dt),
+        convert_datetime_obj_to_string(cur_jalali_dt),
+        -- '',
+        -- convert_datetime_obj_to_string(cur_balt_std_dt),
+        -- convert_datetime_obj_to_string(cur_mashhad_std_dt),
+        -- '',
+        -- convert_datetime_obj_to_string(cur_balt_jal_dt),
+        -- convert_datetime_obj_to_string(cur_mashhad_jal_dt),
+    }
+
+    local num = 0
     local column_one_x = EDGE_X_LEFT + X_PADDING
-    for i, s in ipairs(desc_col) do
-        local str_width = print(s .. ": ", column_one_x, EDGE_Y_TOP + (i * Y_PADDING), WHITE, true, 1)
-        if str_width > longest_str_width then
-            longest_str_width = str_width
-        end
+    for num, header in ipairs(datatime_headers) do
+
+        -- print left column
+        print(header, column_one_x, EDGE_Y_TOP + (num * Y_PADDING), WHITE, true, 1)
+
+        -- print right column
+        local y_pos = EDGE_Y_TOP + (num * Y_PADDING)
+        local value_width = print(tostring(datetime_data[num]), 0, -100, WHITE, true, 1)
+        local x_pos = EDGE_X_RIGHT - X_PADDING - value_width
+        print(tostring(datetime_data[num]), x_pos, y_pos, WHITE, true, 1)
     end
 
-
-    -- local column_two_x = column_one_x + longest_str_width + FIXED_CHAR_WIDTH
-    local key_count = 0
-    for k, v in pairs(time_col) do
-        key_count = key_count + 1
-        local date_string_length = print(string.format("%s", v), 0, -100)
-
-        print_centered_text(date_string_length, EDGE_Y_BOTTOM - (key_count * Y_PADDING), WHITE, true, true, 1)
-
-        -- local x_pos = EDGE_X_RIGHT - date_string_length - X_PADDING
-        local x_pos = longest_str_width + X_PADDING
-
-        print(
-            string.format("%-s", v),
-            x_pos, EDGE_Y_TOP + (key_count * Y_PADDING), WHITE, true, 1
-        )
-    end
 
     -- INPUT();
 
