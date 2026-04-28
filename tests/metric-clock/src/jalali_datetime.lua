@@ -66,10 +66,10 @@ local function unix_to_jalali_utc(ts)
     }
 end
 
-local function jalali_tehran_to_other_timezone(ts, offset)
-    return unix_to_jalali_utc(ts + offset)
-end
+-- local function jalali_tehran_to_other_timezone(ts, offset)
+--     return unix_to_jalali_utc(ts + offset)
+-- end
 
-function unix_to_jalali_utc(ts)
-    return jalali_tehran_to_other_timezone(ts, TEHRAN_OFFSET_SECONDS)
-end
+-- function unix_to_jalali_utc(ts)
+--     return jalali_tehran_to_other_timezone(ts, TEHRAN_OFFSET_SECONDS)
+-- end
