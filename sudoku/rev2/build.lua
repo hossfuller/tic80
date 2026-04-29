@@ -92,6 +92,16 @@ local sudoku = {
     cells       = {}
 }
 
+local notes_grid = {
+    START_X     = sudoku.END_X + 10,
+    START_Y     = sudoku.START_Y,
+    CELL_WIDTH  = sudoku.CELL_WIDTH,
+    CELL_HEIGHT = sudoku.CELL_HEIGHT,
+    CELL_OFFSET = 2,
+    END_X       = sudoku.END_X + 10  + (3 * CELL_WIDTH_MULTIPLIER * X_PADDING),
+    END_Y       = sudoku.START_Y + (3 * CELL_HEIGHT_MULTIPLIER * Y_PADDING),
+}
+
 local function newCell()
     return {
         x_left    = nil,
@@ -101,7 +111,7 @@ local function newCell()
         solution  = nil,
         guess     = nil,
         locked    = false,
-        notes     = { { false, false, false }, { false, false, false }, { false, false, false } },
+        notes     = { { false, true, false }, { true, false, false }, { false, false, true } },
         mouseover = false,
         clicked   = false,
     }
@@ -194,6 +204,10 @@ end
 
 -- State variable to make sure a single click doesn't repeatedly toggle a cell.
 local prev_left_click = false
+local clicked_cell = {
+    i = nil,
+    j = nil
+}
 
 local function clearAllCellClicks()
     for i = 1, 9 do
@@ -201,6 +215,8 @@ local function clearAllCellClicks()
             sudoku.cells[i][j].clicked = false
         end
     end
+    clicked_cell.i = nil
+    clicked_cell.j = nil
 end
 
 local function checkInputOnPuzzleGrid(mouse_x, mouse_y, left_click, scroll_y)
@@ -221,6 +237,8 @@ local function checkInputOnPuzzleGrid(mouse_x, mouse_y, left_click, scroll_y)
                 if not cell.clicked then
                     clearAllCellClicks()
                     cell.clicked = true
+                    clicked_cell.i = i
+                    clicked_cell.j = j
                 else
                     cell.clicked = false
                 end
@@ -321,27 +339,44 @@ function drawPuzzle()
     end
 end
 
+
+-- local notes_grid = {
+--     START_X     = sudoku.END_X + 10,
+--     START_Y     = sudoku.START_Y,
+--     CELL_WIDTH  = sudoku.CELL_WIDTH,
+--     CELL_HEIGHT = sudoku.CELL_HEIGHT,
+--     CELL_OFFSET = 2,
+--     END_X       = sudoku.END_X + 10 + (3 * CELL_WIDTH_MULTIPLIER * X_PADDING),
+--     END_Y       = sudoku.START_Y + (3 * CELL_HEIGHT_MULTIPLIER * Y_PADDING),
+-- }
+
+
 local function drawNotesGrid()
-    local grid_x = sudoku.END_X + 10
-    local grid_y = sudoku.START_Y
+    local grid_x = notes_grid.START_X
+    local grid_y = notes_grid.START_Y
 
-    local cell_w = math.floor(sudoku.CELL_WIDTH)
-    local cell_h = math.floor(sudoku.CELL_HEIGHT)
+    local cell_w = notes_grid.CELL_WIDTH
+    local cell_h = notes_grid.CELL_HEIGHT
 
-
-
-
-
-
+    local active_cell = nil
+    if (clicked_cell.i ~= nil) and (clicked_cell.j ~= nil) then
+        active_cell = sudoku.cells[clicked_cell.i][clicked_cell.j].notes
+    end
 
     local n = 1
     for i = 1, 3 do
         for j = 1, 3 do
+            local num_color = GRAY_LITE
+
             local x = grid_x + (j - 1) * cell_w
             local y = grid_y + (i - 1) * cell_h
 
+            if (active_cell ~= nil) and (active_cell[i][j] == true) then
+                num_color = YELLOW
+            end
+
             rectb(x, y, cell_w, cell_h, WHITE)     -- cell border
-            print(n, x + 2, y + 2, WHITE, true, 2) -- number
+            print(n, x + 2, y + 2, num_color, true, 2) -- number
 
             n = n + 1
         end

@@ -13,6 +13,16 @@ local sudoku = {
     cells       = {}
 }
 
+local notes_grid = {
+    START_X     = sudoku.END_X + 10,
+    START_Y     = sudoku.START_Y,
+    CELL_WIDTH  = sudoku.CELL_WIDTH,
+    CELL_HEIGHT = sudoku.CELL_HEIGHT,
+    CELL_OFFSET = 2,
+    END_X       = sudoku.END_X + 10  + (3 * CELL_WIDTH_MULTIPLIER * X_PADDING),
+    END_Y       = sudoku.START_Y + (3 * CELL_HEIGHT_MULTIPLIER * Y_PADDING),
+}
+
 local function newCell()
     return {
         x_left    = nil,
@@ -22,7 +32,7 @@ local function newCell()
         solution  = nil,
         guess     = nil,
         locked    = false,
-        notes     = { { false, false, false }, { false, false, false }, { false, false, false } },
+        notes     = { { false, true, false }, { true, false, false }, { false, false, true } },
         mouseover = false,
         clicked   = false,
     }

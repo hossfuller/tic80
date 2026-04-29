@@ -4,6 +4,10 @@
 
 -- State variable to make sure a single click doesn't repeatedly toggle a cell.
 local prev_left_click = false
+local clicked_cell = {
+    i = nil,
+    j = nil
+}
 
 local function clearAllCellClicks()
     for i = 1, 9 do
@@ -11,6 +15,8 @@ local function clearAllCellClicks()
             sudoku.cells[i][j].clicked = false
         end
     end
+    clicked_cell.i = nil
+    clicked_cell.j = nil
 end
 
 local function checkInputOnPuzzleGrid(mouse_x, mouse_y, left_click, scroll_y)
@@ -31,6 +37,8 @@ local function checkInputOnPuzzleGrid(mouse_x, mouse_y, left_click, scroll_y)
                 if not cell.clicked then
                     clearAllCellClicks()
                     cell.clicked = true
+                    clicked_cell.i = i
+                    clicked_cell.j = j
                 else
                     cell.clicked = false
                 end

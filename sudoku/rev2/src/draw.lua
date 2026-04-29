@@ -49,27 +49,44 @@ function drawPuzzle()
     end
 end
 
+
+-- local notes_grid = {
+--     START_X     = sudoku.END_X + 10,
+--     START_Y     = sudoku.START_Y,
+--     CELL_WIDTH  = sudoku.CELL_WIDTH,
+--     CELL_HEIGHT = sudoku.CELL_HEIGHT,
+--     CELL_OFFSET = 2,
+--     END_X       = sudoku.END_X + 10 + (3 * CELL_WIDTH_MULTIPLIER * X_PADDING),
+--     END_Y       = sudoku.START_Y + (3 * CELL_HEIGHT_MULTIPLIER * Y_PADDING),
+-- }
+
+
 local function drawNotesGrid()
-    local grid_x = sudoku.END_X + 10
-    local grid_y = sudoku.START_Y
+    local grid_x = notes_grid.START_X
+    local grid_y = notes_grid.START_Y
 
-    local cell_w = math.floor(sudoku.CELL_WIDTH)
-    local cell_h = math.floor(sudoku.CELL_HEIGHT)
+    local cell_w = notes_grid.CELL_WIDTH
+    local cell_h = notes_grid.CELL_HEIGHT
 
-
-
-
-
-
+    local active_cell = nil
+    if (clicked_cell.i ~= nil) and (clicked_cell.j ~= nil) then
+        active_cell = sudoku.cells[clicked_cell.i][clicked_cell.j].notes
+    end
 
     local n = 1
     for i = 1, 3 do
         for j = 1, 3 do
+            local num_color = GRAY_LITE
+
             local x = grid_x + (j - 1) * cell_w
             local y = grid_y + (i - 1) * cell_h
 
+            if (active_cell ~= nil) and (active_cell[i][j] == true) then
+                num_color = YELLOW
+            end
+
             rectb(x, y, cell_w, cell_h, WHITE)     -- cell border
-            print(n, x + 2, y + 2, WHITE, true, 2) -- number
+            print(n, x + 2, y + 2, num_color, true, 2) -- number
 
             n = n + 1
         end
