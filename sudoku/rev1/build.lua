@@ -92,13 +92,14 @@ local function newCell()
         solution  = nil,
         guess     = nil,
         locked    = false,
-        notes     = { false, false, false, false, false, false, false, false, false },
+        notes     = { {true, false, false}, {false, true, false}, {true, false, true} },
         mouseover = false,
         clicked   = false,
     }
 end
 
-local function gapBefore(index) -- index is 1..9, returns pixels before this cell
+local function gapBefore(index)
+    -- index is 1..9, returns pixels before this cell
     -- There is a 1px gap before every cell except the first in each house.
     -- There is a 2px gap before the first cell of house 2 and 3 (i.e. index 4 and 7).
     if index == 1 then return 0 end
@@ -179,9 +180,66 @@ end -- INIT()
 -- INPUT FUNCTIONS
 -- ==========================================
 
+-- State variable to make sure a single click doesn't repeatedly toggle a cell.
+local prev_left_click = false
+
+local function clearAllCellClicks()
+    for i = 1, 9 do
+        for j = 1, 9 do
+            sudoku.cells[i][j].clicked = false
+        end
+    end
+end
+
+local function checkInputOnPuzzleGrid(mouse_x, mouse_y, left_click, scroll_y)
+    local just_pressed = left_click and not prev_left_click
+    prev_left_click = left_click
+
+    for i = 1, 9 do
+        for j = 1, 9 do
+            local cell = sudoku.cells[i][j]
+
+            -- Is this a mouseover event?
+            cell.mouseover =
+                (cell.x_left <= mouse_x and mouse_x <= cell.x_right) and
+                (cell.y_top <= mouse_y and mouse_y <= cell.y_bottom)
+
+            -- Did the user click on this cell?
+            if cell.mouseover and just_pressed then
+                if not cell.clicked then
+                    clearAllCellClicks()
+                    cell.clicked = true
+                else
+                    cell.clicked = false
+                end
+            end
+
+            -- Is the user trying to change the number?
+            if cell.clicked and scroll_y > 0 then
+                if cell.guess == nil or cell.guess >= 9 then
+                    cell.guess = 1
+                else
+                    cell.guess = cell.guess + 1
+                end
+            elseif cell.clicked and scroll_y < 0 then
+                if cell.guess == nil or cell.guess <= 1 then
+                    cell.guess = 9
+                else
+                    cell.guess = cell.guess - 1
+                end
+            end
+
+            sudoku.cells[i][j] = cell
+        end
+    end
+end
 
 function INPUT()
+    local mouse_x, mouse_y, left_click, middle_click, right_click, scroll_x, scroll_y = mouse()
+
+    checkInputOnPuzzleGrid(mouse_x, mouse_y, left_click, scroll_y)
 end
+
 
 -- ==========================================
 -- UPDATE FUNCTIONS
@@ -195,7 +253,7 @@ end
 -- DRAW FUNCTIONS
 -- ==========================================
 
-function draw_sudoku_puzzle()
+function drawPuzzle()
     for i = 1, 9 do
         for j = 1, 9 do
             local cell_bgcolor = GRAY_DARK
@@ -214,36 +272,33 @@ function draw_sudoku_puzzle()
             end
             rect(grid_x, grid_y, grid_width, grid_height, cell_bgcolor)
 
--- local function newCell()
---     return {
---         x_left    = nil,
---         x_right   = nil,
---         y_top     = nil,
---         y_bottom  = nil,
---         solution  = nil,
---         guess     = nil,
---         locked    = false,
---         notes     = { false, false, false, false, false, false, false, false, false },
---         mouseover = false,
---         clicked   = false,
---     }
--- end
+            -- If there isn't a guess, print the notes.
+            if sudoku.cells[i][j].guess == nil then
+                local cell = sudoku.cells[i][j]
 
-            -- Print the guess if there is one.
-            if sudoku.cells[i][j].guess ~= nil then
+                local note_w = math.floor(grid_width / 3)
+                local note_h = math.floor(grid_height / 3)
+
+                for n_i = 1, 3 do
+                    for n_j = 1, 3 do
+                        if cell.notes[n_i][n_j] then
+                            local nx = 1 + grid_x + (n_j - 1) * note_w
+                            local ny = 1 + grid_y + (n_i - 1) * note_h
+                            rect(nx, ny, note_w, note_h, GRAY_LITE)
+                        end
+                    end
+                end
+
+            -- Otherwise print the guess if there is one.
+            else
                 print(sudoku.cells[i][j].guess, grid_x + 2, grid_y + 2, WHITE, true, 2)
             end
-
-
-            -- If there isn't a guess, print the notes.
-
 
             -- Finally, draw the grid.
             rectb(grid_x, grid_y, grid_width, grid_height, WHITE)
         end
     end
 end
-
 
 
 function DRAW()
@@ -258,7 +313,7 @@ function DRAW()
         WHITE
     )
 
-    draw_sudoku_puzzle()
+    drawPuzzle()
 end
 
 -- ==========================================
