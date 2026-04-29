@@ -41,4 +41,5 @@ function TIC()
     INPUT()
     UPDATE()
     DRAW()
+    print("Rethink notes grid", EDGE_X_RIGHT - 80, EDGE_Y_BOTTOM - 10, WHITE)
 end
