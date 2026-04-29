@@ -1,6 +1,6 @@
 -- title:   Sudoku for TIC-80
 -- author:  Adam Fuller <the.adam.fuller@gmail.com>
--- version: rev1-0.1
+-- version: rev1
 -- script:  lua
 -- input: mouse
 

@@ -5,9 +5,15 @@
 
 -- title:   Sudoku for TIC-80
 -- author:  Adam Fuller <the.adam.fuller@gmail.com>
--- version: rev1
+-- version: rev2
 -- script:  lua
 -- input: mouse
+
+-- ==========================================
+-- INCLUDES
+-- ==========================================
+
+-- [TQ-Bundler: src.constants]
 
 -- ==========================================
 -- CONSTANTS
@@ -64,8 +70,16 @@ local Y_PADDING              = FIXED_CHAR_HEIGHT + 2
 local CELL_WIDTH_MULTIPLIER  = 1.75
 local CELL_HEIGHT_MULTIPLIER = 1.75
 local GAP_CELL               = -1 -- between cells inside a house
-local GAP_HOUSE              = 0 -- between houses (after col/row 3 and 6)
+local GAP_HOUSE              = 0  -- between houses (after col/row 3 and 6)
 
+
+-- [/TQ-Bundler: src.constants]
+
+-- [TQ-Bundler: src.sudoku_grid]
+
+-- ==========================================
+-- SUDOKU GRID DATA STRUCTURE
+-- ==========================================
 
 local sudoku = {
     START_X     = EDGE_X_LEFT + X_PADDING,
@@ -78,11 +92,6 @@ local sudoku = {
     cells       = {}
 }
 
-
--- ==========================================
--- INITIALIZATION FUNCTIONS
--- ==========================================
-
 local function newCell()
     return {
         x_left    = nil,
@@ -92,7 +101,7 @@ local function newCell()
         solution  = nil,
         guess     = nil,
         locked    = false,
-        notes     = { {true, false, false}, {false, true, false}, {true, false, true} },
+        notes     = { { false, false, false }, { false, false, false }, { false, false, false } },
         mouseover = false,
         clicked   = false,
     }
@@ -136,6 +145,15 @@ local function initializeCells()
     end
 end
 
+
+-- [/TQ-Bundler: src.sudoku_grid]
+
+-- [TQ-Bundler: src.sudoku_logic]
+
+-- ==========================================
+-- SUDOKU LOGIC
+-- ==========================================
+
 local function generateSolution()
     for i = 1, 9 do
         for j = 1, 9 do
@@ -165,16 +183,10 @@ local function finalizePuzzle(difficulty)
     end
 end
 
-function INIT()
-    -- Initialize the cells
-    initializeCells()
 
-    -- Get a valid solution into the cells' 'value' settings.
-    generateSolution()
+-- [/TQ-Bundler: src.sudoku_logic]
 
-    -- What is the difficulty? Copy the appropriate number of 'value' fields to 'guess' fields and lock those fields.
-    finalizePuzzle('random')
-end -- INIT()
+-- [TQ-Bundler: src.input]
 
 -- ==========================================
 -- INPUT FUNCTIONS
@@ -241,6 +253,10 @@ function INPUT()
 end
 
 
+-- [/TQ-Bundler: src.input]
+
+-- [TQ-Bundler: src.update]
+
 -- ==========================================
 -- UPDATE FUNCTIONS
 -- ==========================================
@@ -248,6 +264,11 @@ end
 
 function UPDATE()
 end
+
+
+-- [/TQ-Bundler: src.update]
+
+-- [TQ-Bundler: src.draw]
 
 -- ==========================================
 -- DRAW FUNCTIONS
@@ -289,7 +310,7 @@ function drawPuzzle()
                     end
                 end
 
-            -- Otherwise print the guess if there is one.
+                -- Otherwise print the guess if there is one.
             else
                 print(sudoku.cells[i][j].guess, grid_x + 2, grid_y + 2, WHITE, true, 2)
             end
@@ -300,6 +321,32 @@ function drawPuzzle()
     end
 end
 
+local function drawNotesGrid()
+    local grid_x = sudoku.END_X + 10
+    local grid_y = sudoku.START_Y
+
+    local cell_w = math.floor(sudoku.CELL_WIDTH)
+    local cell_h = math.floor(sudoku.CELL_HEIGHT)
+
+
+
+
+
+
+
+    local n = 1
+    for i = 1, 3 do
+        for j = 1, 3 do
+            local x = grid_x + (j - 1) * cell_w
+            local y = grid_y + (i - 1) * cell_h
+
+            rectb(x, y, cell_w, cell_h, WHITE)     -- cell border
+            print(n, x + 2, y + 2, WHITE, true, 2) -- number
+
+            n = n + 1
+        end
+    end
+end
 
 function DRAW()
     cls(BLACK)
@@ -314,13 +361,30 @@ function DRAW()
     )
 
     drawPuzzle()
+    drawNotesGrid()
 end
+
+
+-- [/TQ-Bundler: src.draw]
+
+-- ==========================================
+-- INITIALIZATION FUNCTIONS
+-- ==========================================
+
+function INIT()
+    -- Initialize the cells
+    initializeCells()
+
+    -- Get a valid solution into the cells' 'value' settings.
+    generateSolution()
+
+    -- What is the difficulty? Copy the appropriate number of 'value' fields to 'guess' fields and lock those fields.
+    finalizePuzzle('random')
+end -- INIT()
 
 -- ==========================================
 -- MAIN GAME LOOP
 -- ==========================================
-
-
 
 INIT()
 
