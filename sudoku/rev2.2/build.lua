@@ -255,70 +255,48 @@ end
 
 
 local function checkInputOnNotesGrid(mouse_x, mouse_y, just_pressed)
-    local handled = false
+    -- First check to make sure a cell has been clicked. Otherwise we don't know
+    -- what to work on.
+    if sudoku.clicked.i == nil and sudoku.clicked.j == nil then
+        return false
+    end
 
-    -- Do a bunch of checks before proceeding.
+    -- Here's the cell to work on.
+    local cell = sudoku.cells[sudoku.clicked.i][sudoku.clicked.j]
 
+    -- Is this cell locked (set at puzzle generation) or has a guess? Skip it.
+    if cell.locked or cell.guess ~= nil then
+        return false
+    end
 
+    -- Is the mouse over the notes grid? If so, nothing to do here.
+    if mouse_x < notes.START_X or mouse_x >= notes.END_X then
+        return false
+    end
+    if mouse_y < notes.START_Y or mouse_y >= notes.END_Y then
+        return false
+    end
 
+    -- Only toggle on a fresh click
+    if not just_pressed then
+        return false
+    end
 
+    -- Calculate which note cell was clicked (1-3 for both row and column)
+    local rel_x = mouse_x - notes.START_X
+    local rel_y = mouse_y - notes.START_Y
+    local n_j = math.floor(rel_x / notes.CELL_WIDTH) + 1
+    local n_i = math.floor(rel_y / notes.CELL_HEIGHT) + 1
 
-    -- local cell = sudoku.cells[sudoku.clicked.i][sudoku.clicked.j]
+    -- Bounds check to make sure we're still working over the notes grid.
+    if n_i < 1 or n_i > 3 or n_j < 1 or n_j > 3 then
+        return false
+    end
 
+    -- Toggle the note
+    cell.notes[n_i][n_j] = not cell.notes[n_i][n_j]
 
-
-    -- -- Nothing was clicked, so what are we even doing here?
-    -- if sudoku.clicked.i == nil and sudoku.clicked.j == nil then
-    --     return handled
-    -- end
-
-
-
-    -- sudoku.clicked.i
-    -- sudoku.clicked.j
-
-
-
-
-
-
---     local cell = sudoku.cells[clicked_cell.i][clicked_cell.j]
-
---     -- Don't allow notes on locked cells or cells with guesses
---     if cell.locked or cell.guess ~= nil then
---         return false
---     end
-
---     -- Check if mouse is within the notes grid bounds
---     if mouse_x < notes_grid.START_X or mouse_x >= notes_grid.END_X then
---         return false
---     end
---     if mouse_y < notes_grid.START_Y or mouse_y >= notes_grid.END_Y then
---         return false
---     end
-
---     -- Only toggle on a fresh click
---     if not just_pressed then
---         return false
---     end
-
---     -- Calculate which note cell was clicked (1-3 for both row and column)
---     local rel_x = mouse_x - notes_grid.START_X
---     local rel_y = mouse_y - notes_grid.START_Y
-
---     local n_j = math.floor(rel_x / notes_grid.CELL_WIDTH) + 1
---     local n_i = math.floor(rel_y / notes_grid.CELL_HEIGHT) + 1
-
---     -- Bounds check
---     if n_i < 1 or n_i > 3 or n_j < 1 or n_j > 3 then
---         return false
---     end
-
---     -- Toggle the note
---     cell.notes[n_i][n_j] = not cell.notes[n_i][n_j]
-
---     return true -- Click was handled
-    return handled
+    return true -- Click was handled
 end
 
 
