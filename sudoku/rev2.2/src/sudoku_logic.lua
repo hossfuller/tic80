@@ -3,8 +3,8 @@
 -- ==========================================
 
 local function generateSolution()
-    for i = 1, 9 do
-        for j = 1, 9 do
+    for i = 1, sudoku.DIM_X do
+        for j = 1, sudoku.DIM_Y do
             sudoku.cells[i][j].solution = math.random(1, 9)
             if math.random() < 0.5 then
                 sudoku.cells[i][j].guess = sudoku.cells[i][j].solution
@@ -21,8 +21,8 @@ local function setPuzzleDifficulty(difficulty)
     if difficulty == nil then
         difficulty = 'random'
     end
-    for i = 1, 9 do
-        for j = 1, 9 do
+    for i = 1, sudoku.DIM_X do
+        for j = 1, sudoku.DIM_Y do
             if difficulty == 'random' and math.random() < 0.5 then
                 sudoku.cells[i][j].guess = sudoku.cells[i][j].solution
                 sudoku.cells[i][j].locked = true

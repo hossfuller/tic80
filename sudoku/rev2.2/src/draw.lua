@@ -3,8 +3,8 @@
 -- ==========================================
 
 function drawPuzzle()
-    for i = 1, 9 do
-        for j = 1, 9 do
+    for i = 1, sudoku.DIM_X do
+        for j = 1, sudoku.DIM_Y do
             local cell_bgcolor = GRAY_DARK
             local grid_x       = sudoku.cells[i][j].x_left
             local grid_y       = sudoku.cells[i][j].y_top
@@ -50,47 +50,53 @@ function drawPuzzle()
 end
 
 
--- local notes_grid = {
---     START_X     = sudoku.END_X + 10,
---     START_Y     = sudoku.START_Y,
---     CELL_WIDTH  = sudoku.CELL_WIDTH,
---     CELL_HEIGHT = sudoku.CELL_HEIGHT,
+-- local generic_grid = {
+--     DIM_X       = 9,
+--     DIM_Y       = 9,
+--     START_X     = EDGE_X_LEFT + X_PADDING,
+--     START_Y     = EDGE_Y_TOP + Y_PADDING,
+--     CELL_WIDTH  = CELL_WIDTH_MULTIPLIER * X_PADDING,
+--     CELL_HEIGHT = CELL_HEIGHT_MULTIPLIER * Y_PADDING,
 --     CELL_OFFSET = 2,
---     END_X       = sudoku.END_X + 10 + (3 * CELL_WIDTH_MULTIPLIER * X_PADDING),
---     END_Y       = sudoku.START_Y + (3 * CELL_HEIGHT_MULTIPLIER * Y_PADDING),
 -- }
 
+-- local notes   = generic_grid
+-- notes.START_X = sudoku.END_X + 10
+-- notes.DIM_X   = 3
+-- notes.DIM_Y   = 3
+-- notes.END_X   = notes.START_X + (notes.DIM_X * notes.CELL_WIDTH)
+-- notes.END_Y   = notes.START_Y + (notes.DIM_Y * notes.CELL_HEIGHT)
 
 local function drawNotesGrid()
-    -- local grid_x = notes_grid.START_X
-    -- local grid_y = notes_grid.START_Y
+    local grid_x = notes.START_X
+    local grid_y = notes.START_Y
 
-    -- local cell_w = notes_grid.CELL_WIDTH
-    -- local cell_h = notes_grid.CELL_HEIGHT
+    local cell_w = notes.CELL_WIDTH
+    local cell_h = notes.CELL_HEIGHT
 
-    -- local active_cell = nil
-    -- if (clicked_cell.i ~= nil) and (clicked_cell.j ~= nil) then
-    --     active_cell = sudoku.cells[clicked_cell.i][clicked_cell.j].notes
-    -- end
+    local active_cell_notes = nil
+    if (sudoku.clicked.i ~= nil) and (sudoku.clicked.j ~= nil) then
+        active_cell_notes = sudoku.cells[sudoku.clicked.i][sudoku.clicked.j].notes
+    end
 
-    -- local n = 1
-    -- for i = 1, 3 do
-    --     for j = 1, 3 do
-    --         local num_color = GRAY_LITE
+    local n = 1
+    for i = 1, notes.DIM_X do
+        for j = 1, notes.DIM_Y do
+            local num_color = GRAY_LITE
 
-    --         local x = grid_x + (j - 1) * cell_w
-    --         local y = grid_y + (i - 1) * cell_h
+            local x = grid_x + (j - 1) * cell_w
+            local y = grid_y + (i - 1) * cell_h
 
-    --         if (active_cell ~= nil) and (active_cell[i][j] == true) then
-    --             num_color = YELLOW
-    --         end
+            if (active_cell_notes ~= nil) and (active_cell_notes[i][j] == true) then
+                num_color = YELLOW
+            end
 
-    --         rectb(x, y, cell_w, cell_h, WHITE)     -- cell border
-    --         print(n, x + 2, y + 2, num_color, true, 2) -- number
+            rectb(x, y, cell_w, cell_h, WHITE)     -- cell border
+            print(n, x + 2, y + 2, num_color, true, 2) -- number
 
-    --         n = n + 1
-    --     end
-    -- end
+            n = n + 1
+        end
+    end
 end
 
 function DRAW()

@@ -66,29 +66,36 @@ local GAP_HOUSE              = 0  -- between houses (after col/row 3 and 6)
 -- I could do this as a series of classes, but at this point in development I
 -- just want to get this working rather than look pretty.
 
-local generic_grid = {
-    DIM_X       = 9,
-    DIM_Y       = 9,
-    START_X     = EDGE_X_LEFT + X_PADDING,
-    START_Y     = EDGE_Y_TOP + Y_PADDING,
-    CELL_WIDTH  = CELL_WIDTH_MULTIPLIER * X_PADDING,
-    CELL_HEIGHT = CELL_HEIGHT_MULTIPLIER * Y_PADDING,
-    CELL_OFFSET = 2,
-}
+local function make_grid(overrides)
+    local g = {
+        DIM_X       = 9,
+        DIM_Y       = 9,
+        START_X     = EDGE_X_LEFT + X_PADDING,
+        START_Y     = EDGE_Y_TOP + Y_PADDING,
+        CELL_WIDTH  = CELL_WIDTH_MULTIPLIER * X_PADDING,
+        CELL_HEIGHT = CELL_HEIGHT_MULTIPLIER * Y_PADDING,
+        CELL_OFFSET = 2,
+    }
 
-local sudoku   = generic_grid
-sudoku.END_X   = sudoku.START_X + (sudoku.DIM_X * sudoku.CELL_WIDTH)
-sudoku.END_Y   = sudoku.START_Y + (sudoku.DIM_Y * sudoku.CELL_HEIGHT)
+    for k, v in pairs(overrides or {}) do g[k] = v end
+
+    g.END_X = g.START_X + (g.DIM_X * g.CELL_WIDTH)
+    g.END_Y = g.START_Y + (g.DIM_Y * g.CELL_HEIGHT)
+
+    return g
+end
+
+local sudoku   = make_grid()
 sudoku.clicked = { i = nil, j = nil }
 sudoku.cells   = {}
 
 -- This one is just a convenience table for drawing a numeric representation of
 -- the sudoku.notes grid.
-local notes = generic_grid
-notes.DIM_X = 3
-notes.DIM_Y = 3
-notes.END_X = notes.START_X + (notes.DIM_X * notes.CELL_WIDTH)
-notes.END_Y = notes.START_Y + (notes.DIM_Y * notes.CELL_HEIGHT)
+local notes = make_grid({
+    DIM_X   = 3,
+    DIM_Y   = 3,
+    START_X = sudoku.END_X + 10
+})
 
 local function newCell()
     return {
@@ -117,9 +124,9 @@ local function gapBefore(index)
 end
 
 local function initializeCells()
-    for i = 1, 9 do
+    for i = 1, sudoku.DIM_X do
         sudoku.cells[i] = {}
-        for j = 1, 9 do
+        for j = 1, sudoku.DIM_Y do
             local cell = newCell()
 
             local x = sudoku.START_X
@@ -152,8 +159,8 @@ end
 -- ==========================================
 
 local function generateSolution()
-    for i = 1, 9 do
-        for j = 1, 9 do
+    for i = 1, sudoku.DIM_X do
+        for j = 1, sudoku.DIM_Y do
             sudoku.cells[i][j].solution = math.random(1, 9)
             if math.random() < 0.5 then
                 sudoku.cells[i][j].guess = sudoku.cells[i][j].solution
@@ -170,8 +177,8 @@ local function setPuzzleDifficulty(difficulty)
     if difficulty == nil then
         difficulty = 'random'
     end
-    for i = 1, 9 do
-        for j = 1, 9 do
+    for i = 1, sudoku.DIM_X do
+        for j = 1, sudoku.DIM_Y do
             if difficulty == 'random' and math.random() < 0.5 then
                 sudoku.cells[i][j].guess = sudoku.cells[i][j].solution
                 sudoku.cells[i][j].locked = true
@@ -194,8 +201,9 @@ local prev_left_click = false
 
 
 local function checkInputOnPuzzleGrid(mouse_x, mouse_y, left_click, scroll_y, just_pressed)
-    for i = 1, 9 do
-        for j = 1, 9 do
+    scroll_options = {nil, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+    for i = 1, sudoku.DIM_X do
+        for j = 1, sudoku.DIM_Y do
             local cell = sudoku.cells[i][j]
 
             -- Is this a mouseover event?
@@ -215,17 +223,23 @@ local function checkInputOnPuzzleGrid(mouse_x, mouse_y, left_click, scroll_y, ju
             end
 
             -- Is the user trying to change the number?
-            if cell.clicked and scroll_y > 0 then
-                if cell.guess == nil or cell.guess >= 9 then
-                    cell.guess = 1
-                else
-                    cell.guess = cell.guess + 1
-                end
-            elseif cell.clicked and scroll_y < 0 then
-                if cell.guess == nil or cell.guess <= 1 then
-                    cell.guess = 9
-                else
-                    cell.guess = cell.guess - 1
+            if cell.locked == false and sudoku.clicked.i == i and sudoku.clicked.j == j then
+                if scroll_y > 0 then
+                    if cell.guess == nil then
+                        cell.guess = 1
+                    elseif cell.guess == 9 then
+                        cell.guess = nil
+                    else
+                        cell.guess = cell.guess + 1
+                    end
+                elseif scroll_y < 0 then
+                    if cell.guess == nil then
+                        cell.guess = 9
+                    elseif cell.guess == 1 then
+                        cell.guess = nil
+                    else
+                        cell.guess = cell.guess - 1
+                    end
                 end
             end
 
@@ -240,13 +254,33 @@ local function checkInputOnPuzzleGrid(mouse_x, mouse_y, left_click, scroll_y, ju
 end
 
 
--- local function checkInputOnNotesGrid(mouse_x, mouse_y, just_pressed)
---     -- Do a bunch of checks before proceeding.
+local function checkInputOnNotesGrid(mouse_x, mouse_y, just_pressed)
+    local handled = false
 
---     -- Only work on a cell that was clicked.
---     if clicked_cell.i ~= nil or clicked_cell.j ~= nil then
---         return false
---     end
+    -- Do a bunch of checks before proceeding.
+
+
+
+
+
+    -- local cell = sudoku.cells[sudoku.clicked.i][sudoku.clicked.j]
+
+
+
+    -- -- Nothing was clicked, so what are we even doing here?
+    -- if sudoku.clicked.i == nil and sudoku.clicked.j == nil then
+    --     return handled
+    -- end
+
+
+
+    -- sudoku.clicked.i
+    -- sudoku.clicked.j
+
+
+
+
+
 
 --     local cell = sudoku.cells[clicked_cell.i][clicked_cell.j]
 
@@ -284,7 +318,8 @@ end
 --     cell.notes[n_i][n_j] = not cell.notes[n_i][n_j]
 
 --     return true -- Click was handled
--- end
+    return handled
+end
 
 
 function INPUT()
@@ -294,10 +329,10 @@ function INPUT()
     prev_left_click = left_click
 
     -- Only work on the notes grid or the puzzle grid. Not both.
-    -- local handled = checkInputOnNotesGrid(mouse_x, mouse_y, just_pressed)
-    -- if not handled then
+    local handled = checkInputOnNotesGrid(mouse_x, mouse_y, just_pressed)
+    if not handled then
         checkInputOnPuzzleGrid(mouse_x, mouse_y, left_click, scroll_y, just_pressed)
-    -- end
+    end
 end
 
 
@@ -323,8 +358,8 @@ end
 -- ==========================================
 
 function drawPuzzle()
-    for i = 1, 9 do
-        for j = 1, 9 do
+    for i = 1, sudoku.DIM_X do
+        for j = 1, sudoku.DIM_Y do
             local cell_bgcolor = GRAY_DARK
             local grid_x       = sudoku.cells[i][j].x_left
             local grid_y       = sudoku.cells[i][j].y_top
@@ -370,47 +405,53 @@ function drawPuzzle()
 end
 
 
--- local notes_grid = {
---     START_X     = sudoku.END_X + 10,
---     START_Y     = sudoku.START_Y,
---     CELL_WIDTH  = sudoku.CELL_WIDTH,
---     CELL_HEIGHT = sudoku.CELL_HEIGHT,
+-- local generic_grid = {
+--     DIM_X       = 9,
+--     DIM_Y       = 9,
+--     START_X     = EDGE_X_LEFT + X_PADDING,
+--     START_Y     = EDGE_Y_TOP + Y_PADDING,
+--     CELL_WIDTH  = CELL_WIDTH_MULTIPLIER * X_PADDING,
+--     CELL_HEIGHT = CELL_HEIGHT_MULTIPLIER * Y_PADDING,
 --     CELL_OFFSET = 2,
---     END_X       = sudoku.END_X + 10 + (3 * CELL_WIDTH_MULTIPLIER * X_PADDING),
---     END_Y       = sudoku.START_Y + (3 * CELL_HEIGHT_MULTIPLIER * Y_PADDING),
 -- }
 
+-- local notes   = generic_grid
+-- notes.START_X = sudoku.END_X + 10
+-- notes.DIM_X   = 3
+-- notes.DIM_Y   = 3
+-- notes.END_X   = notes.START_X + (notes.DIM_X * notes.CELL_WIDTH)
+-- notes.END_Y   = notes.START_Y + (notes.DIM_Y * notes.CELL_HEIGHT)
 
 local function drawNotesGrid()
-    -- local grid_x = notes_grid.START_X
-    -- local grid_y = notes_grid.START_Y
+    local grid_x = notes.START_X
+    local grid_y = notes.START_Y
 
-    -- local cell_w = notes_grid.CELL_WIDTH
-    -- local cell_h = notes_grid.CELL_HEIGHT
+    local cell_w = notes.CELL_WIDTH
+    local cell_h = notes.CELL_HEIGHT
 
-    -- local active_cell = nil
-    -- if (clicked_cell.i ~= nil) and (clicked_cell.j ~= nil) then
-    --     active_cell = sudoku.cells[clicked_cell.i][clicked_cell.j].notes
-    -- end
+    local active_cell_notes = nil
+    if (sudoku.clicked.i ~= nil) and (sudoku.clicked.j ~= nil) then
+        active_cell_notes = sudoku.cells[sudoku.clicked.i][sudoku.clicked.j].notes
+    end
 
-    -- local n = 1
-    -- for i = 1, 3 do
-    --     for j = 1, 3 do
-    --         local num_color = GRAY_LITE
+    local n = 1
+    for i = 1, notes.DIM_X do
+        for j = 1, notes.DIM_Y do
+            local num_color = GRAY_LITE
 
-    --         local x = grid_x + (j - 1) * cell_w
-    --         local y = grid_y + (i - 1) * cell_h
+            local x = grid_x + (j - 1) * cell_w
+            local y = grid_y + (i - 1) * cell_h
 
-    --         if (active_cell ~= nil) and (active_cell[i][j] == true) then
-    --             num_color = YELLOW
-    --         end
+            if (active_cell_notes ~= nil) and (active_cell_notes[i][j] == true) then
+                num_color = YELLOW
+            end
 
-    --         rectb(x, y, cell_w, cell_h, WHITE)     -- cell border
-    --         print(n, x + 2, y + 2, num_color, true, 2) -- number
+            rectb(x, y, cell_w, cell_h, WHITE)     -- cell border
+            print(n, x + 2, y + 2, num_color, true, 2) -- number
 
-    --         n = n + 1
-    --     end
-    -- end
+            n = n + 1
+        end
+    end
 end
 
 function DRAW()
@@ -457,5 +498,4 @@ function TIC()
     INPUT()
     UPDATE()
     DRAW()
-    print("Rethink notes grid", EDGE_X_RIGHT - 80, EDGE_Y_BOTTOM - 10, WHITE)
 end

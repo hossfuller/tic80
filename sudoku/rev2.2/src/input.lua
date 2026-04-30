@@ -7,8 +7,9 @@ local prev_left_click = false
 
 
 local function checkInputOnPuzzleGrid(mouse_x, mouse_y, left_click, scroll_y, just_pressed)
-    for i = 1, 9 do
-        for j = 1, 9 do
+    scroll_options = {nil, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+    for i = 1, sudoku.DIM_X do
+        for j = 1, sudoku.DIM_Y do
             local cell = sudoku.cells[i][j]
 
             -- Is this a mouseover event?
@@ -28,17 +29,23 @@ local function checkInputOnPuzzleGrid(mouse_x, mouse_y, left_click, scroll_y, ju
             end
 
             -- Is the user trying to change the number?
-            if cell.clicked and scroll_y > 0 then
-                if cell.guess == nil or cell.guess >= 9 then
-                    cell.guess = 1
-                else
-                    cell.guess = cell.guess + 1
-                end
-            elseif cell.clicked and scroll_y < 0 then
-                if cell.guess == nil or cell.guess <= 1 then
-                    cell.guess = 9
-                else
-                    cell.guess = cell.guess - 1
+            if cell.locked == false and sudoku.clicked.i == i and sudoku.clicked.j == j then
+                if scroll_y > 0 then
+                    if cell.guess == nil then
+                        cell.guess = 1
+                    elseif cell.guess == 9 then
+                        cell.guess = nil
+                    else
+                        cell.guess = cell.guess + 1
+                    end
+                elseif scroll_y < 0 then
+                    if cell.guess == nil then
+                        cell.guess = 9
+                    elseif cell.guess == 1 then
+                        cell.guess = nil
+                    else
+                        cell.guess = cell.guess - 1
+                    end
                 end
             end
 
@@ -53,13 +60,33 @@ local function checkInputOnPuzzleGrid(mouse_x, mouse_y, left_click, scroll_y, ju
 end
 
 
--- local function checkInputOnNotesGrid(mouse_x, mouse_y, just_pressed)
---     -- Do a bunch of checks before proceeding.
+local function checkInputOnNotesGrid(mouse_x, mouse_y, just_pressed)
+    local handled = false
 
---     -- Only work on a cell that was clicked.
---     if clicked_cell.i ~= nil or clicked_cell.j ~= nil then
---         return false
---     end
+    -- Do a bunch of checks before proceeding.
+
+
+
+
+
+    -- local cell = sudoku.cells[sudoku.clicked.i][sudoku.clicked.j]
+
+
+
+    -- -- Nothing was clicked, so what are we even doing here?
+    -- if sudoku.clicked.i == nil and sudoku.clicked.j == nil then
+    --     return handled
+    -- end
+
+
+
+    -- sudoku.clicked.i
+    -- sudoku.clicked.j
+
+
+
+
+
 
 --     local cell = sudoku.cells[clicked_cell.i][clicked_cell.j]
 
@@ -97,7 +124,8 @@ end
 --     cell.notes[n_i][n_j] = not cell.notes[n_i][n_j]
 
 --     return true -- Click was handled
--- end
+    return handled
+end
 
 
 function INPUT()
@@ -107,8 +135,8 @@ function INPUT()
     prev_left_click = left_click
 
     -- Only work on the notes grid or the puzzle grid. Not both.
-    -- local handled = checkInputOnNotesGrid(mouse_x, mouse_y, just_pressed)
-    -- if not handled then
+    local handled = checkInputOnNotesGrid(mouse_x, mouse_y, just_pressed)
+    if not handled then
         checkInputOnPuzzleGrid(mouse_x, mouse_y, left_click, scroll_y, just_pressed)
-    -- end
+    end
 end
