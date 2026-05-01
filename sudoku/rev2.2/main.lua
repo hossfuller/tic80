@@ -10,6 +10,7 @@
 
 include "src.constants"
 include "src.sudoku_grid"
+include "src.sudoku_buttons"
 include "src.sudoku_logic"
 include "src.input"
 include "src.update"
@@ -23,6 +24,9 @@ include "src.draw"
 function INIT()
     -- Initialize the cells
     initializeCells()
+    
+    -- Update sudoku.END_Y to reflect actual grid dimensions
+    sudoku.END_Y = sudoku.cells[sudoku.DIM_X][sudoku.DIM_Y].y_bottom + 1
 
     -- Get a valid solution into the cells' 'value' settings.
     generateSolution()

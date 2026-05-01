@@ -50,23 +50,6 @@ function drawPuzzle()
 end
 
 
--- local generic_grid = {
---     DIM_X       = 9,
---     DIM_Y       = 9,
---     START_X     = EDGE_X_LEFT + X_PADDING,
---     START_Y     = EDGE_Y_TOP + Y_PADDING,
---     CELL_WIDTH  = CELL_WIDTH_MULTIPLIER * X_PADDING,
---     CELL_HEIGHT = CELL_HEIGHT_MULTIPLIER * Y_PADDING,
---     CELL_OFFSET = 2,
--- }
-
--- local notes   = generic_grid
--- notes.START_X = sudoku.END_X + 10
--- notes.DIM_X   = 3
--- notes.DIM_Y   = 3
--- notes.END_X   = notes.START_X + (notes.DIM_X * notes.CELL_WIDTH)
--- notes.END_Y   = notes.START_Y + (notes.DIM_Y * notes.CELL_HEIGHT)
-
 local function drawNotesGrid()
     local grid_x = notes.START_X
     local grid_y = notes.START_Y
@@ -99,6 +82,32 @@ local function drawNotesGrid()
     end
 end
 
+local function drawButtons()
+    for k, butt in pairs(puzzle_buttons) do 
+        local bg_color = GRAY_DARK
+        if butt.CLICKED then
+            bg_color = GRAY_MED
+        end
+        rect(butt.START_X, butt.START_Y, butt.CELL_WIDTH, butt.CELL_HEIGHT, bg_color)
+        rectb(butt.START_X, butt.START_Y, butt.CELL_WIDTH, butt.CELL_HEIGHT, WHITE)
+        print(butt.TEXT, butt.TEXT_START_X, butt.TEXT_START_Y, WHITE, false, 1, true)
+    end
+end
+
+local function drawStatBox()
+    local box_start_x = notes.START_X
+    local box_start_y = notes.END_Y + Y_PADDING
+    local box_width = (EDGE_X_RIGHT - FIXED_CHAR_WIDTH) - box_start_x
+
+    -- Line the stat box up with the bottom of the sudoku grid.
+    local sudoku_end_y = sudoku.cells[sudoku.DIM_X][sudoku.DIM_Y].y_bottom
+    local box_height = sudoku_end_y - box_start_y + 1
+
+    rect(box_start_x, box_start_y, box_width, box_height, BLACK)
+    rectb(box_start_x, box_start_y, box_width, box_height, WHITE)
+end
+
+
 function DRAW()
     cls(BLACK)
 
@@ -113,4 +122,8 @@ function DRAW()
 
     drawPuzzle()
     drawNotesGrid()
+    drawButtons()
+    drawStatBox()
 end
+
+

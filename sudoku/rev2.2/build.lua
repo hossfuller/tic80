@@ -60,7 +60,7 @@ local GAP_HOUSE              = 0  -- between houses (after col/row 3 and 6)
 -- [TQ-Bundler: src.sudoku_grid]
 
 -- ==========================================
--- SUDOKU GRID DATA STRUCTURE
+-- SUDOKU GRID DATA STRUCTURES
 -- ==========================================
 
 -- I could do this as a series of classes, but at this point in development I
@@ -94,7 +94,7 @@ sudoku.cells   = {}
 local notes = make_grid({
     DIM_X   = 3,
     DIM_Y   = 3,
-    START_X = sudoku.END_X + 10
+    START_X = sudoku.END_X + FIXED_CHAR_WIDTH
 })
 
 local function newCell()
@@ -151,6 +151,51 @@ end
 
 
 -- [/TQ-Bundler: src.sudoku_grid]
+
+-- [TQ-Bundler: src.sudoku_buttons]
+
+-- ==========================================
+-- SUDOKU BUTTON DATA STRUCTURES
+-- ==========================================
+
+local function make_button(overrides)
+    local g = {
+        TEXT       = "BUTTON",
+        CLICKED    = false,
+        PREV_CLICK = false,
+        START_X    = EDGE_X_LEFT + X_PADDING,
+        START_Y    = EDGE_Y_TOP + Y_PADDING,
+    }
+
+    for k, v in pairs(overrides or {}) do g[k] = v end
+
+    g.END_X        = EDGE_X_RIGHT - FIXED_CHAR_WIDTH  -- All buttons end at same X
+    g.CELL_WIDTH   = g.END_X - g.START_X
+    g.CELL_HEIGHT  = FIXED_CHAR_HEIGHT + Y_PADDING
+    g.END_Y        = g.START_Y + g.CELL_HEIGHT
+    g.TEXT_START_X = g.START_X + math.floor(X_PADDING / 2)
+    g.TEXT_START_Y = g.START_Y + math.floor(Y_PADDING / 2)
+
+    return g
+end
+
+
+local auto_note_btn = make_button({
+    TEXT = "Auto-Note",
+    START_X = notes.END_X + X_PADDING,
+})
+local check_solution_btn = make_button({
+    TEXT = "Check",
+    START_X = notes.END_X + X_PADDING,
+    START_Y = auto_note_btn.END_Y + Y_PADDING,
+})
+local puzzle_buttons = {
+    auto_note      = auto_note_btn,
+    check_solution = check_solution_btn,
+}
+
+
+-- [/TQ-Bundler: src.sudoku_buttons]
 
 -- [TQ-Bundler: src.sudoku_logic]
 
@@ -383,23 +428,6 @@ function drawPuzzle()
 end
 
 
--- local generic_grid = {
---     DIM_X       = 9,
---     DIM_Y       = 9,
---     START_X     = EDGE_X_LEFT + X_PADDING,
---     START_Y     = EDGE_Y_TOP + Y_PADDING,
---     CELL_WIDTH  = CELL_WIDTH_MULTIPLIER * X_PADDING,
---     CELL_HEIGHT = CELL_HEIGHT_MULTIPLIER * Y_PADDING,
---     CELL_OFFSET = 2,
--- }
-
--- local notes   = generic_grid
--- notes.START_X = sudoku.END_X + 10
--- notes.DIM_X   = 3
--- notes.DIM_Y   = 3
--- notes.END_X   = notes.START_X + (notes.DIM_X * notes.CELL_WIDTH)
--- notes.END_Y   = notes.START_Y + (notes.DIM_Y * notes.CELL_HEIGHT)
-
 local function drawNotesGrid()
     local grid_x = notes.START_X
     local grid_y = notes.START_Y
@@ -432,6 +460,32 @@ local function drawNotesGrid()
     end
 end
 
+local function drawButtons()
+    for k, butt in pairs(puzzle_buttons) do 
+        local bg_color = GRAY_DARK
+        if butt.CLICKED then
+            bg_color = GRAY_MED
+        end
+        rect(butt.START_X, butt.START_Y, butt.CELL_WIDTH, butt.CELL_HEIGHT, bg_color)
+        rectb(butt.START_X, butt.START_Y, butt.CELL_WIDTH, butt.CELL_HEIGHT, WHITE)
+        print(butt.TEXT, butt.TEXT_START_X, butt.TEXT_START_Y, WHITE, false, 1, true)
+    end
+end
+
+local function drawStatBox()
+    local box_start_x = notes.START_X
+    local box_start_y = notes.END_Y + Y_PADDING
+    local box_width = (EDGE_X_RIGHT - FIXED_CHAR_WIDTH) - box_start_x
+
+    -- Line the stat box up with the bottom of the sudoku grid.
+    local sudoku_end_y = sudoku.cells[sudoku.DIM_X][sudoku.DIM_Y].y_bottom
+    local box_height = sudoku_end_y - box_start_y + 1
+
+    rect(box_start_x, box_start_y, box_width, box_height, BLACK)
+    rectb(box_start_x, box_start_y, box_width, box_height, WHITE)
+end
+
+
 function DRAW()
     cls(BLACK)
 
@@ -446,7 +500,11 @@ function DRAW()
 
     drawPuzzle()
     drawNotesGrid()
+    drawButtons()
+    drawStatBox()
 end
+
+
 
 
 -- [/TQ-Bundler: src.draw]
@@ -458,6 +516,9 @@ end
 function INIT()
     -- Initialize the cells
     initializeCells()
+    
+    -- Update sudoku.END_Y to reflect actual grid dimensions
+    sudoku.END_Y = sudoku.cells[sudoku.DIM_X][sudoku.DIM_Y].y_bottom + 1
 
     -- Get a valid solution into the cells' 'value' settings.
     generateSolution()

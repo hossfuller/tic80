@@ -1,5 +1,5 @@
 -- ==========================================
--- SUDOKU GRID DATA STRUCTURE
+-- SUDOKU GRID DATA STRUCTURES
 -- ==========================================
 
 -- I could do this as a series of classes, but at this point in development I
@@ -33,7 +33,7 @@ sudoku.cells   = {}
 local notes = make_grid({
     DIM_X   = 3,
     DIM_Y   = 3,
-    START_X = sudoku.END_X + 10
+    START_X = sudoku.END_X + FIXED_CHAR_WIDTH
 })
 
 local function newCell()

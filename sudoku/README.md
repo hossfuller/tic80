@@ -4,7 +4,7 @@ Here's the development plan:
 - *REV1*: Print the 9x9 grid, make it real nice looking.
 - *REV2*: Focus on the user interface: how the user interacts with the biz.
 - *REV3*: Work on the sudoku puzzle generation algorithm.
-- *REV4*: Allow user to specify difficulty.
+- *REV4*: Allow user to specify difficulty (determines how many cells are revealed and grades the puzzle), add score tracking, and add timing.
 - *FINAL*: Pull it all together.
 
 Links:
