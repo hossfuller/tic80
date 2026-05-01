@@ -49,11 +49,6 @@ local function checkInputOnPuzzleGrid(mouse_x, mouse_y, left_click, scroll_y, ju
                 end
             end
 
-            -- What was I trying to do here?
-            -- if cell.guess ~= nil then
-            --     cell.notes = { { false, false, false }, { false, false, false }, { false, false, false } }
-            -- end
-
             sudoku.cells[i][j] = cell
         end
     end
@@ -105,6 +100,26 @@ local function checkInputOnNotesGrid(mouse_x, mouse_y, just_pressed)
     return true -- Click was handled
 end
 
+local function checkButtonClicks(mouse_x, mouse_y, left_click, just_pressed)
+    local handled = false
+
+    for k, butt in pairs(puzzle_buttons) do
+        -- Check if mouse is over this button
+        local mouseover =
+            (butt.START_X <= mouse_x and mouse_x <= butt.END_X) and
+            (butt.START_Y <= mouse_y and mouse_y <= butt.END_Y)
+
+        -- Button is clicked only while mouse is over and left button is held
+        butt.CLICKED = mouseover and left_click
+
+        if mouseover and just_pressed then
+            handled = true
+        end
+    end
+
+    return handled
+end
+
 
 function INPUT()
     local mouse_x, mouse_y, left_click, middle_click, right_click, scroll_x, scroll_y = mouse()
@@ -113,8 +128,14 @@ function INPUT()
     prev_left_click = left_click
 
     -- Only work on the notes grid or the puzzle grid. Not both.
-    local handled = checkInputOnNotesGrid(mouse_x, mouse_y, just_pressed)
-    if not handled then
+    local notes_handled   = checkInputOnNotesGrid(mouse_x, mouse_y, just_pressed)
+
+    local buttons_handled = false
+    if not notes_handled then
+        buttons_handled = checkButtonClicks(mouse_x, mouse_y, left_click, just_pressed)
+    end
+
+    if not notes_handled and not buttons_handled then
         checkInputOnPuzzleGrid(mouse_x, mouse_y, left_click, scroll_y, just_pressed)
     end
 end

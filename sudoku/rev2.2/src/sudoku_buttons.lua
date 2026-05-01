@@ -31,9 +31,16 @@ local auto_note_btn = make_button({
 local check_solution_btn = make_button({
     TEXT = "Check",
     START_X = notes.END_X + X_PADDING,
-    START_Y = auto_note_btn.END_Y + Y_PADDING,
+    START_Y = auto_note_btn.END_Y,
 })
+local clear_btn = make_button({
+    TEXT = "Clear",
+    START_X = notes.END_X + X_PADDING,
+    START_Y = check_solution_btn.END_Y,
+})
+
 local puzzle_buttons = {
-    auto_note      = auto_note_btn,
-    check_solution = check_solution_btn,
+    auto_note_btn,
+    check_solution_btn,
+    clear_btn,
 }

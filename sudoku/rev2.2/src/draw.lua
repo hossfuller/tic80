@@ -5,26 +5,30 @@
 function drawPuzzle()
     for i = 1, sudoku.DIM_X do
         for j = 1, sudoku.DIM_Y do
+            local cell = sudoku.cells[i][j]
+
             local cell_bgcolor = GRAY_DARK
-            local grid_x       = sudoku.cells[i][j].x_left
-            local grid_y       = sudoku.cells[i][j].y_top
-            local grid_width   = sudoku.cells[i][j].x_right - sudoku.cells[i][j].x_left + 1
-            local grid_height  = sudoku.cells[i][j].y_bottom - sudoku.cells[i][j].y_top + 1
+            local grid_x       = cell.x_left
+            local grid_y       = cell.y_top
+            local grid_width   = cell.x_right - cell.x_left + 1
+            local grid_height  = cell.y_bottom - cell.y_top + 1
 
             -- Check cell status and change the cell's background color.
-            if sudoku.cells[i][j].locked == true then
+            if cell.locked == true then
                 cell_bgcolor = BLACK
             elseif sudoku.clicked.i == i and sudoku.clicked.j == j then
                 cell_bgcolor = YELLOW
-            elseif sudoku.cells[i][j].mouseover == true then
+            elseif cell.mouseover == true then
                 cell_bgcolor = PURPLE
+            elseif check_solution_btn.CLICKED == true then
+                if cell.guess ~= nil and cell.guess ~= cell.solution then
+                    cell_bgcolor = RED
+                end
             end
             rect(grid_x, grid_y, grid_width, grid_height, cell_bgcolor)
 
             -- If there isn't a guess, print the notes.
-            if sudoku.cells[i][j].guess == nil then
-                local cell = sudoku.cells[i][j]
-
+            if cell.guess == nil then
                 local note_w = math.floor(grid_width / 3)
                 local note_h = math.floor(grid_height / 3)
 
@@ -40,7 +44,7 @@ function drawPuzzle()
 
                 -- Otherwise print the guess if there is one.
             else
-                print(sudoku.cells[i][j].guess, grid_x + 2, grid_y + 2, WHITE, true, 2)
+                print(cell.guess, grid_x + 2, grid_y + 2, WHITE, true, 2)
             end
 
             -- Finally, draw the grid.
@@ -83,14 +87,16 @@ local function drawNotesGrid()
 end
 
 local function drawButtons()
-    for k, butt in pairs(puzzle_buttons) do 
-        local bg_color = GRAY_DARK
+    for i, butt in ipairs(puzzle_buttons) do 
+        local text_color = WHITE
+        local bg_color   = GRAY_DARK
         if butt.CLICKED then
-            bg_color = GRAY_MED
+            text_color = GRAY_DARK
+            bg_color = YELLOW
         end
         rect(butt.START_X, butt.START_Y, butt.CELL_WIDTH, butt.CELL_HEIGHT, bg_color)
         rectb(butt.START_X, butt.START_Y, butt.CELL_WIDTH, butt.CELL_HEIGHT, WHITE)
-        print(butt.TEXT, butt.TEXT_START_X, butt.TEXT_START_Y, WHITE, false, 1, true)
+        print(butt.TEXT, butt.TEXT_START_X, butt.TEXT_START_Y, text_color, false, 1, true)
     end
 end
 
@@ -105,6 +111,15 @@ local function drawStatBox()
 
     rect(box_start_x, box_start_y, box_width, box_height, BLACK)
     rectb(box_start_x, box_start_y, box_width, box_height, WHITE)
+
+    -- Now print all the stats there are to print.
+    -- ...
+    local start_x = box_start_x + X_PADDING
+    local start_y = box_start_y + Y_PADDING
+    for k, butt in pairs(puzzle_buttons) do
+        print(butt.TEXT .. " = " .. tostring(butt.CLICKED), start_x, start_y, WHITE, false, 1, true)
+        start_y = start_y + Y_PADDING
+    end
 end
 
 

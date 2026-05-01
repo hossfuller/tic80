@@ -27,13 +27,14 @@ end
 local sudoku   = make_grid()
 sudoku.clicked = { i = nil, j = nil }
 sudoku.cells   = {}
+sudoku.solved  = false
 
 -- This one is just a convenience table for drawing a numeric representation of
 -- the sudoku.notes grid.
 local notes = make_grid({
     DIM_X   = 3,
     DIM_Y   = 3,
-    START_X = sudoku.END_X + FIXED_CHAR_WIDTH
+    START_X = sudoku.END_X + math.floor(FIXED_CHAR_WIDTH / 2)
 })
 
 local function newCell()
@@ -45,7 +46,7 @@ local function newCell()
         solution  = nil,
         guess     = nil,
         locked    = false,
-        notes     = { { false, true, false }, { true, false, false }, { false, false, true } },
+        notes     = { { false, false, false }, { false, false, false }, { false, false, false } },
         mouseover = false,
     }
 end

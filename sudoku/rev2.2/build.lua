@@ -88,13 +88,14 @@ end
 local sudoku   = make_grid()
 sudoku.clicked = { i = nil, j = nil }
 sudoku.cells   = {}
+sudoku.solved  = false
 
 -- This one is just a convenience table for drawing a numeric representation of
 -- the sudoku.notes grid.
 local notes = make_grid({
     DIM_X   = 3,
     DIM_Y   = 3,
-    START_X = sudoku.END_X + FIXED_CHAR_WIDTH
+    START_X = sudoku.END_X + math.floor(FIXED_CHAR_WIDTH / 2)
 })
 
 local function newCell()
@@ -106,7 +107,7 @@ local function newCell()
         solution  = nil,
         guess     = nil,
         locked    = false,
-        notes     = { { false, true, false }, { true, false, false }, { false, false, true } },
+        notes     = { { false, false, false }, { false, false, false }, { false, false, false } },
         mouseover = false,
     }
 end
@@ -187,13 +188,19 @@ local auto_note_btn = make_button({
 local check_solution_btn = make_button({
     TEXT = "Check",
     START_X = notes.END_X + X_PADDING,
-    START_Y = auto_note_btn.END_Y + Y_PADDING,
+    START_Y = auto_note_btn.END_Y,
 })
-local puzzle_buttons = {
-    auto_note      = auto_note_btn,
-    check_solution = check_solution_btn,
-}
+local clear_btn = make_button({
+    TEXT = "Clear",
+    START_X = notes.END_X + X_PADDING,
+    START_Y = check_solution_btn.END_Y,
+})
 
+local puzzle_buttons = {
+    auto_note_btn,
+    check_solution_btn,
+    clear_btn,
+}
 
 -- [/TQ-Bundler: src.sudoku_buttons]
 
@@ -288,11 +295,6 @@ local function checkInputOnPuzzleGrid(mouse_x, mouse_y, left_click, scroll_y, ju
                 end
             end
 
-            -- What was I trying to do here?
-            -- if cell.guess ~= nil then
-            --     cell.notes = { { false, false, false }, { false, false, false }, { false, false, false } }
-            -- end
-
             sudoku.cells[i][j] = cell
         end
     end
@@ -344,6 +346,26 @@ local function checkInputOnNotesGrid(mouse_x, mouse_y, just_pressed)
     return true -- Click was handled
 end
 
+local function checkButtonClicks(mouse_x, mouse_y, left_click, just_pressed)
+    local handled = false
+
+    for k, butt in pairs(puzzle_buttons) do
+        -- Check if mouse is over this button
+        local mouseover =
+            (butt.START_X <= mouse_x and mouse_x <= butt.END_X) and
+            (butt.START_Y <= mouse_y and mouse_y <= butt.END_Y)
+
+        -- Button is clicked only while mouse is over and left button is held
+        butt.CLICKED = mouseover and left_click
+
+        if mouseover and just_pressed then
+            handled = true
+        end
+    end
+
+    return handled
+end
+
 
 function INPUT()
     local mouse_x, mouse_y, left_click, middle_click, right_click, scroll_x, scroll_y = mouse()
@@ -352,8 +374,14 @@ function INPUT()
     prev_left_click = left_click
 
     -- Only work on the notes grid or the puzzle grid. Not both.
-    local handled = checkInputOnNotesGrid(mouse_x, mouse_y, just_pressed)
-    if not handled then
+    local notes_handled   = checkInputOnNotesGrid(mouse_x, mouse_y, just_pressed)
+
+    local buttons_handled = false
+    if not notes_handled then
+        buttons_handled = checkButtonClicks(mouse_x, mouse_y, left_click, just_pressed)
+    end
+
+    if not notes_handled and not buttons_handled then
         checkInputOnPuzzleGrid(mouse_x, mouse_y, left_click, scroll_y, just_pressed)
     end
 end
@@ -367,8 +395,144 @@ end
 -- UPDATE FUNCTIONS
 -- ==========================================
 
+local function setSingleCellNotes(i, j)
+    local starting_notes = {
+        { true, true, true },
+        { true, true, true },
+        { true, true, true }
+    }
+
+    -- Check this row's values
+    for y = 1, 9 do
+        if sudoku.cells[i][y].guess == 1 then
+            starting_notes[1][1] = false
+        elseif sudoku.cells[i][y].guess == 2 then
+            starting_notes[1][2] = false
+        elseif sudoku.cells[i][y].guess == 3 then
+            starting_notes[1][3] = false
+        elseif sudoku.cells[i][y].guess == 4 then
+            starting_notes[2][1] = false
+        elseif sudoku.cells[i][y].guess == 5 then
+            starting_notes[2][2] = false
+        elseif sudoku.cells[i][y].guess == 6 then
+            starting_notes[2][3] = false
+        elseif sudoku.cells[i][y].guess == 7 then
+            starting_notes[3][1] = false
+        elseif sudoku.cells[i][y].guess == 8 then
+            starting_notes[3][2] = false
+        elseif sudoku.cells[i][y].guess == 9 then
+            starting_notes[3][3] = false
+        end
+    end
+
+    -- -- Check this column's values
+    for x = 1, 9 do
+        if sudoku.cells[x][j].guess == 1 then
+            starting_notes[1][1] = false
+        elseif sudoku.cells[x][j].guess == 2 then
+            starting_notes[1][2] = false
+        elseif sudoku.cells[x][j].guess == 3 then
+            starting_notes[1][3] = false
+        elseif sudoku.cells[x][j].guess == 4 then
+            starting_notes[2][1] = false
+        elseif sudoku.cells[x][j].guess == 5 then
+            starting_notes[2][2] = false
+        elseif sudoku.cells[x][j].guess == 6 then
+            starting_notes[2][3] = false
+        elseif sudoku.cells[x][j].guess == 7 then
+            starting_notes[3][1] = false
+        elseif sudoku.cells[x][j].guess == 8 then
+            starting_notes[3][2] = false
+        elseif sudoku.cells[x][j].guess == 9 then
+            starting_notes[3][3] = false
+        end
+    end
+
+    -- Check this house's values
+    local house_start_x = 1
+    local house_start_y = 1
+
+    if 4 <= i and i <= 6 then
+        house_start_x = 4
+    elseif 7 <= i then
+        house_start_x = 7
+    end
+    if 4 <= j and j <= 6 then
+        house_start_y = 4
+    elseif 7 <= j then
+        house_start_y = 7
+    end
+    for x = house_start_x, house_start_x + 2 do
+        for y = house_start_y, house_start_y + 2 do
+            if sudoku.cells[x][y].guess == 1 then
+                starting_notes[1][1] = false
+            elseif sudoku.cells[x][y].guess == 2 then
+                starting_notes[1][2] = false
+            elseif sudoku.cells[x][y].guess == 3 then
+                starting_notes[1][3] = false
+            elseif sudoku.cells[x][y].guess == 4 then
+                starting_notes[2][1] = false
+            elseif sudoku.cells[x][y].guess == 5 then
+                starting_notes[2][2] = false
+            elseif sudoku.cells[x][y].guess == 6 then
+                starting_notes[2][3] = false
+            elseif sudoku.cells[x][y].guess == 7 then
+                starting_notes[3][1] = false
+            elseif sudoku.cells[x][y].guess == 8 then
+                starting_notes[3][2] = false
+            elseif sudoku.cells[x][y].guess == 9 then
+                starting_notes[3][3] = false
+            end
+        end
+    end
+
+    sudoku.cells[i][j].notes = starting_notes
+end
+
+local function checkAutoNote()
+    for i = 1, sudoku.DIM_X do
+        for j = 1, sudoku.DIM_Y do
+            setSingleCellNotes(i, j)
+        end
+    end
+end
+
+local function checkPuzzle()
+    local all_guesses_are_correct = true
+    for i = 1, sudoku.DIM_X do
+        for j = 1, sudoku.DIM_Y do
+            local cell = sudoku.cells[i][j]
+            if cell.guess ~= nil and cell.guess ~= cell.solution then
+                all_guesses_are_correct = false
+            end
+        end
+    end
+    sudoku.solved = all_guesses_are_correct
+end
+
+local function clearGuessesAndNotes()
+    for i = 1, sudoku.DIM_X do
+        for j = 1, sudoku.DIM_Y do
+            if sudoku.cells[i][j].locked == false then
+                sudoku.cells[i][j].guess = nil
+                sudoku.cells[i][j].notes = { { false, false, false }, { false, false, false }, { false, false, false } }
+            end
+        end
+    end
+end
 
 function UPDATE()
+    if auto_note_btn.CLICKED == true then
+        checkAutoNote()
+    end
+
+    if check_solution_btn.CLICKED == true then
+        checkPuzzle()
+    end
+
+    if clear_btn.CLICKED == true then
+        clearGuessesAndNotes()
+    end
 end
 
 
@@ -383,26 +547,30 @@ end
 function drawPuzzle()
     for i = 1, sudoku.DIM_X do
         for j = 1, sudoku.DIM_Y do
+            local cell = sudoku.cells[i][j]
+
             local cell_bgcolor = GRAY_DARK
-            local grid_x       = sudoku.cells[i][j].x_left
-            local grid_y       = sudoku.cells[i][j].y_top
-            local grid_width   = sudoku.cells[i][j].x_right - sudoku.cells[i][j].x_left + 1
-            local grid_height  = sudoku.cells[i][j].y_bottom - sudoku.cells[i][j].y_top + 1
+            local grid_x       = cell.x_left
+            local grid_y       = cell.y_top
+            local grid_width   = cell.x_right - cell.x_left + 1
+            local grid_height  = cell.y_bottom - cell.y_top + 1
 
             -- Check cell status and change the cell's background color.
-            if sudoku.cells[i][j].locked == true then
+            if cell.locked == true then
                 cell_bgcolor = BLACK
             elseif sudoku.clicked.i == i and sudoku.clicked.j == j then
                 cell_bgcolor = YELLOW
-            elseif sudoku.cells[i][j].mouseover == true then
+            elseif cell.mouseover == true then
                 cell_bgcolor = PURPLE
+            elseif check_solution_btn.CLICKED == true then
+                if cell.guess ~= nil and cell.guess ~= cell.solution then
+                    cell_bgcolor = RED
+                end
             end
             rect(grid_x, grid_y, grid_width, grid_height, cell_bgcolor)
 
             -- If there isn't a guess, print the notes.
-            if sudoku.cells[i][j].guess == nil then
-                local cell = sudoku.cells[i][j]
-
+            if cell.guess == nil then
                 local note_w = math.floor(grid_width / 3)
                 local note_h = math.floor(grid_height / 3)
 
@@ -418,7 +586,7 @@ function drawPuzzle()
 
                 -- Otherwise print the guess if there is one.
             else
-                print(sudoku.cells[i][j].guess, grid_x + 2, grid_y + 2, WHITE, true, 2)
+                print(cell.guess, grid_x + 2, grid_y + 2, WHITE, true, 2)
             end
 
             -- Finally, draw the grid.
@@ -461,14 +629,16 @@ local function drawNotesGrid()
 end
 
 local function drawButtons()
-    for k, butt in pairs(puzzle_buttons) do 
-        local bg_color = GRAY_DARK
+    for i, butt in ipairs(puzzle_buttons) do 
+        local text_color = WHITE
+        local bg_color   = GRAY_DARK
         if butt.CLICKED then
-            bg_color = GRAY_MED
+            text_color = GRAY_DARK
+            bg_color = YELLOW
         end
         rect(butt.START_X, butt.START_Y, butt.CELL_WIDTH, butt.CELL_HEIGHT, bg_color)
         rectb(butt.START_X, butt.START_Y, butt.CELL_WIDTH, butt.CELL_HEIGHT, WHITE)
-        print(butt.TEXT, butt.TEXT_START_X, butt.TEXT_START_Y, WHITE, false, 1, true)
+        print(butt.TEXT, butt.TEXT_START_X, butt.TEXT_START_Y, text_color, false, 1, true)
     end
 end
 
@@ -483,6 +653,15 @@ local function drawStatBox()
 
     rect(box_start_x, box_start_y, box_width, box_height, BLACK)
     rectb(box_start_x, box_start_y, box_width, box_height, WHITE)
+
+    -- Now print all the stats there are to print.
+    -- ...
+    local start_x = box_start_x + X_PADDING
+    local start_y = box_start_y + Y_PADDING
+    for k, butt in pairs(puzzle_buttons) do
+        print(butt.TEXT .. " = " .. tostring(butt.CLICKED), start_x, start_y, WHITE, false, 1, true)
+        start_y = start_y + Y_PADDING
+    end
 end
 
 
