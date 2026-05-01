@@ -24,10 +24,11 @@ local function make_grid(overrides)
     return g
 end
 
-local sudoku   = make_grid()
-sudoku.clicked = { i = nil, j = nil }
-sudoku.cells   = {}
-sudoku.solved  = false
+local sudoku      = make_grid()
+sudoku.clicked    = { i = nil, j = nil }
+sudoku.cells      = {}
+sudoku.difficulty = nil
+sudoku.solved     = false
 
 -- This one is just a convenience table for drawing a numeric representation of
 -- the sudoku.notes grid.
