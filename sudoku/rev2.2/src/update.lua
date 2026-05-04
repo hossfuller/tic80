@@ -2,6 +2,15 @@
 -- UPDATE FUNCTIONS
 -- ==========================================
 
+
+local function markNoteFalse(starting_notes, guess)
+    if guess >= 1 and guess <= 9 then
+        local row = math.ceil(guess / 3)
+        local col = (guess - 1) % 3 + 1
+        starting_notes[row][col] = false
+    end
+end
+
 local function setSingleCellNotes(i, j)
     local starting_notes = {
         { true, true, true },
@@ -9,87 +18,23 @@ local function setSingleCellNotes(i, j)
         { true, true, true }
     }
 
-    -- Check this row's values
+    -- Check row
     for y = 1, 9 do
-        if sudoku.cells[i][y].guess == 1 then
-            starting_notes[1][1] = false
-        elseif sudoku.cells[i][y].guess == 2 then
-            starting_notes[1][2] = false
-        elseif sudoku.cells[i][y].guess == 3 then
-            starting_notes[1][3] = false
-        elseif sudoku.cells[i][y].guess == 4 then
-            starting_notes[2][1] = false
-        elseif sudoku.cells[i][y].guess == 5 then
-            starting_notes[2][2] = false
-        elseif sudoku.cells[i][y].guess == 6 then
-            starting_notes[2][3] = false
-        elseif sudoku.cells[i][y].guess == 7 then
-            starting_notes[3][1] = false
-        elseif sudoku.cells[i][y].guess == 8 then
-            starting_notes[3][2] = false
-        elseif sudoku.cells[i][y].guess == 9 then
-            starting_notes[3][3] = false
-        end
+        markNoteFalse(starting_notes, sudoku.cells[i][y].guess)
     end
 
-    -- -- Check this column's values
+    -- Check column
     for x = 1, 9 do
-        if sudoku.cells[x][j].guess == 1 then
-            starting_notes[1][1] = false
-        elseif sudoku.cells[x][j].guess == 2 then
-            starting_notes[1][2] = false
-        elseif sudoku.cells[x][j].guess == 3 then
-            starting_notes[1][3] = false
-        elseif sudoku.cells[x][j].guess == 4 then
-            starting_notes[2][1] = false
-        elseif sudoku.cells[x][j].guess == 5 then
-            starting_notes[2][2] = false
-        elseif sudoku.cells[x][j].guess == 6 then
-            starting_notes[2][3] = false
-        elseif sudoku.cells[x][j].guess == 7 then
-            starting_notes[3][1] = false
-        elseif sudoku.cells[x][j].guess == 8 then
-            starting_notes[3][2] = false
-        elseif sudoku.cells[x][j].guess == 9 then
-            starting_notes[3][3] = false
-        end
+        markNoteFalse(starting_notes, sudoku.cells[x][j].guess)
     end
 
-    -- Check this house's values
-    local house_start_x = 1
-    local house_start_y = 1
+    -- Check house
+    local house_start_x = math.floor((i - 1) / 3) * 3 + 1
+    local house_start_y = math.floor((j - 1) / 3) * 3 + 1
 
-    if 4 <= i and i <= 6 then
-        house_start_x = 4
-    elseif 7 <= i then
-        house_start_x = 7
-    end
-    if 4 <= j and j <= 6 then
-        house_start_y = 4
-    elseif 7 <= j then
-        house_start_y = 7
-    end
     for x = house_start_x, house_start_x + 2 do
         for y = house_start_y, house_start_y + 2 do
-            if sudoku.cells[x][y].guess == 1 then
-                starting_notes[1][1] = false
-            elseif sudoku.cells[x][y].guess == 2 then
-                starting_notes[1][2] = false
-            elseif sudoku.cells[x][y].guess == 3 then
-                starting_notes[1][3] = false
-            elseif sudoku.cells[x][y].guess == 4 then
-                starting_notes[2][1] = false
-            elseif sudoku.cells[x][y].guess == 5 then
-                starting_notes[2][2] = false
-            elseif sudoku.cells[x][y].guess == 6 then
-                starting_notes[2][3] = false
-            elseif sudoku.cells[x][y].guess == 7 then
-                starting_notes[3][1] = false
-            elseif sudoku.cells[x][y].guess == 8 then
-                starting_notes[3][2] = false
-            elseif sudoku.cells[x][y].guess == 9 then
-                starting_notes[3][3] = false
-            end
+            markNoteFalse(starting_notes, sudoku.cells[x][y].guess)
         end
     end
 
