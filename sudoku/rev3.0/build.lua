@@ -211,20 +211,194 @@ local puzzle_buttons = {
 -- SUDOKU LOGIC
 -- ==========================================
 
+-- God, I wish I'd paid more attention in linear algebra class....
+
+--[[
+## Generate a Valid Complete Grid
+Starting with an empty 9x9 board, use a backtracking algorithm to fill it.
+    1. Diagonal Fill (Optional for Speed): Fill the three diagonal 3x3 sub-grids
+       first. Since they don't share rows or columns with each other, you can
+       fill them with a random shuffle of numbers 1–9 without needing complex
+       checks.
+    2. Backtracking Search:
+        1. Find the next empty cell.
+        2. Pick a random number from 1 to 9.
+        3. Check if it is "safe" (not present in the current row, column, or
+           3x3 sub-grid).
+        4. If safe, place it and move to the next cell.
+        5. If you hit a dead end (no numbers are valid), backtrack to the
+           previous cell and try a different number.
+    3. Shuffle for Variety: You can also take a pre-existing valid board and
+       apply transformations like swapping rows within a block, rotating the
+       grid, or permuting the numbers (e.g., swapping all 1s with 5s).
+--]]
+
+-- Copies a grid instead of creating references to a pre-exisitng grid.
+local function copy_grid(g)
+    local out = {}
+    for i = 1, 9 do
+        out[i] = {}
+        for j = 1, 9 do out[i][j] = g[i][j] end
+    end
+    return out
+end
+
+-- Shuffles a table with values 1..9
+local function shuffled_1_to_9()
+    local t = { 1, 2, 3, 4, 5, 6, 7, 8, 9 }
+    for i = #t, 2, -1 do
+        local j = math.random(i)
+        t[i], t[j] = t[j], t[i]
+    end
+    return t
+end
+
+-- Kinda does the same thing as shuffled_1_to_9(), but instead of filling in an
+-- empty grid, this lets us shift around a pre-exisitng grid.
+local function shuffled_positions()
+    local pos = {}
+    for k = 1, 81 do pos[k] = k end
+    for i = 81, 2, -1 do
+        local j = math.random(i)
+        pos[i], pos[j] = pos[j], pos[i]
+    end
+    return pos
+end
+
+-- Checks if a number can safely go into a specific cell of the grid.
+local function isSafe(grid_cells, r, c, n)
+    -- Checks the row
+    for j = 1, 9 do
+        if grid_cells[r][j] == n then return false end
+    end
+
+    -- Checks the col
+    for i = 1, 9 do
+        if grid_cells[i][c] == n then return false end
+    end
+
+    -- Checks the house
+    local r0 = math.floor((r - 1) / 3) * 3 + 1
+    local c0 = math.floor((c - 1) / 3) * 3 + 1
+    for i = r0, r0 + 2 do
+        for j = c0, c0 + 2 do
+            if grid_cells[i][j] == n then return false end
+        end
+    end
+
+    return true
+end
+
+-- Finds an empty cell in the grid worth inserting a solution. Returns the
+-- coordinates of an empty cell. When the grid is full, it returns nil.
+local function findEmpty(grid_cells)
+    for i = 1, 9 do
+        for j = 1, 9 do
+            if grid_cells[i][j] == 0 then
+                return i, j
+            end
+        end
+    end
+    return nil
+end
+
+-- Recursively fill in the grid until we have a valid sudoku board.
+local function fillGrid(grid_cells)
+    local r, c = findEmpty(grid_cells)
+    if not r then
+        return true
+    end -- solved
+
+    local nums = shuffled_1_to_9()
+    for k = 1, 9 do
+        local n = nums[k]
+        if isSafe(grid_cells, r, c, n) then
+            grid_cells[r][c] = n
+            if fillGrid(grid_cells) then
+                return true
+            end
+            grid_cells[r][c] = 0
+        end
+    end
+
+    return false
+end
+
+
 local function generateSolution()
+
+    local init_grid = {
+        { 0, 0, 0,  0, 0, 0,  0, 0, 0 },
+        { 0, 0, 0,  0, 0, 0,  0, 0, 0 },
+        { 0, 0, 0,  0, 0, 0,  0, 0, 0 },
+
+        { 0, 0, 0,  0, 0, 0,  0, 0, 0 },
+        { 0, 0, 0,  0, 0, 0,  0, 0, 0 },
+        { 0, 0, 0,  0, 0, 0,  0, 0, 0 },
+
+        { 0, 0, 0,  0, 0, 0,  0, 0, 0 },
+        { 0, 0, 0,  0, 0, 0,  0, 0, 0 },
+        { 0, 0, 0,  0, 0, 0,  0, 0, 0 },
+    }
+
+    -- This tracks whether or not each of the 3x3 diagonal houses have been
+    -- filled.
+    local filled = { [0] = false, [1] = false, [2] = false }
+
+    for i = 1, 9 do
+        for j = 1, 9 do
+            -- We only want rows 1..3 with cols 1..3, rows 4..6 with cols 4..6,
+            -- and rows 7..9 with col 7..9. As we iterate over i and j, we can
+            -- calculate a "block index" of the row and column.
+            local bi = math.floor((i-1)/3)
+            local bj = math.floor((j-1)/3)
+            -- These block indices will come out to either 0 (row/col 1..3),
+            -- 1 (row/col 4..6), or 2 (row/col 7..9). If the block indices are
+            -- the same, then we're working in one of the diagonal houses.
+            if (
+                bi == bj             -- block indices match, so we're on a diag.
+                and not filled[bi]   -- we haven't filled this diag house.
+                and (i - 1) % 3 == 0 -- we're on the left-most i of the house.
+                and (j - 1) % 3 == 0 -- we're on the top-most j of the house.
+            ) then
+                filled[bi] = true
+
+                local nums = shuffled_1_to_9()
+                local k = 1
+
+                -- This is the magic diagonal part.
+                for r = i, i+2 do
+                    for c = j, j+2 do
+                        init_grid[r][c] = nums[k]
+                        k = k + 1
+                    end
+                end
+            end
+        end
+    end
+
+    -- Fill in the rest of the grid now:
+    assert(fillGrid(init_grid), "failed to generate a full grid")
+
+    -- Now copy our unique, valid sudoku puzzle into the main sudoku structure.
     for i = 1, sudoku.DIM_X do
         for j = 1, sudoku.DIM_Y do
-            sudoku.cells[i][j].solution = math.random(1, 9)
-            if math.random() < 0.5 then
-                sudoku.cells[i][j].guess = sudoku.cells[i][j].solution
-                sudoku.cells[i][j].locked = true
-            end
+            sudoku.cells[i][j].solution = init_grid[i][j]
         end
     end
 end
 
 --[[
-  Currently we just want to display
+## Create the Puzzle by Removing Numbers
+Simply removing X random numbers might result in a board that is unsolvable or
+has multiple solutions. So we aim for strategic removal.
+    1. Create a list of all 81 cell positions and shuffle it.
+    2. Pick a cell and remove its value.
+    3. Uniqueness Check: Use a Sudoku solver (often the same backtracking
+       algorithm used in Step 1) to check if the board still has exactly one
+       unique solution.
+    4. If there is more than one solution, put the number back.
+    5. Repeat until you have reached the desired difficulty or tested all cells.
 --]]
 local function setPuzzleDifficulty(difficulty)
     if difficulty == nil then
@@ -396,6 +570,15 @@ end
 -- UPDATE FUNCTIONS
 -- ==========================================
 
+
+local function markNoteFalse(starting_notes, guess)
+    if guess ~= nil and guess >= 1 and guess <= 9 then
+        local row = math.ceil(guess / 3)
+        local col = (guess - 1) % 3 + 1
+        starting_notes[row][col] = false
+    end
+end
+
 local function setSingleCellNotes(i, j)
     local starting_notes = {
         { true, true, true },
@@ -403,87 +586,23 @@ local function setSingleCellNotes(i, j)
         { true, true, true }
     }
 
-    -- Check this row's values
+    -- Check row
     for y = 1, 9 do
-        if sudoku.cells[i][y].guess == 1 then
-            starting_notes[1][1] = false
-        elseif sudoku.cells[i][y].guess == 2 then
-            starting_notes[1][2] = false
-        elseif sudoku.cells[i][y].guess == 3 then
-            starting_notes[1][3] = false
-        elseif sudoku.cells[i][y].guess == 4 then
-            starting_notes[2][1] = false
-        elseif sudoku.cells[i][y].guess == 5 then
-            starting_notes[2][2] = false
-        elseif sudoku.cells[i][y].guess == 6 then
-            starting_notes[2][3] = false
-        elseif sudoku.cells[i][y].guess == 7 then
-            starting_notes[3][1] = false
-        elseif sudoku.cells[i][y].guess == 8 then
-            starting_notes[3][2] = false
-        elseif sudoku.cells[i][y].guess == 9 then
-            starting_notes[3][3] = false
-        end
+        markNoteFalse(starting_notes, sudoku.cells[i][y].guess)
     end
 
-    -- -- Check this column's values
+    -- Check column
     for x = 1, 9 do
-        if sudoku.cells[x][j].guess == 1 then
-            starting_notes[1][1] = false
-        elseif sudoku.cells[x][j].guess == 2 then
-            starting_notes[1][2] = false
-        elseif sudoku.cells[x][j].guess == 3 then
-            starting_notes[1][3] = false
-        elseif sudoku.cells[x][j].guess == 4 then
-            starting_notes[2][1] = false
-        elseif sudoku.cells[x][j].guess == 5 then
-            starting_notes[2][2] = false
-        elseif sudoku.cells[x][j].guess == 6 then
-            starting_notes[2][3] = false
-        elseif sudoku.cells[x][j].guess == 7 then
-            starting_notes[3][1] = false
-        elseif sudoku.cells[x][j].guess == 8 then
-            starting_notes[3][2] = false
-        elseif sudoku.cells[x][j].guess == 9 then
-            starting_notes[3][3] = false
-        end
+        markNoteFalse(starting_notes, sudoku.cells[x][j].guess)
     end
 
-    -- Check this house's values
-    local house_start_x = 1
-    local house_start_y = 1
+    -- Check house
+    local house_start_x = math.floor((i - 1) / 3) * 3 + 1
+    local house_start_y = math.floor((j - 1) / 3) * 3 + 1
 
-    if 4 <= i and i <= 6 then
-        house_start_x = 4
-    elseif 7 <= i then
-        house_start_x = 7
-    end
-    if 4 <= j and j <= 6 then
-        house_start_y = 4
-    elseif 7 <= j then
-        house_start_y = 7
-    end
     for x = house_start_x, house_start_x + 2 do
         for y = house_start_y, house_start_y + 2 do
-            if sudoku.cells[x][y].guess == 1 then
-                starting_notes[1][1] = false
-            elseif sudoku.cells[x][y].guess == 2 then
-                starting_notes[1][2] = false
-            elseif sudoku.cells[x][y].guess == 3 then
-                starting_notes[1][3] = false
-            elseif sudoku.cells[x][y].guess == 4 then
-                starting_notes[2][1] = false
-            elseif sudoku.cells[x][y].guess == 5 then
-                starting_notes[2][2] = false
-            elseif sudoku.cells[x][y].guess == 6 then
-                starting_notes[2][3] = false
-            elseif sudoku.cells[x][y].guess == 7 then
-                starting_notes[3][1] = false
-            elseif sudoku.cells[x][y].guess == 8 then
-                starting_notes[3][2] = false
-            elseif sudoku.cells[x][y].guess == 9 then
-                starting_notes[3][3] = false
-            end
+            markNoteFalse(starting_notes, sudoku.cells[x][y].guess)
         end
     end
 
