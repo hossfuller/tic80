@@ -24,15 +24,13 @@ include "src.draw"
 function INIT()
     -- Initialize the cells
     initializeCells()
-    
+
     -- Update sudoku.END_Y to reflect actual grid dimensions
     sudoku.END_Y = sudoku.cells[sudoku.DIM_X][sudoku.DIM_Y].y_bottom + 1
 
     -- Get a valid solution into the cells' 'value' settings.
     generateSolution()
-
-    -- What is the difficulty? Copy the appropriate number of 'value' fields to 'guess' fields and lock those fields.
-    setPuzzleDifficulty('random')
+    generatePuzzleByTier('hard')
 end -- INIT()
 
 -- ==========================================

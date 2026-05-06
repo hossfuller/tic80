@@ -36,3 +36,10 @@ local CELL_WIDTH_MULTIPLIER  = 1.75
 local CELL_HEIGHT_MULTIPLIER = 1.75
 local GAP_CELL               = -1 -- between cells inside a house
 local GAP_HOUSE              = 0  -- between houses (after col/row 3 and 6)
+
+-- Game settings
+local DIFFICULTY             = {
+    easy       = { givens_min = 40, givens_max = 45, max_attempts = 1500, symmetric = true },
+    medium     = { givens_min = 32, givens_max = 39, max_attempts = 2500, symmetric = true },
+    hard       = { givens_min = 24, givens_max = 31, max_attempts = 6000, symmetric = true },
+}

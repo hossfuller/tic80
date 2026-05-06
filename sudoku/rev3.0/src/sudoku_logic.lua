@@ -29,7 +29,9 @@ local function copy_grid(g)
     local out = {}
     for i = 1, 9 do
         out[i] = {}
-        for j = 1, 9 do out[i][j] = g[i][j] end
+        for j = 1, 9 do
+            out[i][j] = g[i][j]
+        end
     end
     return out
 end
@@ -37,7 +39,7 @@ end
 -- Shuffles a table with values 1..9
 local function shuffled_1_to_9()
     local t = { 1, 2, 3, 4, 5, 6, 7, 8, 9 }
-    for i = #t, 2, -1 do
+    for i = 9, 2, -1 do
         local j = math.random(i)
         t[i], t[j] = t[j], t[i]
     end
@@ -48,7 +50,9 @@ end
 -- empty grid, this lets us shift around a pre-exisitng grid.
 local function shuffled_positions()
     local pos = {}
-    for k = 1, 81 do pos[k] = k end
+    for k = 1, 81 do
+        pos[k] = k
+    end
     for i = 81, 2, -1 do
         local j = math.random(i)
         pos[i], pos[j] = pos[j], pos[i]
@@ -60,23 +64,27 @@ end
 local function isSafe(grid_cells, r, c, n)
     -- Checks the row
     for j = 1, 9 do
-        if grid_cells[r][j] == n then return false end
+        if grid_cells[r][j] == n then
+            return false
+        end
     end
 
     -- Checks the col
     for i = 1, 9 do
-        if grid_cells[i][c] == n then return false end
+        if grid_cells[i][c] == n then
+            return false
+        end
     end
 
-    -- Checks the house
     local r0 = math.floor((r - 1) / 3) * 3 + 1
     local c0 = math.floor((c - 1) / 3) * 3 + 1
     for i = r0, r0 + 2 do
         for j = c0, c0 + 2 do
-            if grid_cells[i][j] == n then return false end
+            if grid_cells[i][j] == n then
+                return false
+            end
         end
     end
-
     return true
 end
 
@@ -114,7 +122,6 @@ local function fillGrid(grid_cells)
 
     return false
 end
-
 
 local function generateSolution()
 
@@ -191,16 +198,145 @@ has multiple solutions. So we aim for strategic removal.
     4. If there is more than one solution, put the number back.
     5. Repeat until you have reached the desired difficulty or tested all cells.
 --]]
-local function setPuzzleDifficulty(difficulty)
-    if difficulty == nil then
-        difficulty = 'random'
+
+-- As we hide cells, we want to count up the number of potential solutions. This
+-- will work recursively to make sure there's only 1 solution. The moment it
+-- hits 2, it reverses back and punts out.
+
+local function countSolutions(g, limit)
+    local r, c = findEmpty(g)
+    if not r then
+        return 1
+    end -- found a complete solution
+
+    local total = 0
+    local nums = shuffled_1_to_9() -- random order; helps vary puzzles
+    for k = 1, 9 do
+        local n = nums[k]
+        if isSafe(g, r, c, n) then
+            g[r][c] = n
+            total = total + countSolutions(g, limit - total)
+            g[r][c] = 0
+            if total >= limit then
+                return total
+            end -- early stop
+        end
     end
-    for i = 1, sudoku.DIM_X do
-        for j = 1, sudoku.DIM_Y do
-            if difficulty == 'random' and math.random() < 0.5 then
-                sudoku.cells[i][j].guess = sudoku.cells[i][j].solution
-                sudoku.cells[i][j].locked = true
+    return total
+end
+
+-- Allows for symmetric clue removal.
+local function symPos(r, c)
+    return 10 - r, 10 - c
+end
+
+-- Remove clues while also keeping the puzzle's solution unique.
+-- Parameters:
+--   sol: fully solved puzzle
+--   target_givens: how many filled cells we want left (e.g. 30-40)
+--   max_attempts: cap on removal tries (prevents long runs)
+--   symmetric: enables/disables symmetric clue removal.
+local function makePuzzleUnique(sol, target_givens, max_attempts, symmetric)
+    local puz = copy_grid(sol)
+    local givens = 81
+    local attempts = 0
+
+    local order = shuffled_positions()
+    local idx = 1
+
+    while givens > target_givens and attempts < max_attempts do
+        if idx > 81 then
+            order = shuffled_positions()
+            idx = 1
+        end
+
+        local k = order[idx]; idx = idx + 1
+        local r = math.floor((k - 1) / 9) + 1
+        local c = ((k - 1) % 9) + 1
+
+        if puz[r][c] ~= 0 then
+            local r2, c2 = symPos(r, c)
+
+            -- If doing symmetry, we try to remove a pair.
+            -- If the symmetric cell is already empty, we can either:
+            --   * treat it as a single removal, or
+            --   * skip to preserve "paired" removals.
+            -- Here we allow single removal when the pair is already empty.
+            local backup1 = puz[r][c]
+            local backup2 = puz[r2][c2]
+
+            local removing_two = symmetric and not (r == r2 and c == c2) and (backup2 ~= 0)
+
+            puz[r][c] = 0
+            if removing_two then puz[r2][c2] = 0 end
+
+            local test = copy_grid(puz)
+            local nsol = countSolutions(test, 2)
+
+            if nsol ~= 1 then
+                -- revert
+                puz[r][c] = backup1
+                if removing_two then puz[r2][c2] = backup2 end
+            else
+                -- keep
+                givens = givens - 1
+                if removing_two then givens = givens - 1 end
+            end
+
+            attempts = attempts + 1
+        end
+    end
+
+    return puz
+end
+
+local function solutionCellsToGrid()
+    local sol = {}
+    for i = 1, 9 do
+        sol[i] = {}
+        for j = 1, 9 do
+            sol[i][j] = sudoku.cells[i][j].solution
+        end
+    end
+    return sol
+end
+
+local function applyPuzzleGridToCells(puzzle_grid)
+    for i = 1, 9 do
+        for j = 1, 9 do
+            local cell = sudoku.cells[i][j]
+            local clue = puzzle_grid[i][j] -- 0 means empty
+
+            if clue ~= 0 then
+                cell.guess  = clue
+                cell.locked = true
+                -- Clear notes for locked cells
+                cell.notes  = { { false, false, false }, { false, false, false }, { false, false, false } }
+            else
+                cell.guess  = nil
+                cell.locked = false
+                cell.notes  = { { false, false, false }, { false, false, false }, { false, false, false } }
             end
         end
     end
+
+    sudoku.clicked.i, sudoku.clicked.j = nil, nil
+    sudoku.solved = false
+end
+
+-- Sets the difficulty target.
+local function pickTargetGivens(tier)
+    local a, b = tier.givens_min, tier.givens_max
+    return a + math.random(b - a)
+end
+
+local function generatePuzzleByTier(name)
+    local tier = DIFFICULTY[name] or DIFFICULTY.medium
+    local target = pickTargetGivens(tier)
+
+    local sol_grid = solutionCellsToGrid()
+    local puzzle_grid = makePuzzleUnique(sol_grid, target, tier.max_attempts, tier.symmetric)
+
+    applyPuzzleGridToCells(puzzle_grid)
+    sudoku.difficulty = name
 end
