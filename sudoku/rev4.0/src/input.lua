@@ -100,7 +100,7 @@ local function checkInputOnNotesGrid(mouse_x, mouse_y, just_pressed)
     return true -- Click was handled
 end
 
-local function checkButtonClicks(mouse_x, mouse_y, left_click, just_pressed)
+local function checkPuzzleButtonClicks(mouse_x, mouse_y, left_click, just_pressed)
     local handled = false
 
     for k, butt in pairs(puzzle_buttons) do
@@ -124,18 +124,24 @@ end
 function INPUT()
     local mouse_x, mouse_y, left_click, middle_click, right_click, scroll_x, scroll_y = mouse()
 
+ -- Clear all button states first
+    for _, butt in ipairs(puzzle_buttons) do 
+        butt.CLICKED = false 
+    end
+
     local just_pressed = left_click and not prev_left_click
     prev_left_click = left_click
 
     -- Only work on the notes grid or the puzzle grid. Not both.
     local notes_handled   = checkInputOnNotesGrid(mouse_x, mouse_y, just_pressed)
 
-    local buttons_handled = false
+    local puzzle_buttons_handled = false
     if not notes_handled then
-        buttons_handled = checkButtonClicks(mouse_x, mouse_y, left_click, just_pressed)
+        puzzle_buttons_handled = checkPuzzleButtonClicks(mouse_x, mouse_y, left_click, just_pressed)
     end
 
-    if not notes_handled and not buttons_handled then
+    local handled = not notes_handled and not puzzle_buttons_handled
+    if handled then
         checkInputOnPuzzleGrid(mouse_x, mouse_y, left_click, scroll_y, just_pressed)
     end
 end

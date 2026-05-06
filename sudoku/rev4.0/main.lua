@@ -12,6 +12,7 @@ include "src.constants"
 include "src.sudoku.grid"
 include "src.sudoku.buttons"
 include "src.sudoku.logic"
+include "src.sudoku.undo"
 include "src.input"
 include "src.update"
 include "src.draw"
@@ -30,7 +31,7 @@ function INIT()
 
     -- Get a valid solution into the cells' 'value' settings.
     generateSolution()
-    generatePuzzleByTier('easy')
+    generatePuzzleByTier(SELECTED_DIFFICULTY)
 end -- INIT()
 
 -- ==========================================

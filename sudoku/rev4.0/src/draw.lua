@@ -92,21 +92,7 @@ local function drawPuzzleButtons()
         local bg_color   = GRAY_DARK
         if butt.CLICKED then
             text_color = GRAY_DARK
-            bg_color = YELLOW
-        end
-        rect(butt.START_X, butt.START_Y, butt.CELL_WIDTH, butt.CELL_HEIGHT, bg_color)
-        rectb(butt.START_X, butt.START_Y, butt.CELL_WIDTH, butt.CELL_HEIGHT, WHITE)
-        print(butt.TEXT, butt.TEXT_START_X, butt.TEXT_START_Y, text_color, false, 1, true)
-    end
-end
-
-local function drawGameButtons()
-    for i, butt in ipairs(game_ctl_buttons) do 
-        local text_color = WHITE
-        local bg_color   = GRAY_DARK
-        if butt.CLICKED then
-            text_color = GRAY_DARK
-            bg_color = YELLOW
+            bg_color = butt.BG_COLOR
         end
         rect(butt.START_X, butt.START_Y, butt.CELL_WIDTH, butt.CELL_HEIGHT, bg_color)
         rectb(butt.START_X, butt.START_Y, butt.CELL_WIDTH, butt.CELL_HEIGHT, WHITE)
@@ -120,20 +106,25 @@ local function drawStatBox()
     local box_width = (EDGE_X_RIGHT - FIXED_CHAR_WIDTH) - box_start_x
 
     -- Line the stat box up with the bottom of the sudoku grid.
-    local sudoku_end_y = sudoku.cells[sudoku.DIM_X][sudoku.DIM_Y].y_bottom
+    local sudoku_end_y = check_solution_btn.START_Y - Y_PADDING
     local box_height = sudoku_end_y - box_start_y + 1
 
     rect(box_start_x, box_start_y, box_width, box_height, BLACK)
     rectb(box_start_x, box_start_y, box_width, box_height, WHITE)
 
-    -- -- Now print all the stats there are to print.
-    -- -- ...
-    -- local start_x = box_start_x + X_PADDING
-    -- local start_y = box_start_y + Y_PADDING
-    -- for k, butt in pairs(puzzle_buttons) do
-    --     print(butt.TEXT .. " = " .. tostring(butt.CLICKED), start_x, start_y, WHITE, false, 1, true)
-    --     start_y = start_y + Y_PADDING
-    -- end
+    -- Print active clock and difficulty level.
+    local start_x = box_start_x + math.floor(X_PADDING / 2)
+    local start_y = box_start_y + Y_PADDING
+
+    print("CLOCK", start_x, start_y, WHITE, false, 2, false)
+    print("UNDO = " .. tostring(undo_btn.CLICKED) , start_x, start_y + 2*Y_PADDING, WHITE, false, 1, false)
+
+    print(
+        SELECTED_DIFFICULTY .. " difficulty", 
+        start_x, 
+        box_start_y + box_height - Y_PADDING, 
+        WHITE
+    )
 end
 
 
@@ -152,8 +143,7 @@ function DRAW()
     drawPuzzle()
     drawNotesGrid()
     drawPuzzleButtons()
-    -- drawStatBox()
-    drawGameButtons()
+    drawStatBox()
 end
 
 

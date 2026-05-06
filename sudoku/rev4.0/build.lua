@@ -60,7 +60,7 @@ local DIFFICULTY             = {
     medium     = { givens_min = 32, givens_max = 39, max_attempts = 2500, symmetric = true },
     hard       = { givens_min = 24, givens_max = 31, max_attempts = 6000, symmetric = true },
 }
-
+local SELECTED_DIFFICULTY = "medium"
 
 -- [/TQ-Bundler: src.constants]
 
@@ -175,8 +175,16 @@ local function make_button(params)
     g.PREV_CLICK   = params.PREV_CLICK   or false
     g.START_X      = params.START_X      or (EDGE_X_LEFT + X_PADDING)
     g.START_Y      = params.START_Y      or (EDGE_Y_TOP + Y_PADDING)
-    g.END_X        = params.END_X        or (EDGE_X_RIGHT - FIXED_CHAR_WIDTH)
-    g.CELL_WIDTH   = params.CELL_WIDTH   or (g.END_X - g.START_X)
+    
+    -- Calculate END_X properly: if CELL_WIDTH is given, use it; otherwise use default END_X
+    if params.CELL_WIDTH then
+        g.CELL_WIDTH = params.CELL_WIDTH
+        g.END_X      = g.START_X + g.CELL_WIDTH
+    else
+        g.END_X      = params.END_X or (EDGE_X_RIGHT - FIXED_CHAR_WIDTH)
+        g.CELL_WIDTH = g.END_X - g.START_X
+    end
+    
     g.CELL_HEIGHT  = params.CELL_HEIGHT  or (FIXED_CHAR_HEIGHT + Y_PADDING)
     g.END_Y        = params.END_Y        or (g.START_Y + g.CELL_HEIGHT)
     g.TEXT_START_X = params.TEXT_START_X or (g.START_X + math.floor(X_PADDING / 2))
@@ -185,7 +193,6 @@ local function make_button(params)
 
     return g
 end
-
 
 local auto_note_btn = make_button({
     TEXT    = "AUTO-NOTE",
@@ -215,7 +222,7 @@ local new_puzzle_btn = make_button({
     START_X    = check_solution_btn.START_X + check_solution_btn.CELL_WIDTH,   -- Chain from previous button
     START_Y    = check_solution_btn.START_Y,                                   -- Same row
     CELL_WIDTH = game_ctl_btn_width,
-    BG_COLOR   = GREEN,
+    BG_COLOR   = GREEN_MED,
 })
 local exit_btn = make_button({
     TEXT       = "EXIT",
@@ -229,8 +236,6 @@ local puzzle_buttons = {
     auto_note_btn,
     undo_btn,
     clear_btn,
-}
-local game_ctl_buttons = {
     check_solution_btn,
     new_puzzle_btn,
     exit_btn,
@@ -587,6 +592,17 @@ end
 
 -- [/TQ-Bundler: src.sudoku.logic]
 
+-- [TQ-Bundler: src.sudoku.undo]
+
+-- ==========================================
+-- UNDO FUNCTION
+-- ==========================================
+
+local undo_list = {}
+
+
+-- [/TQ-Bundler: src.sudoku.undo]
+
 -- [TQ-Bundler: src.input]
 
 -- ==========================================
@@ -691,7 +707,7 @@ local function checkInputOnNotesGrid(mouse_x, mouse_y, just_pressed)
     return true -- Click was handled
 end
 
-local function checkButtonClicks(mouse_x, mouse_y, left_click, just_pressed)
+local function checkPuzzleButtonClicks(mouse_x, mouse_y, left_click, just_pressed)
     local handled = false
 
     for k, butt in pairs(puzzle_buttons) do
@@ -715,18 +731,24 @@ end
 function INPUT()
     local mouse_x, mouse_y, left_click, middle_click, right_click, scroll_x, scroll_y = mouse()
 
+ -- Clear all button states first
+    for _, butt in ipairs(puzzle_buttons) do 
+        butt.CLICKED = false 
+    end
+
     local just_pressed = left_click and not prev_left_click
     prev_left_click = left_click
 
     -- Only work on the notes grid or the puzzle grid. Not both.
     local notes_handled   = checkInputOnNotesGrid(mouse_x, mouse_y, just_pressed)
 
-    local buttons_handled = false
+    local puzzle_buttons_handled = false
     if not notes_handled then
-        buttons_handled = checkButtonClicks(mouse_x, mouse_y, left_click, just_pressed)
+        puzzle_buttons_handled = checkPuzzleButtonClicks(mouse_x, mouse_y, left_click, just_pressed)
     end
 
-    if not notes_handled and not buttons_handled then
+    local handled = not notes_handled and not puzzle_buttons_handled
+    if handled then
         checkInputOnPuzzleGrid(mouse_x, mouse_y, left_click, scroll_y, just_pressed)
     end
 end
@@ -924,21 +946,7 @@ local function drawPuzzleButtons()
         local bg_color   = GRAY_DARK
         if butt.CLICKED then
             text_color = GRAY_DARK
-            bg_color = YELLOW
-        end
-        rect(butt.START_X, butt.START_Y, butt.CELL_WIDTH, butt.CELL_HEIGHT, bg_color)
-        rectb(butt.START_X, butt.START_Y, butt.CELL_WIDTH, butt.CELL_HEIGHT, WHITE)
-        print(butt.TEXT, butt.TEXT_START_X, butt.TEXT_START_Y, text_color, false, 1, true)
-    end
-end
-
-local function drawGameButtons()
-    for i, butt in ipairs(game_ctl_buttons) do 
-        local text_color = WHITE
-        local bg_color   = GRAY_DARK
-        if butt.CLICKED then
-            text_color = GRAY_DARK
-            bg_color = YELLOW
+            bg_color = butt.BG_COLOR
         end
         rect(butt.START_X, butt.START_Y, butt.CELL_WIDTH, butt.CELL_HEIGHT, bg_color)
         rectb(butt.START_X, butt.START_Y, butt.CELL_WIDTH, butt.CELL_HEIGHT, WHITE)
@@ -952,20 +960,25 @@ local function drawStatBox()
     local box_width = (EDGE_X_RIGHT - FIXED_CHAR_WIDTH) - box_start_x
 
     -- Line the stat box up with the bottom of the sudoku grid.
-    local sudoku_end_y = sudoku.cells[sudoku.DIM_X][sudoku.DIM_Y].y_bottom
+    local sudoku_end_y = check_solution_btn.START_Y - Y_PADDING
     local box_height = sudoku_end_y - box_start_y + 1
 
     rect(box_start_x, box_start_y, box_width, box_height, BLACK)
     rectb(box_start_x, box_start_y, box_width, box_height, WHITE)
 
-    -- -- Now print all the stats there are to print.
-    -- -- ...
-    -- local start_x = box_start_x + X_PADDING
-    -- local start_y = box_start_y + Y_PADDING
-    -- for k, butt in pairs(puzzle_buttons) do
-    --     print(butt.TEXT .. " = " .. tostring(butt.CLICKED), start_x, start_y, WHITE, false, 1, true)
-    --     start_y = start_y + Y_PADDING
-    -- end
+    -- Print active clock and difficulty level.
+    local start_x = box_start_x + math.floor(X_PADDING / 2)
+    local start_y = box_start_y + Y_PADDING
+
+    print("CLOCK", start_x, start_y, WHITE, false, 2, false)
+    print("UNDO = " .. tostring(undo_btn.CLICKED) , start_x, start_y + 2*Y_PADDING, WHITE, false, 1, false)
+
+    print(
+        SELECTED_DIFFICULTY .. " difficulty", 
+        start_x, 
+        box_start_y + box_height - Y_PADDING, 
+        WHITE
+    )
 end
 
 
@@ -984,8 +997,7 @@ function DRAW()
     drawPuzzle()
     drawNotesGrid()
     drawPuzzleButtons()
-    -- drawStatBox()
-    drawGameButtons()
+    drawStatBox()
 end
 
 
@@ -1006,7 +1018,7 @@ function INIT()
 
     -- Get a valid solution into the cells' 'value' settings.
     generateSolution()
-    generatePuzzleByTier('easy')
+    generatePuzzleByTier(SELECTED_DIFFICULTY)
 end -- INIT()
 
 -- ==========================================

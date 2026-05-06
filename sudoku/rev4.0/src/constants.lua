@@ -43,3 +43,4 @@ local DIFFICULTY             = {
     medium     = { givens_min = 32, givens_max = 39, max_attempts = 2500, symmetric = true },
     hard       = { givens_min = 24, givens_max = 31, max_attempts = 6000, symmetric = true },
 }
+local SELECTED_DIFFICULTY = "medium"
