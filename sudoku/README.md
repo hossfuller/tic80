@@ -5,7 +5,7 @@ Here's the development plan:
 - *REV2*: Focus on the user interface: how the user interacts with the biz.
 - *REV3*: Work on the sudoku puzzle generation algorithm.
 - *REV4*: Create title, settings (including difficulty), stats, and gameover screens. Add game clock and "Undo"/"New Game"/"Exit" buttons to game screen.
-- *REV5*: Allow user to specify difficulty (determines how many cells are revealed and grades the puzzle), add score tracking, and add timing.
+- *REV5*: Implement an Undo feature. Allow user to specify difficulty (determines how many cells are revealed and grades the puzzle). Add score tracking. Add timing.
 - *FINAL*: Pull it all together.
 
 Links:

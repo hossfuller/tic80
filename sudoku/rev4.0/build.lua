@@ -64,6 +64,61 @@ local SELECTED_DIFFICULTY = "medium"
 
 -- [/TQ-Bundler: src.constants]
 
+-- [TQ-Bundler: src.helpers]
+
+-- ==========================================
+-- HELPERS
+-- ==========================================
+
+-- Input tracking for edge detection
+local input = {
+    prev = {},
+    curr = {},
+}
+
+-- ==========================================
+-- INPUT HELPERS
+-- ==========================================
+
+local function updateInput()
+    input.prev = input.curr
+    input.curr = {}
+    for i = 0, 7 do
+        input.curr[i] = btn(i)
+    end
+end
+
+local function btnPressed(id)
+    return input.curr[id] and not input.prev[id]
+end
+
+-- ==========================================
+-- DRAWING HELPERS
+-- ==========================================
+
+local function drawCenteredText(text, y, color)
+    local width = print(text, 0, -10)
+    print(text, (EDGE_X_RIGHT - width) / 2, y, color)
+end
+
+local function drawOverlayBox(text)
+    local boxW = 120
+    local boxH = 40
+    local boxX = (EDGE_X_RIGHT - boxW) / 2
+    local boxY = (EDGE_Y_BOTTOM - boxH) / 2
+    
+    -- Draw box background
+    rect(boxX, boxY, boxW, boxH, 0)
+    rectb(boxX, boxY, boxW, boxH, 12)
+    
+    -- Draw text
+    drawCenteredText(text, boxY + 16, 12)
+end
+
+
+
+-- [/TQ-Bundler: src.helpers]
+
 -- [TQ-Bundler: src.sudoku.grid]
 
 -- ==========================================
@@ -603,6 +658,87 @@ local undo_list = {}
 
 -- [/TQ-Bundler: src.sudoku.undo]
 
+-- [TQ-Bundler: src.state_machine.game_state]
+
+-- ==========================================
+-- GAME STATE
+-- ==========================================
+
+local STATE = {
+    TITLE    = "TITLE",
+    OPTIONS  = "OPTIONS",
+    HISCORES = "HISCORES",
+    PUZZLE   = "PUZZLE",
+}
+
+local game = {
+    state = STATE.START,
+    prevState = nil,
+    
+    -- Menu state
+    menu = {
+        selected = 1,
+        options = {"New Puzzle", "Options", "High Scores"},
+    },
+    
+    -- Options state
+    options = {
+        selected = 1,
+        items = {
+            -- {name = "Sound", values = {"On", "Off"}, current = 1},
+            {name = "Difficulty", values = {"Easy", "Medium", "Hard"}, current = 2},
+            {name = "Back", values = {""}, current = 1},
+        },
+    },
+    
+    -- High scores
+    hiscores = {
+        {name = "AAA", score = 10000},
+        {name = "BBB", score = 7500},
+        {name = "CCC", score = 5000},
+        {name = "DDD", score = 2500},
+        {name = "EEE", score = 1000},
+    },
+    
+    -- Come back to this. Do we need it?
+    -- Gameplay state
+    play = {
+        -- score = 0,
+        -- -- Add your game-specific state here
+        -- playerX = EDGE_X_RIGHT / 2,
+        -- playerY = EDGE_Y_BOTTOM / 2,
+    },
+}
+
+
+-- ==========================================
+-- STATE CHANGE
+-- ==========================================
+
+local function changeState(newState)
+    game.prevState = game.state
+    game.state = newState
+    
+    -- State entry logic
+    if newState == STATE.PUZZLE then
+        -- Reset game state for new puzzle
+        
+        -- Initialize the cells
+        initializeCells()
+
+        -- Update sudoku.END_Y to reflect actual grid dimensions
+        sudoku.END_Y = sudoku.cells[sudoku.DIM_X][sudoku.DIM_Y].y_bottom + 1
+
+        -- Get a valid solution into the cells' 'value' settings.
+        generateSolution()
+        generatePuzzleByTier(SELECTED_DIFFICULTY)
+    end
+end
+
+
+
+-- [/TQ-Bundler: src.state_machine.game_state]
+
 -- [TQ-Bundler: src.input]
 
 -- ==========================================
@@ -1010,15 +1146,15 @@ end
 -- ==========================================
 
 function INIT()
-    -- Initialize the cells
-    initializeCells()
+    -- -- Initialize the cells
+    -- initializeCells()
 
-    -- Update sudoku.END_Y to reflect actual grid dimensions
-    sudoku.END_Y = sudoku.cells[sudoku.DIM_X][sudoku.DIM_Y].y_bottom + 1
+    -- -- Update sudoku.END_Y to reflect actual grid dimensions
+    -- sudoku.END_Y = sudoku.cells[sudoku.DIM_X][sudoku.DIM_Y].y_bottom + 1
 
-    -- Get a valid solution into the cells' 'value' settings.
-    generateSolution()
-    generatePuzzleByTier(SELECTED_DIFFICULTY)
+    -- -- Get a valid solution into the cells' 'value' settings.
+    -- generateSolution()
+    -- generatePuzzleByTier(SELECTED_DIFFICULTY)
 end -- INIT()
 
 -- ==========================================
@@ -1027,8 +1163,17 @@ end -- INIT()
 
 INIT()
 
+-- function TIC()
+--     INPUT()
+--     UPDATE()
+--     DRAW()
+-- end
 function TIC()
-    INPUT()
-    UPDATE()
-    DRAW()
+    updateInput()
+    
+    local currentState = states[game.state]
+    if currentState then
+        currentState.update()
+        currentState.draw()
+    end
 end
