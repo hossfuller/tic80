@@ -23,6 +23,7 @@ include "src.states.statistics"
 include "src.states.puzzle"
 include "src.state_machine"
 
+include "src.input"
 
 
 -- ==========================================
