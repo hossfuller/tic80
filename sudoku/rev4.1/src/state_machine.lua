@@ -11,9 +11,9 @@ local states = {
         update = updateOptions,
         draw = drawOptions,
     },
-    [STATE.HISCORES] = {
-        update = updateHiscores,
-        draw = drawHiscores,
+    [STATE.STATISTICS] = {
+        update = updateStatistics,
+        draw = drawStatistics,
     },
     [STATE.PUZZLE] = {
         update = updatePuzzle,

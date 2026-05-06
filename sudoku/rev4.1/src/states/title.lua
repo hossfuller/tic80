@@ -26,7 +26,7 @@ local function updateTitle()
         elseif selected == 2 then
             changeState(STATE.OPTIONS)
         elseif selected == 3 then
-            changeState(STATE.HISCORES)
+            changeState(STATE.STATISTICS)
         end
     end
 end
@@ -35,7 +35,6 @@ local function drawTitle()
     cls(0)
     
     -- Title
-    -- @TODO: Replace this with a big-ass graphic.
     drawCenteredText("SUDOKU", 20, WHITE)
     
     -- Menu options

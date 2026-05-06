@@ -11,10 +11,15 @@
 include "src.constants"
 include "src.helpers"
 
+include "src.sudoku.grid"
+include "src.sudoku.buttons"
+include "src.sudoku.logic"
+include "src.sudoku.undo"
+
 include "src.game_state"
 include "src.states.title"
 include "src.states.options"
-include "src.states.hiscores"
+include "src.states.statistics"
 include "src.states.puzzle"
 include "src.state_machine"
 
@@ -27,7 +32,7 @@ include "src.state_machine"
 
 function TIC()
     updateInput()
-    
+
     local currentState = states[game.state]
     if currentState then
         currentState.update()
