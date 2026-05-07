@@ -7,18 +7,19 @@ local STATE = {
     OPTIONS    = "OPTIONS",
     STATISTICS = "STATISTICS",
     PUZZLE     = "PUZZLE",
+    NEWPUZZLE  = "NEWPUZZLE",
 }
 
 local game = {
     state = STATE.TITLE,
     prevState = nil,
-    
+
     -- Menu state
     menu = {
         selected = 1,
         options = {"New Puzzle", "Options", "Statistics"},
     },
-    
+
     -- Options state
     options = {
         selected = 1,
@@ -28,7 +29,7 @@ local game = {
             {name = "Back", values = {""}, current = 1},
         },
     },
-    
+
     -- Statistics
     statistics = {
         {name = "AAA", score = 10000},
@@ -37,7 +38,7 @@ local game = {
         {name = "DDD", score = 2500},
         {name = "EEE", score = 1000},
     },
-    
+
     -- Gameplay state
     play = {},
 }
@@ -45,7 +46,7 @@ local game = {
 local function changeState(newState)
     game.prevState = game.state
     game.state = newState
-    
+
     -- State entry logic
     if newState == STATE.PUZZLE then
         -- Reset game state for new puzzle

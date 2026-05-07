@@ -21,6 +21,7 @@ include "src.states.title"
 include "src.states.options"
 include "src.states.statistics"
 include "src.states.puzzle"
+include "src.states.newpuzzle"
 include "src.state_machine"
 
 include "src.input"

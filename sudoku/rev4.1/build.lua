@@ -7,7 +7,7 @@
 -- author:  Adam Fuller <the.adam.fuller@gmail.com>
 -- version: rev4.1
 -- script:  lua
--- input: mouse
+-- input:   mouse
 
 -- ==========================================
 -- INCLUDES
@@ -93,18 +93,20 @@ local function drawCenteredText(text, y, color)
     print(text, (EDGE_X_RIGHT - width) / 2, y, color)
 end
 
-local function drawOverlayBox(text)
+local function drawOverlayBox(text_array)
     local boxW = 120
     local boxH = 40
-    local boxX = (EDGE_X_RIGHT - boxW) / 2
-    local boxY = (EDGE_Y_BOTTOM - boxH) / 2
-    
+    local boxX = math.floor((EDGE_X_RIGHT - boxW) / 2)
+    local boxY = math.floor((EDGE_Y_BOTTOM - boxH) / 2)
+
     -- Draw box background
-    rect(boxX, boxY, boxW, boxH, 0)
-    rectb(boxX, boxY, boxW, boxH, 12)
-    
+    rect(boxX, boxY, boxW, boxH, BLACK)
+    rectb(boxX, boxY, boxW, boxH, WHITE)
+
     -- Draw text
-    drawCenteredText(text, boxY + 16, 12)
+    for i, text in ipairs(text_array) do
+        drawCenteredText(text, boxY + (i * Y_PADDING), WHITE)
+    end
 end
 
 
@@ -666,18 +668,19 @@ local STATE = {
     OPTIONS    = "OPTIONS",
     STATISTICS = "STATISTICS",
     PUZZLE     = "PUZZLE",
+    NEWPUZZLE  = "NEWPUZZLE",
 }
 
 local game = {
     state = STATE.TITLE,
     prevState = nil,
-    
+
     -- Menu state
     menu = {
         selected = 1,
         options = {"New Puzzle", "Options", "Statistics"},
     },
-    
+
     -- Options state
     options = {
         selected = 1,
@@ -687,7 +690,7 @@ local game = {
             {name = "Back", values = {""}, current = 1},
         },
     },
-    
+
     -- Statistics
     statistics = {
         {name = "AAA", score = 10000},
@@ -696,7 +699,7 @@ local game = {
         {name = "DDD", score = 2500},
         {name = "EEE", score = 1000},
     },
-    
+
     -- Gameplay state
     play = {},
 }
@@ -704,7 +707,7 @@ local game = {
 local function changeState(newState)
     game.prevState = game.state
     game.state = newState
-    
+
     -- State entry logic
     if newState == STATE.PUZZLE then
         -- Reset game state for new puzzle
@@ -983,6 +986,8 @@ local function checkPuzzle()
         end
     end
     sudoku.solved = all_guesses_are_correct
+
+    -- Stop the clock and register "score" in high scores.
 end
 
 local function clearGuessesAndNotes()
@@ -996,17 +1001,41 @@ local function clearGuessesAndNotes()
     end
 end
 
+local function undoLastNumber()
+    -- To complete later.
+end
+
+local function setNewPuzzle()
+    changeState(STATE.NEWPUZZLE)
+end
+
+local function exitToMainMenu()
+    changeState(STATE.TITLE)
+end
+
 local function updatePuzzle()
-    if auto_note_btn.CLICKED == true then
+    if auto_note_btn.PREV_CLICK == true then
         checkAutoNote()
     end
 
-    if check_solution_btn.CLICKED == true then
+    if undo_btn.PREV_CLICK == true then
+        undoLastNumber()
+    end
+
+    if clear_btn.PREV_CLICK == true then
+        clearGuessesAndNotes()
+    end
+
+    if check_solution_btn.PREV_CLICK == true then
         checkPuzzle()
     end
 
-    if clear_btn.CLICKED == true then
-        clearGuessesAndNotes()
+    if new_puzzle_btn.PREV_CLICK == true then
+        setNewPuzzle()
+    end
+
+    if exit_btn.PREV_CLICK == true then
+        exitToMainMenu()
     end
 end
 
@@ -1096,7 +1125,7 @@ local function drawNotesGrid()
 end
 
 local function drawPuzzleButtons()
-    for i, butt in ipairs(puzzle_buttons) do 
+    for i, butt in ipairs(puzzle_buttons) do
         local text_color = WHITE
         local bg_color   = GRAY_DARK
         if butt.CLICKED then
@@ -1132,11 +1161,17 @@ local function drawStatBox()
     local difficultyName = difficultyItem.values[difficultyItem.current]  -- "Easy", "Medium", or "Hard"
 
     print(
-        difficultyName .. " difficulty", 
-        start_x, 
-        box_start_y + box_height - Y_PADDING, 
+        difficultyName .. " difficulty",
+        start_x,
+        box_start_y + box_height - Y_PADDING,
         WHITE
     )
+end
+
+local function drawSuccess()
+    if sudoku.solved then
+        drawOverlayBox({ "SUCCESS!", "Click 'NEW' or", "'EXIT' to continue." })
+    end
 end
 
 
@@ -1157,10 +1192,30 @@ function drawPuzzle()
     drawNotesGrid()
     drawPuzzleButtons()
     drawStatBox()
+    drawSuccess()
 end
 
 
 -- [/TQ-Bundler: src.states.puzzle]
+
+-- [TQ-Bundler: src.states.newpuzzle]
+
+-- ==========================================
+-- STATE: NEWPUZZLE
+-- ==========================================
+
+-- This state is just for switching from the current puzzle to a new puzzle.
+
+local function updateNewPuzzle()
+    changeState(STATE.PUZZLE)
+end
+
+local function drawNewPuzzle()
+    cls(BLACK)
+end
+
+
+-- [/TQ-Bundler: src.states.newpuzzle]
 
 -- [TQ-Bundler: src.state_machine]
 
@@ -1184,6 +1239,10 @@ local states = {
     [STATE.PUZZLE] = {
         update = updatePuzzle,
         draw = drawPuzzle,
+    },
+    [STATE.NEWPUZZLE] = {
+        update = updateNewPuzzle,
+        draw = drawNewPuzzle,
     },
 }
 
@@ -1303,7 +1362,8 @@ local function checkPuzzleButtonClicks(mouse_x, mouse_y, left_click, just_presse
             (butt.START_Y <= mouse_y and mouse_y <= butt.END_Y)
 
         -- Button is clicked only while mouse is over and left button is held
-        butt.CLICKED = mouseover and left_click
+        butt.CLICKED    = mouseover and left_click
+        butt.PREV_CLICK = mouseover and just_pressed
 
         if mouseover and just_pressed then
             handled = true
@@ -1319,7 +1379,7 @@ local function updateInput()
     for i = 0, 7 do
         input.curr[i] = btn(i)
     end
-    
+
     -- Only process mouse input for puzzle when in PUZZLE state
     if game.state ~= STATE.PUZZLE then
         return
@@ -1328,8 +1388,9 @@ local function updateInput()
     local mouse_x, mouse_y, left_click, middle_click, right_click, scroll_x, scroll_y = mouse()
 
     -- Clear all button states first
-    for _, butt in ipairs(puzzle_buttons) do 
-        butt.CLICKED = false 
+    for _, butt in ipairs(puzzle_buttons) do
+        butt.CLICKED    = false
+        butt.PREV_CLICK = false
     end
 
     local just_pressed = left_click and not prev_left_click

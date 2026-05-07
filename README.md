@@ -7,6 +7,7 @@ A collection of TIC-80 experiments.
     1. [Accessing TIC-80 Files](#accessing_tic80_files)
     1. [The Development Workflow](#the_development_workflow)
     1. [TQ-Bundler](#tq-bundler)
+1. [Uploading Cartridges to `tic80.com`](#uploading_cartridges_to_tic80com)
 1. [Interesting/Useful Tutorials](#interesting_useful_tutorials)
 
 
@@ -217,6 +218,28 @@ C:\Users\afuller\AppData\Roaming\com.nesbox.tic\TIC-80\spong>..\tq-bundler.exe r
 ```
 
 
+<!-- --------------------------------------------------------------------------- -->
+
+
+<div id='uploading_cartridges_to_tic80com' />
+
+## Uploading Cartridges to `tic80.com`
+
+While working with the code in VS Code, `tq-bundler.exe` wants you to save the release code to `game.lua`. But if you want to release the code on [https://tic80.com](https://tic80.com), you need to save the game as a `.tic` "cartridge" file. There's some prep work to do beforehand. Here's what to do:
+
+1. Make sure the metadata at the top of `main.lua` has at least the following information:
+    ```lua
+    -- title:   game title
+    -- author:  game developer, email, etc.
+    ```
+2. Create a cover image for the game. This is basically a screenshot of some part of the game. While the TIC-80 window is active, at some point in the cartridge's execution, press `F7` to take the screenshot. This saves that information directly to the `game.lua` file. For example, with SPONG, I simply took a screenshot of the game's title screen.
+3. With the screenshot saved, you can view it in the `game.lua` file within the `-- <SCREEN>`/`-- </SCREEN>` tags at the bottom of the file.
+4. From the TIC-80 command line, save the file as a `.tic` file. For SPONG, I typed this:
+    ```bash
+    >save spong.tic
+    cart spong.tic saved!
+    ```
+5. Finally, from whatever folder the cartridge is located, upload it to [https://tic80.com](https://tic80.com) after logging in.
 
 
 <!-- --------------------------------------------------------------------------- -->

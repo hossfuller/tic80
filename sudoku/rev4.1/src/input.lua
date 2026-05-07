@@ -109,7 +109,8 @@ local function checkPuzzleButtonClicks(mouse_x, mouse_y, left_click, just_presse
             (butt.START_Y <= mouse_y and mouse_y <= butt.END_Y)
 
         -- Button is clicked only while mouse is over and left button is held
-        butt.CLICKED = mouseover and left_click
+        butt.CLICKED    = mouseover and left_click
+        butt.PREV_CLICK = mouseover and just_pressed
 
         if mouseover and just_pressed then
             handled = true
@@ -125,7 +126,7 @@ local function updateInput()
     for i = 0, 7 do
         input.curr[i] = btn(i)
     end
-    
+
     -- Only process mouse input for puzzle when in PUZZLE state
     if game.state ~= STATE.PUZZLE then
         return
@@ -134,8 +135,9 @@ local function updateInput()
     local mouse_x, mouse_y, left_click, middle_click, right_click, scroll_x, scroll_y = mouse()
 
     -- Clear all button states first
-    for _, butt in ipairs(puzzle_buttons) do 
-        butt.CLICKED = false 
+    for _, butt in ipairs(puzzle_buttons) do
+        butt.CLICKED    = false
+        butt.PREV_CLICK = false
     end
 
     local just_pressed = left_click and not prev_left_click

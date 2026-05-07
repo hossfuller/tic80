@@ -19,4 +19,8 @@ local states = {
         update = updatePuzzle,
         draw = drawPuzzle,
     },
+    [STATE.NEWPUZZLE] = {
+        update = updateNewPuzzle,
+        draw = drawNewPuzzle,
+    },
 }

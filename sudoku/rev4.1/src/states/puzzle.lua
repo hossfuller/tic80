@@ -59,6 +59,8 @@ local function checkPuzzle()
         end
     end
     sudoku.solved = all_guesses_are_correct
+
+    -- Stop the clock and register "score" in high scores.
 end
 
 local function clearGuessesAndNotes()
@@ -72,17 +74,41 @@ local function clearGuessesAndNotes()
     end
 end
 
+local function undoLastNumber()
+    -- To complete later.
+end
+
+local function setNewPuzzle()
+    changeState(STATE.NEWPUZZLE)
+end
+
+local function exitToMainMenu()
+    changeState(STATE.TITLE)
+end
+
 local function updatePuzzle()
-    if auto_note_btn.CLICKED == true then
+    if auto_note_btn.PREV_CLICK == true then
         checkAutoNote()
     end
 
-    if check_solution_btn.CLICKED == true then
+    if undo_btn.PREV_CLICK == true then
+        undoLastNumber()
+    end
+
+    if clear_btn.PREV_CLICK == true then
+        clearGuessesAndNotes()
+    end
+
+    if check_solution_btn.PREV_CLICK == true then
         checkPuzzle()
     end
 
-    if clear_btn.CLICKED == true then
-        clearGuessesAndNotes()
+    if new_puzzle_btn.PREV_CLICK == true then
+        setNewPuzzle()
+    end
+
+    if exit_btn.PREV_CLICK == true then
+        exitToMainMenu()
     end
 end
 
@@ -172,7 +198,7 @@ local function drawNotesGrid()
 end
 
 local function drawPuzzleButtons()
-    for i, butt in ipairs(puzzle_buttons) do 
+    for i, butt in ipairs(puzzle_buttons) do
         local text_color = WHITE
         local bg_color   = GRAY_DARK
         if butt.CLICKED then
@@ -208,11 +234,17 @@ local function drawStatBox()
     local difficultyName = difficultyItem.values[difficultyItem.current]  -- "Easy", "Medium", or "Hard"
 
     print(
-        difficultyName .. " difficulty", 
-        start_x, 
-        box_start_y + box_height - Y_PADDING, 
+        difficultyName .. " difficulty",
+        start_x,
+        box_start_y + box_height - Y_PADDING,
         WHITE
     )
+end
+
+local function drawSuccess()
+    if sudoku.solved then
+        drawOverlayBox({ "SUCCESS!", "Click 'NEW' or", "'EXIT' to continue." })
+    end
 end
 
 
@@ -233,4 +265,5 @@ function drawPuzzle()
     drawNotesGrid()
     drawPuzzleButtons()
     drawStatBox()
+    drawSuccess()
 end
