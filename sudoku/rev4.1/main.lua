@@ -2,7 +2,7 @@
 -- author:  Adam Fuller <the.adam.fuller@gmail.com>
 -- version: rev4.1
 -- script:  lua
--- input: mouse
+-- input:   mouse
 
 -- ==========================================
 -- INCLUDES

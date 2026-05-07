@@ -4,7 +4,7 @@
 --
 
 -- title:   SPong (Son of Pong)
--- author:  Adam Fuller <the.adam.fuller@gmail.com>
+-- author:  Hoss Fuller <hossfuller@proton.me>
 -- version: 0.3
 -- script:  lua
 
@@ -690,12 +690,12 @@ function start_screen_draw()
         current_start_menu_option_y = current_start_menu_option_y + start_menu_space_y
     end
 
-    local copyright_width = print("  2026 A. H. Fuller", 0, -10, GRAY_LITE)
+    local copyright_width = print("  2026 Hoss Fuller", 0, -10, GRAY_LITE)
     local x_pos = ((EDGE_X_RIGHT - copyright_width) / 2) + 2
 
     -- copyright sprite and message.
     spr(264, x_pos, EDGE_Y_BOTTOM - 8, 0, 1, 0, 0, 1, 1)
-    print(" 2026 A. H. Fuller", x_pos + 8, EDGE_Y_BOTTOM - 7, GRAY_LITE)
+    print(" 2026 Hoss Fuller", x_pos + 8, EDGE_Y_BOTTOM - 7, GRAY_LITE)
 end
 
 
