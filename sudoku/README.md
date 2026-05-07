@@ -8,8 +8,12 @@ Here's the development plan:
     - Add a new STATE.REFRESH_PUZZLE state that only flips straight back to STATE.PUZZLE.
     - "Exit" button transitions to STATE.TITLE.
     - Add a new STATE.SUCCESS state that activates when the "Check" button is clicked and everything is correct.
-- *REV5*: Implement an Undo feature. Add stat tracking. Add timing.
+- *REV5*: Implement extra features:
+    - Add a timing clock that starts with the first click and stops the moment the puzzle is solved.
+    - Add game play history (showing date, difficulty, and time).
+    - Allow the user to undo the last move.
 - *FINAL*: Pull it all together.
+    - Add instructions screen/state from main screen.
     - Make src.states.title.drawTitle() draw a big-ass graphic.
     - Make all screens accept mouse input.
 
