@@ -227,14 +227,16 @@ local function drawStatBox()
     local start_x = box_start_x + math.floor(X_PADDING / 2)
     local start_y = box_start_y + Y_PADDING
 
-    print("CLOCK", start_x, start_y, WHITE, false, 2, false)
-    print("UNDO = " .. tostring(undo_btn.CLICKED) , start_x, start_y + 2*Y_PADDING, WHITE, false, 1, false)
+    -- Add clock here.
+
+
+
 
     local difficultyItem = game.options.items[1]  -- First item is Difficulty
     local difficultyName = difficultyItem.values[difficultyItem.current]  -- "Easy", "Medium", or "Hard"
 
     print(
-        difficultyName .. " difficulty",
+        "LEVEL: " .. difficultyName,
         start_x,
         box_start_y + box_height - Y_PADDING,
         WHITE
