@@ -50,6 +50,7 @@ local function changeState(newState)
     -- State entry logic
     if newState == STATE.PUZZLE then
         -- Reset game state for new puzzle
+        game_timer:reset()
 
         -- Initialize the cells
         initializeCells()

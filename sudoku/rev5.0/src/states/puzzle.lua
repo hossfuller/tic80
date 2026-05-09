@@ -49,18 +49,36 @@ local function checkAutoNote()
 end
 
 local function checkPuzzle()
-    local all_guesses_are_correct = true
+    local all_guesses_are_correct = false
+    local all_cells_are_filled_in = true
+
     for i = 1, sudoku.DIM_X do
         for j = 1, sudoku.DIM_Y do
             local cell = sudoku.cells[i][j]
-            if cell.guess ~= nil and cell.guess ~= cell.solution then
-                all_guesses_are_correct = false
+            if cell.guess == nil then
+                all_cells_are_filled_in = false
+            end
+        end
+    end
+
+    -- Only if all cells are filled in do we check if solution is complete.
+    if all_cells_are_filled_in then
+        all_guesses_are_correct = true
+        for i = 1, sudoku.DIM_X do
+            for j = 1, sudoku.DIM_Y do
+                local cell = sudoku.cells[i][j]
+                if cell.guess ~= cell.solution then
+                    all_cells_are_filled_in = false
+                end
             end
         end
     end
     sudoku.solved = all_guesses_are_correct
 
-    -- Stop the clock and register "score" in high scores.
+    -- Stop the clock and register "score" in high scores
+    if all_guesses_are_correct then
+        game_timer:stop()
+    end
 end
 
 local function clearGuessesAndNotes()
@@ -87,6 +105,10 @@ local function exitToMainMenu()
 end
 
 local function updatePuzzle()
+    if game_timer:isRunning() then
+        game_timer:update()
+    end
+
     if auto_note_btn.PREV_CLICK == true then
         checkAutoNote()
     end
@@ -228,9 +250,14 @@ local function drawStatBox()
     local start_y = box_start_y + Y_PADDING
 
     -- Add clock here.
-
-
-
+    -- game_timer:getFormatted()
+    print(game_timer:getFormatted(), start_x, start_y, WHITE, true, 3)
+    print(
+        game_timer:isRunning(),
+        start_x,
+        start_y + 3*Y_PADDING,
+        WHITE
+    )
 
     local difficultyItem = game.options.items[1]  -- First item is Difficulty
     local difficultyName = difficultyItem.values[difficultyItem.current]  -- "Easy", "Medium", or "Hard"
@@ -246,6 +273,7 @@ end
 local function drawSuccess()
     if sudoku.solved then
         drawOverlayBox({ "SUCCESS!", "Click 'NEW' or", "'EXIT' to continue." })
+        game_timer:stop()
     end
 end
 

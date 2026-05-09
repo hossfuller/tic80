@@ -112,6 +112,93 @@ end
 
 -- [/TQ-Bundler: src.helpers]
 
+-- [TQ-Bundler: src.timer]
+
+-- ==========================================
+-- TIMER OBJECT
+-- ==========================================
+
+TimerObj = {}
+TimerObj.__index = TimerObj
+
+-- Creates a new TimerObj instance
+function TimerObj.new()
+    local self = setmetatable({}, TimerObj)
+    self.running       = false
+    self.start_time    = 0
+    self.saved_time    = 0
+    self.elapsed_time  = 0
+    self.max_mininutes = 99
+    self.max_seconds   = 59
+    return self
+end
+
+-- Starts the timer
+function TimerObj:start()
+    if not self.running then
+        self.running    = true
+        self.start_time = time()
+    end
+end
+
+-- Pauses the timer
+function TimerObj:stop()
+    if self.running then
+        self.saved_time = self.saved_time + (time() - self.start_time)
+        self.running    = false
+    end
+end
+
+-- Resets timer to 00:00
+function TimerObj:reset()
+    self.running      = false
+    self.start_time   = 0
+    self.saved_time   = 0
+    self.elapsed_time = 0
+end
+
+-- Updates elapsed time (call each frame)
+function TimerObj:update()
+    if self.running then
+        self.elapsed_time = self.saved_time + (time() - self.start_time)
+    else
+        self.elapsed_time = self.saved_time
+    end
+end
+
+-- Returns total elapsed seconds
+function TimerObj:getSeconds()
+    return math.floor(self.elapsed_time / 1000)
+end
+
+-- Returns total elapsed minutes
+function TimerObj:getMinutes()
+    return math.floor(self:getSeconds() / 60)
+end
+
+-- Returns time as "MM:SS" string
+function TimerObj:getFormatted()
+    local totalSeconds = self:getSeconds()
+    local minutes      = math.floor(totalSeconds / 60)
+    local seconds      = totalSeconds % 60
+
+    if minutes > self.max_mininutes then
+        minutes = self.max_mininutes
+        seconds = self.max_seconds
+    end
+
+    return string.format("%02d:%02d", minutes, seconds)
+end
+
+-- Returns true if timer is active
+function TimerObj:isRunning()
+    return self.running
+end
+
+-- [/TQ-Bundler: src.timer]
+
+game_timer = TimerObj.new()
+
 -- [TQ-Bundler: src.sudoku.grid]
 
 -- ==========================================
@@ -711,6 +798,7 @@ local function changeState(newState)
     -- State entry logic
     if newState == STATE.PUZZLE then
         -- Reset game state for new puzzle
+        game_timer:reset()
 
         -- Initialize the cells
         initializeCells()
@@ -976,18 +1064,36 @@ local function checkAutoNote()
 end
 
 local function checkPuzzle()
-    local all_guesses_are_correct = true
+    local all_guesses_are_correct = false
+    local all_cells_are_filled_in = true
+
     for i = 1, sudoku.DIM_X do
         for j = 1, sudoku.DIM_Y do
             local cell = sudoku.cells[i][j]
-            if cell.guess ~= nil and cell.guess ~= cell.solution then
-                all_guesses_are_correct = false
+            if cell.guess == nil then
+                all_cells_are_filled_in = false
+            end
+        end
+    end
+
+    -- Only if all cells are filled in do we check if solution is complete.
+    if all_cells_are_filled_in then
+        all_guesses_are_correct = true
+        for i = 1, sudoku.DIM_X do
+            for j = 1, sudoku.DIM_Y do
+                local cell = sudoku.cells[i][j]
+                if cell.guess ~= cell.solution then
+                    all_cells_are_filled_in = false
+                end
             end
         end
     end
     sudoku.solved = all_guesses_are_correct
 
-    -- Stop the clock and register "score" in high scores.
+    -- Stop the clock and register "score" in high scores
+    if all_guesses_are_correct then
+        game_timer:stop()
+    end
 end
 
 local function clearGuessesAndNotes()
@@ -1014,6 +1120,10 @@ local function exitToMainMenu()
 end
 
 local function updatePuzzle()
+    if game_timer:isRunning() then
+        game_timer:update()
+    end
+
     if auto_note_btn.PREV_CLICK == true then
         checkAutoNote()
     end
@@ -1155,9 +1265,14 @@ local function drawStatBox()
     local start_y = box_start_y + Y_PADDING
 
     -- Add clock here.
-
-
-
+    -- game_timer:getFormatted()
+    print(game_timer:getFormatted(), start_x, start_y, WHITE, true, 3)
+    print(
+        game_timer:isRunning(),
+        start_x,
+        start_y + 3*Y_PADDING,
+        WHITE
+    )
 
     local difficultyItem = game.options.items[1]  -- First item is Difficulty
     local difficultyName = difficultyItem.values[difficultyItem.current]  -- "Easy", "Medium", or "Hard"
@@ -1173,6 +1288,7 @@ end
 local function drawSuccess()
     if sudoku.solved then
         drawOverlayBox({ "SUCCESS!", "Click 'NEW' or", "'EXIT' to continue." })
+        game_timer:stop()
     end
 end
 
@@ -1397,6 +1513,11 @@ local function updateInput()
 
     local just_pressed = left_click and not prev_left_click
     prev_left_click = left_click
+
+    -- Start the game clock if it hasn't already been started.
+    if just_pressed and not game_timer:isRunning() then
+        game_timer:start()
+    end
 
     -- Only work on the notes grid or the puzzle grid. Not both.
     local notes_handled   = checkInputOnNotesGrid(mouse_x, mouse_y, just_pressed)

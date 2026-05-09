@@ -10,6 +10,9 @@
 
 include "src.constants"
 include "src.helpers"
+include "src.timer"
+
+game_timer = TimerObj.new()
 
 include "src.sudoku.grid"
 include "src.sudoku.buttons"

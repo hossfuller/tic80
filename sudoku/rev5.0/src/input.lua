@@ -143,6 +143,11 @@ local function updateInput()
     local just_pressed = left_click and not prev_left_click
     prev_left_click = left_click
 
+    -- Start the game clock if it hasn't already been started.
+    if just_pressed and not game_timer:isRunning() then
+        game_timer:start()
+    end
+
     -- Only work on the notes grid or the puzzle grid. Not both.
     local notes_handled   = checkInputOnNotesGrid(mouse_x, mouse_y, just_pressed)
 
