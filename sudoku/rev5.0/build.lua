@@ -3,11 +3,12 @@
 -- Code changes will be overwritten
 --
 
--- title:   Sudoku for TIC-80
+-- title:   Sussudioku! (Sudoku for TIC-80)
 -- author:  Hoss Fuller <hossfuller@proton.me>
 -- version: rev5.0
 -- script:  lua
 -- input:   mouse
+-- saveid:  sussudioku_bang_bang
 
 -- ==========================================
 -- INCLUDES
@@ -888,31 +889,43 @@ local game = {
         },
     },
 
-    -- Statistics
-    -- Load this from memory when game boots up.
-    statistics = {
-        {name = "AAA", score = 10000},
-        {name = "BBB", score = 7500},
-        {name = "CCC", score = 5000},
-        {name = "DDD", score = 2500},
-        {name = "EEE", score = 1000},
-    },
+    -- Statistics: load from memory every time we go to the high scores screen,
+    -- and save to memory every time we hit a solve a puzzle.
+    statistics = {},
 
     -- Gameplay state
     play = nil,
 }
 
 local function initializeNewGamePlayState()
-    local cur_dt     = get_unix_timestamp()
-    local cur_std_dt = unix_to_greg_utc(cur_dt)
-
     game.play = {
-        date       = convert_datetime_obj_to_string(cur_std_dt), -- implemented
-        difficulty = nil,    -- implemented
-        solved     = false,  -- implemented
-        autonotes  = 0,      -- implemented
+        date       = get_unix_timestamp(),  -- convert to a string on display
+        difficulty = nil,
+        solved     = false,
+        autonotes  = 0,
         timer      = TimerObj.new(),
     }
+end
+
+local function saveCurrentScore()
+    -- Need to save the following:
+    --  1. game.play.date - stored as the unix timestamp.
+    --  2. game.play.difficulty - convert to an integer for storage.
+    --  3. game.play.timer:getSeconds() - integer of total seconds.
+    --  4. game.play.autonotes - already an integer.
+
+
+end
+
+local function loadHighScores()
+    -- Don't sort here. Sorting happens when we want to print them.
+    -- Convert game.play.date to a human-readable date after sort but before print.
+
+end
+
+local function sortHighScores()
+    -- Sort by difficulty, then by time, then by autonotes.
+
 end
 
 local function changeState(newState)
@@ -981,28 +994,28 @@ end
 
 local function drawTitle()
     cls(0)
-    
+
     -- Title
-    drawCenteredText("SUDOKU", 20, WHITE)
-    
+    drawCenteredText("SUSSUDIOKU!!", 20, WHITE)
+
     -- Menu options
     local start_y = 60
     local spacing = 2 * X_PADDING
-    
+
     for i, option in ipairs(game.menu.options) do
         local y = start_y + (i - 1) * spacing
         local color = (i == game.menu.selected) and WHITE or GREEN_MED
-        
+
         -- Draw selector
         if i == game.menu.selected then
             local textWidth = print(option, 0, -10)
             local x = (EDGE_X_RIGHT - textWidth) / 2
             print(">", x - 10, y, WHITE)
         end
-        
+
         drawCenteredText(option, y, color)
     end
-    
+
     -- Instructions
     drawCenteredText("UP/DOWN: Select  A: Confirm", EDGE_Y_BOTTOM - 15, GREEN_MED)
 end
@@ -1109,27 +1122,34 @@ local function updateStatistics()
     if btnPressed(BTN_P1_A) or btnPressed(BTN_P1_B) then
         changeState(STATE.TITLE)
     end
+
+    -- Refresh high scores. Simply re-initializes the game.statistics data
+    -- structure so the user will always see an updated high score table.
+    loadHighScores()
+
+    -- Sort (and save) the high scores.
+    sortHighScores()
 end
 
 local function drawStatistics()
     cls(0)
-    
+
     -- Title
     drawCenteredText("STATISTICS", 15, WHITE)
-    
+
     -- Scores list
     local startY = 40
     local spacing = 15
-    
+
     for i, entry in ipairs(game.statistics) do
         local y = startY + (i - 1) * spacing
         local rankText = string.format("%d.", i)
         local scoreText = string.format("%s %8d", entry.name, entry.score)
-        
+
         print(rankText, 60, y, GREEN_MED)
         print(scoreText, 80, y, WHITE)
     end
-    
+
     -- Instructions
     drawCenteredText("Press A or B to return", EDGE_Y_BOTTOM - 15, GREEN_MED)
 end
@@ -1219,6 +1239,7 @@ local function checkPuzzle()
     -- Stop the clock and register "score" in high scores
     if all_guesses_are_correct then
         game.play.timer:stop()
+        saveCurrentScore()
     end
 end
 

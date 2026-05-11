@@ -33,28 +33,28 @@ end
 
 local function drawTitle()
     cls(0)
-    
+
     -- Title
-    drawCenteredText("SUDOKU", 20, WHITE)
-    
+    drawCenteredText("SUSSUDIOKU!!", 20, WHITE)
+
     -- Menu options
     local start_y = 60
     local spacing = 2 * X_PADDING
-    
+
     for i, option in ipairs(game.menu.options) do
         local y = start_y + (i - 1) * spacing
         local color = (i == game.menu.selected) and WHITE or GREEN_MED
-        
+
         -- Draw selector
         if i == game.menu.selected then
             local textWidth = print(option, 0, -10)
             local x = (EDGE_X_RIGHT - textWidth) / 2
             print(">", x - 10, y, WHITE)
         end
-        
+
         drawCenteredText(option, y, color)
     end
-    
+
     -- Instructions
     drawCenteredText("UP/DOWN: Select  A: Confirm", EDGE_Y_BOTTOM - 15, GREEN_MED)
 end

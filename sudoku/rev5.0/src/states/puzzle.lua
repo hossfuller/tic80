@@ -78,6 +78,7 @@ local function checkPuzzle()
     -- Stop the clock and register "score" in high scores
     if all_guesses_are_correct then
         game.play.timer:stop()
+        saveCurrentScore()
     end
 end
 

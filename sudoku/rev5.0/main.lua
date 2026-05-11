@@ -1,8 +1,9 @@
--- title:   Sudoku for TIC-80
+-- title:   Sussudioku! (Sudoku for TIC-80)
 -- author:  Hoss Fuller <hossfuller@proton.me>
 -- version: rev5.0
 -- script:  lua
 -- input:   mouse
+-- saveid:  sussudioku_bang_bang
 
 -- ==========================================
 -- INCLUDES
