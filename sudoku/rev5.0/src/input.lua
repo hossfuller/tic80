@@ -5,6 +5,31 @@
 -- State variable to make sure a single click doesn't repeatedly toggle a cell.
 local prev_left_click = false
 
+-- Creates an "edit session" so we can track when a cell that's being changed is
+-- done being changed (for the undo functionality).
+local edit = {
+    active = false,
+    i = nil,
+    j = nil,
+    start_value = nil,
+}
+
+-- Helper function to commit true edits to the undo history.
+local function commit_edit_if_needed()
+    if not edit.active then return end
+
+    local cell = sudoku.cells[edit.i][edit.j]
+    local final_value = cell.guess
+
+    if final_value ~= edit.start_value then
+        register_action(edit.i, edit.j, final_value, edit.start_value)
+    end
+
+    edit.active = false
+    edit.i, edit.j = nil, nil
+    edit.start_value = nil
+end
+
 local function checkInputOnPuzzleGrid(mouse_x, mouse_y, left_click, scroll_y, just_pressed)
     scroll_options = {nil, 1, 2, 3, 4, 5, 6, 7, 8, 9}
     for i = 1, sudoku.DIM_X do
@@ -18,17 +43,38 @@ local function checkInputOnPuzzleGrid(mouse_x, mouse_y, left_click, scroll_y, ju
 
             -- Did the user click on this cell?
             if cell.mouseover and just_pressed then
+                -- Clicking the currently-selected cell => deselect and commit
+                -- edit.
                 if sudoku.clicked.i == i and sudoku.clicked.j == j then
                     sudoku.clicked.i = nil
                     sudoku.clicked.j = nil
+                    commit_edit_if_needed()
                 else
+                    -- Switching selection from one cell to another => commit
+                    -- previous edit.
+                    if sudoku.clicked.i ~= nil and sudoku.clicked.j ~= nil then
+                        commit_edit_if_needed()
+                    end
+
                     sudoku.clicked.i = i
                     sudoku.clicked.j = j
+
+                    -- Start a new edit session for this cell, but only if it's
+                    -- editable.
+                    if not cell.locked then
+                        edit.active = true
+                        edit.i = i
+                        edit.j = j
+                        edit.start_value = cell.guess
+                    end
+
                 end
             end
 
             -- Is the user trying to change the number?
             if cell.locked == false and sudoku.clicked.i == i and sudoku.clicked.j == j then
+                local prev_value = cell.guess
+
                 if scroll_y > 0 then
                     if cell.guess == nil then
                         cell.guess = 1
@@ -114,6 +160,9 @@ local function checkPuzzleButtonClicks(mouse_x, mouse_y, left_click, just_presse
 
         if mouseover and just_pressed then
             handled = true
+            if butt.NUM_CLICKED ~= nil then
+                butt.NUM_CLICKED = butt.NUM_CLICKED + 1
+            end
         end
     end
 
@@ -143,17 +192,29 @@ local function updateInput()
     local just_pressed = left_click and not prev_left_click
     prev_left_click = left_click
 
+    -- If we're editing a cell and the user clicks somewhere, we may need to
+    -- commit (button/notes clicks won't go through puzzle-grid selection).
+    if just_pressed then
+        -- We'll commit later if the click doesn't land on a puzzle cell
+        -- selection, so do it when a button/notes click is handled:
+    end
+
     -- Start the game clock if it hasn't already been started.
     if just_pressed and not game_timer:isRunning() then
         game_timer:start()
     end
 
     -- Only work on the notes grid or the puzzle grid. Not both.
-    local notes_handled   = checkInputOnNotesGrid(mouse_x, mouse_y, just_pressed)
+    local notes_handled = checkInputOnNotesGrid(mouse_x, mouse_y, just_pressed)
 
     local puzzle_buttons_handled = false
     if not notes_handled then
         puzzle_buttons_handled = checkPuzzleButtonClicks(mouse_x, mouse_y, left_click, just_pressed)
+    end
+
+    -- If the click was used for notes or a button, commit any in-progress cell edit
+    if just_pressed and (notes_handled or puzzle_buttons_handled) then
+        commit_edit_if_needed()
     end
 
     local handled = not notes_handled and not puzzle_buttons_handled

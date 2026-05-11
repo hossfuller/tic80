@@ -78,3 +78,5 @@ end
 function TimerObj:isRunning()
     return self.running
 end
+
+game_timer = TimerObj.new()

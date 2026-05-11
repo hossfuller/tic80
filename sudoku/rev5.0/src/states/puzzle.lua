@@ -40,7 +40,7 @@ local function setSingleCellNotes(i, j)
     sudoku.cells[i][j].notes = starting_notes
 end
 
-local function checkAutoNote()
+function checkAutoNote()
     for i = 1, sudoku.DIM_X do
         for j = 1, sudoku.DIM_Y do
             setSingleCellNotes(i, j)
@@ -93,7 +93,7 @@ local function clearGuessesAndNotes()
 end
 
 local function undoLastNumber()
-    -- To complete later.
+    undo_last_action()
 end
 
 local function setNewPuzzle()
@@ -245,15 +245,16 @@ local function drawStatBox()
     rect(box_start_x, box_start_y, box_width, box_height, BLACK)
     rectb(box_start_x, box_start_y, box_width, box_height, WHITE)
 
-    -- Print active clock and difficulty level.
+    -- Print active clock, num of auto-nots, and difficulty level.
     local start_x = box_start_x + math.floor(X_PADDING / 2)
     local start_y = box_start_y + Y_PADDING
 
     -- Add clock here.
-    -- game_timer:getFormatted()
     print(game_timer:getFormatted(), start_x, start_y, WHITE, true, 3)
     print(
-        game_timer:isRunning(),
+        "Auto-Note: " .. tostring(auto_note_btn.NUM_CLICKED),
+    -- print(
+    --     game_timer:isRunning(),
         start_x,
         start_y + 3*Y_PADDING,
         WHITE
@@ -263,7 +264,7 @@ local function drawStatBox()
     local difficultyName = difficultyItem.values[difficultyItem.current]  -- "Easy", "Medium", or "Hard"
 
     print(
-        "LEVEL: " .. difficultyName,
+        "Level: " .. difficultyName,
         start_x,
         box_start_y + box_height - Y_PADDING,
         WHITE

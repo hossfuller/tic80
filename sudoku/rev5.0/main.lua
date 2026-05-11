@@ -1,5 +1,5 @@
 -- title:   Sudoku for TIC-80
--- author:  Adam Fuller <the.adam.fuller@gmail.com>
+-- author:  Hoss Fuller <hossfuller@proton.me>
 -- version: rev5.0
 -- script:  lua
 -- input:   mouse
@@ -11,8 +11,6 @@
 include "src.constants"
 include "src.helpers"
 include "src.timer"
-
-game_timer = TimerObj.new()
 
 include "src.sudoku.grid"
 include "src.sudoku.buttons"

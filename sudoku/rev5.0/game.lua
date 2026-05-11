@@ -4,7 +4,7 @@
 --
 
 -- title:   Sudoku for TIC-80
--- author:  Adam Fuller <the.adam.fuller@gmail.com>
+-- author:  Hoss Fuller <hossfuller@proton.me>
 -- version: rev5.0
 -- script:  lua
 -- input:   mouse
@@ -111,6 +111,94 @@ end
 
 
 -- [/TQ-Bundler: src.helpers]
+
+-- [TQ-Bundler: src.timer]
+
+-- ==========================================
+-- TIMER OBJECT
+-- ==========================================
+
+TimerObj = {}
+TimerObj.__index = TimerObj
+
+-- Creates a new TimerObj instance
+function TimerObj.new()
+    local self = setmetatable({}, TimerObj)
+    self.running       = false
+    self.start_time    = 0
+    self.saved_time    = 0
+    self.elapsed_time  = 0
+    self.max_mininutes = 99
+    self.max_seconds   = 59
+    return self
+end
+
+-- Starts the timer
+function TimerObj:start()
+    if not self.running then
+        self.running    = true
+        self.start_time = time()
+    end
+end
+
+-- Pauses the timer
+function TimerObj:stop()
+    if self.running then
+        self.saved_time = self.saved_time + (time() - self.start_time)
+        self.running    = false
+    end
+end
+
+-- Resets timer to 00:00
+function TimerObj:reset()
+    self.running      = false
+    self.start_time   = 0
+    self.saved_time   = 0
+    self.elapsed_time = 0
+end
+
+-- Updates elapsed time (call each frame)
+function TimerObj:update()
+    if self.running then
+        self.elapsed_time = self.saved_time + (time() - self.start_time)
+    else
+        self.elapsed_time = self.saved_time
+    end
+end
+
+-- Returns total elapsed seconds
+function TimerObj:getSeconds()
+    return math.floor(self.elapsed_time / 1000)
+end
+
+-- Returns total elapsed minutes
+function TimerObj:getMinutes()
+    return math.floor(self:getSeconds() / 60)
+end
+
+-- Returns time as "MM:SS" string
+function TimerObj:getFormatted()
+    local totalSeconds = self:getSeconds()
+    local minutes      = math.floor(totalSeconds / 60)
+    local seconds      = totalSeconds % 60
+
+    if minutes > self.max_mininutes then
+        minutes = self.max_mininutes
+        seconds = self.max_seconds
+    end
+
+    return string.format("%02d:%02d", minutes, seconds)
+end
+
+-- Returns true if timer is active
+function TimerObj:isRunning()
+    return self.running
+end
+
+game_timer = TimerObj.new()
+
+
+-- [/TQ-Bundler: src.timer]
 
 -- [TQ-Bundler: src.sudoku.grid]
 
@@ -223,7 +311,7 @@ local function make_button(params)
     g.PREV_CLICK   = params.PREV_CLICK   or false
     g.START_X      = params.START_X      or (EDGE_X_LEFT + X_PADDING)
     g.START_Y      = params.START_Y      or (EDGE_Y_TOP + Y_PADDING)
-    
+
     -- Calculate END_X properly: if CELL_WIDTH is given, use it; otherwise use default END_X
     if params.CELL_WIDTH then
         g.CELL_WIDTH = params.CELL_WIDTH
@@ -232,7 +320,7 @@ local function make_button(params)
         g.END_X      = params.END_X or (EDGE_X_RIGHT - FIXED_CHAR_WIDTH)
         g.CELL_WIDTH = g.END_X - g.START_X
     end
-    
+
     g.CELL_HEIGHT  = params.CELL_HEIGHT  or (FIXED_CHAR_HEIGHT + Y_PADDING)
     g.END_Y        = params.END_Y        or (g.START_Y + g.CELL_HEIGHT)
     g.TEXT_START_X = params.TEXT_START_X or (g.START_X + math.floor(X_PADDING / 2))
@@ -246,6 +334,8 @@ local auto_note_btn = make_button({
     TEXT    = "AUTO-NOTE",
     START_X = notes.END_X + X_PADDING,
 })
+auto_note_btn.NUM_CLICKED = 0
+
 local undo_btn = make_button({
     TEXT    = "UNDO",
     START_X = notes.END_X + X_PADDING,
@@ -652,8 +742,33 @@ end
 -- UNDO FUNCTION
 -- ==========================================
 
+local checkAutoNote -- forward declaration, see src.states.puzzle
+
 local undo_list = {}
 
+local function register_action(x_pos, y_pos, new_value, prev_value)
+    undo_list[#undo_list + 1] = {
+        x    = x_pos,
+        y    = y_pos,
+        new  = new_value,
+        prev = prev_value,
+    }
+end
+
+local function undo_last_action()
+    local last_action = table.remove(undo_list)
+    if last_action ~= nil then
+        if sudoku.cells[last_action.x][last_action.y].guess == last_action.new then
+            sudoku.cells[last_action.x][last_action.y].guess = last_action.prev
+
+            -- If the auto-note button has been pressed in the past, rerun the
+            -- auto-note functionality without incrementing the auto-note counter.
+            if auto_note_btn.NUM_CLICKED ~= nil and auto_note_btn.NUM_CLICKED > 0 then
+                checkAutoNote()
+            end
+        end
+    end
+end
 
 -- [/TQ-Bundler: src.sudoku.undo]
 
@@ -711,6 +826,7 @@ local function changeState(newState)
     -- State entry logic
     if newState == STATE.PUZZLE then
         -- Reset game state for new puzzle
+        game_timer:reset()
 
         -- Initialize the cells
         initializeCells()
@@ -967,7 +1083,7 @@ local function setSingleCellNotes(i, j)
     sudoku.cells[i][j].notes = starting_notes
 end
 
-local function checkAutoNote()
+function checkAutoNote()
     for i = 1, sudoku.DIM_X do
         for j = 1, sudoku.DIM_Y do
             setSingleCellNotes(i, j)
@@ -976,18 +1092,36 @@ local function checkAutoNote()
 end
 
 local function checkPuzzle()
-    local all_guesses_are_correct = true
+    local all_guesses_are_correct = false
+    local all_cells_are_filled_in = true
+
     for i = 1, sudoku.DIM_X do
         for j = 1, sudoku.DIM_Y do
             local cell = sudoku.cells[i][j]
-            if cell.guess ~= nil and cell.guess ~= cell.solution then
-                all_guesses_are_correct = false
+            if cell.guess == nil then
+                all_cells_are_filled_in = false
+            end
+        end
+    end
+
+    -- Only if all cells are filled in do we check if solution is complete.
+    if all_cells_are_filled_in then
+        all_guesses_are_correct = true
+        for i = 1, sudoku.DIM_X do
+            for j = 1, sudoku.DIM_Y do
+                local cell = sudoku.cells[i][j]
+                if cell.guess ~= cell.solution then
+                    all_cells_are_filled_in = false
+                end
             end
         end
     end
     sudoku.solved = all_guesses_are_correct
 
-    -- Stop the clock and register "score" in high scores.
+    -- Stop the clock and register "score" in high scores
+    if all_guesses_are_correct then
+        game_timer:stop()
+    end
 end
 
 local function clearGuessesAndNotes()
@@ -1002,7 +1136,7 @@ local function clearGuessesAndNotes()
 end
 
 local function undoLastNumber()
-    -- To complete later.
+    undo_last_action()
 end
 
 local function setNewPuzzle()
@@ -1014,6 +1148,10 @@ local function exitToMainMenu()
 end
 
 local function updatePuzzle()
+    if game_timer:isRunning() then
+        game_timer:update()
+    end
+
     if auto_note_btn.PREV_CLICK == true then
         checkAutoNote()
     end
@@ -1150,18 +1288,26 @@ local function drawStatBox()
     rect(box_start_x, box_start_y, box_width, box_height, BLACK)
     rectb(box_start_x, box_start_y, box_width, box_height, WHITE)
 
-    -- Print active clock and difficulty level.
+    -- Print active clock, num of auto-nots, and difficulty level.
     local start_x = box_start_x + math.floor(X_PADDING / 2)
     local start_y = box_start_y + Y_PADDING
 
-    print("CLOCK", start_x, start_y, WHITE, false, 2, false)
-    print("UNDO = " .. tostring(undo_btn.CLICKED) , start_x, start_y + 2*Y_PADDING, WHITE, false, 1, false)
+    -- Add clock here.
+    print(game_timer:getFormatted(), start_x, start_y, WHITE, true, 3)
+    print(
+        "Auto-Note: " .. tostring(auto_note_btn.NUM_CLICKED),
+    -- print(
+    --     game_timer:isRunning(),
+        start_x,
+        start_y + 3*Y_PADDING,
+        WHITE
+    )
 
     local difficultyItem = game.options.items[1]  -- First item is Difficulty
     local difficultyName = difficultyItem.values[difficultyItem.current]  -- "Easy", "Medium", or "Hard"
 
     print(
-        difficultyName .. " difficulty",
+        "Level: " .. difficultyName,
         start_x,
         box_start_y + box_height - Y_PADDING,
         WHITE
@@ -1171,6 +1317,7 @@ end
 local function drawSuccess()
     if sudoku.solved then
         drawOverlayBox({ "SUCCESS!", "Click 'NEW' or", "'EXIT' to continue." })
+        game_timer:stop()
     end
 end
 
@@ -1258,6 +1405,31 @@ local states = {
 -- State variable to make sure a single click doesn't repeatedly toggle a cell.
 local prev_left_click = false
 
+-- Creates an "edit session" so we can track when a cell that's being changed is
+-- done being changed (for the undo functionality).
+local edit = {
+    active = false,
+    i = nil,
+    j = nil,
+    start_value = nil,
+}
+
+-- Helper function to commit true edits to the undo history.
+local function commit_edit_if_needed()
+    if not edit.active then return end
+
+    local cell = sudoku.cells[edit.i][edit.j]
+    local final_value = cell.guess
+
+    if final_value ~= edit.start_value then
+        register_action(edit.i, edit.j, final_value, edit.start_value)
+    end
+
+    edit.active = false
+    edit.i, edit.j = nil, nil
+    edit.start_value = nil
+end
+
 local function checkInputOnPuzzleGrid(mouse_x, mouse_y, left_click, scroll_y, just_pressed)
     scroll_options = {nil, 1, 2, 3, 4, 5, 6, 7, 8, 9}
     for i = 1, sudoku.DIM_X do
@@ -1271,17 +1443,38 @@ local function checkInputOnPuzzleGrid(mouse_x, mouse_y, left_click, scroll_y, ju
 
             -- Did the user click on this cell?
             if cell.mouseover and just_pressed then
+                -- Clicking the currently-selected cell => deselect and commit
+                -- edit.
                 if sudoku.clicked.i == i and sudoku.clicked.j == j then
                     sudoku.clicked.i = nil
                     sudoku.clicked.j = nil
+                    commit_edit_if_needed()
                 else
+                    -- Switching selection from one cell to another => commit
+                    -- previous edit.
+                    if sudoku.clicked.i ~= nil and sudoku.clicked.j ~= nil then
+                        commit_edit_if_needed()
+                    end
+
                     sudoku.clicked.i = i
                     sudoku.clicked.j = j
+
+                    -- Start a new edit session for this cell, but only if it's
+                    -- editable.
+                    if not cell.locked then
+                        edit.active = true
+                        edit.i = i
+                        edit.j = j
+                        edit.start_value = cell.guess
+                    end
+
                 end
             end
 
             -- Is the user trying to change the number?
             if cell.locked == false and sudoku.clicked.i == i and sudoku.clicked.j == j then
+                local prev_value = cell.guess
+
                 if scroll_y > 0 then
                     if cell.guess == nil then
                         cell.guess = 1
@@ -1367,6 +1560,9 @@ local function checkPuzzleButtonClicks(mouse_x, mouse_y, left_click, just_presse
 
         if mouseover and just_pressed then
             handled = true
+            if butt.NUM_CLICKED ~= nil then
+                butt.NUM_CLICKED = butt.NUM_CLICKED + 1
+            end
         end
     end
 
@@ -1396,12 +1592,29 @@ local function updateInput()
     local just_pressed = left_click and not prev_left_click
     prev_left_click = left_click
 
+    -- If we're editing a cell and the user clicks somewhere, we may need to
+    -- commit (button/notes clicks won't go through puzzle-grid selection).
+    if just_pressed then
+        -- We'll commit later if the click doesn't land on a puzzle cell
+        -- selection, so do it when a button/notes click is handled:
+    end
+
+    -- Start the game clock if it hasn't already been started.
+    if just_pressed and not game_timer:isRunning() then
+        game_timer:start()
+    end
+
     -- Only work on the notes grid or the puzzle grid. Not both.
-    local notes_handled   = checkInputOnNotesGrid(mouse_x, mouse_y, just_pressed)
+    local notes_handled = checkInputOnNotesGrid(mouse_x, mouse_y, just_pressed)
 
     local puzzle_buttons_handled = false
     if not notes_handled then
         puzzle_buttons_handled = checkPuzzleButtonClicks(mouse_x, mouse_y, left_click, just_pressed)
+    end
+
+    -- If the click was used for notes or a button, commit any in-progress cell edit
+    if just_pressed and (notes_handled or puzzle_buttons_handled) then
+        commit_edit_if_needed()
     end
 
     local handled = not notes_handled and not puzzle_buttons_handled

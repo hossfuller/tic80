@@ -10,7 +10,7 @@ local function make_button(params)
     g.PREV_CLICK   = params.PREV_CLICK   or false
     g.START_X      = params.START_X      or (EDGE_X_LEFT + X_PADDING)
     g.START_Y      = params.START_Y      or (EDGE_Y_TOP + Y_PADDING)
-    
+
     -- Calculate END_X properly: if CELL_WIDTH is given, use it; otherwise use default END_X
     if params.CELL_WIDTH then
         g.CELL_WIDTH = params.CELL_WIDTH
@@ -19,7 +19,7 @@ local function make_button(params)
         g.END_X      = params.END_X or (EDGE_X_RIGHT - FIXED_CHAR_WIDTH)
         g.CELL_WIDTH = g.END_X - g.START_X
     end
-    
+
     g.CELL_HEIGHT  = params.CELL_HEIGHT  or (FIXED_CHAR_HEIGHT + Y_PADDING)
     g.END_Y        = params.END_Y        or (g.START_Y + g.CELL_HEIGHT)
     g.TEXT_START_X = params.TEXT_START_X or (g.START_X + math.floor(X_PADDING / 2))
@@ -33,6 +33,8 @@ local auto_note_btn = make_button({
     TEXT    = "AUTO-NOTE",
     START_X = notes.END_X + X_PADDING,
 })
+auto_note_btn.NUM_CLICKED = 0
+
 local undo_btn = make_button({
     TEXT    = "UNDO",
     START_X = notes.END_X + X_PADDING,

@@ -10,9 +10,9 @@ Here's the development plan:
     - [x] Add a new STATE.SUCCESS state that activates when the "Check" button is clicked and everything is correct.
 - [x] *REV5*: Implement extra features:
     - [x] Add a timing clock that starts with the first click and stops the moment the puzzle is solved.
-    - [ ] Under timing clock, display number of times auto-note button has been clicked.
-    - [ ] Add game play history (showing date, difficulty, num autoclicks, and time).
-    - [ ] Allow the user to undo the last move.
+    - [x] Under timing clock, display number of times auto-note button has been clicked.
+    - [x] Allow the user to undo the last move.
+    - [ ] Implement game play history, showing date, difficulty, num autoclicks, and time.
 - [ ] *FINAL*: Pull it all together.
     - [ ] Add instructions screen/state from main screen.
     - [ ] Make src.states.title.drawTitle() draw a big-ass graphic.
