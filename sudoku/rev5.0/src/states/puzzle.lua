@@ -73,11 +73,11 @@ local function checkPuzzle()
             end
         end
     end
-    sudoku.solved = all_guesses_are_correct
+    game.play.solved = all_guesses_are_correct
 
     -- Stop the clock and register "score" in high scores
     if all_guesses_are_correct then
-        game_timer:stop()
+        game.play.timer:stop()
     end
 end
 
@@ -105,8 +105,8 @@ local function exitToMainMenu()
 end
 
 local function updatePuzzle()
-    if game_timer:isRunning() then
-        game_timer:update()
+    if game.play.timer:isRunning() then
+        game.play.timer:update()
     end
 
     if auto_note_btn.PREV_CLICK == true then
@@ -250,21 +250,17 @@ local function drawStatBox()
     local start_y = box_start_y + Y_PADDING
 
     -- Add clock here.
-    print(game_timer:getFormatted(), start_x, start_y, WHITE, true, 3)
+    print(game.play.timer:getFormatted(), start_x, start_y, WHITE, true, 3)
     print(
-        "Auto-Note: " .. tostring(auto_note_btn.NUM_CLICKED),
-    -- print(
-    --     game_timer:isRunning(),
+        "Auto-Note: " .. tostring(game.play.autonotes),
         start_x,
         start_y + 3*Y_PADDING,
         WHITE
     )
 
-    local difficultyItem = game.options.items[1]  -- First item is Difficulty
-    local difficultyName = difficultyItem.values[difficultyItem.current]  -- "Easy", "Medium", or "Hard"
-
     print(
-        "Level: " .. difficultyName,
+        -- "Level: " .. difficultyName,
+        "Level: " .. game.play.difficulty,
         start_x,
         box_start_y + box_height - Y_PADDING,
         WHITE
@@ -272,9 +268,9 @@ local function drawStatBox()
 end
 
 local function drawSuccess()
-    if sudoku.solved then
+    if game.play.solved then
         drawOverlayBox({ "SUCCESS!", "Click 'NEW' or", "'EXIT' to continue." })
-        game_timer:stop()
+        game.play.timer:stop()
     end
 end
 

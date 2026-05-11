@@ -31,6 +31,7 @@ local game = {
     },
 
     -- Statistics
+    -- Load this from memory when game boots up.
     statistics = {
         {name = "AAA", score = 10000},
         {name = "BBB", score = 7500},
@@ -40,8 +41,21 @@ local game = {
     },
 
     -- Gameplay state
-    play = {},
+    play = nil,
 }
+
+local function initializeNewGamePlayState()
+    local cur_dt     = get_unix_timestamp()
+    local cur_std_dt = unix_to_greg_utc(cur_dt)
+
+    game.play = {
+        date       = convert_datetime_obj_to_string(cur_std_dt), -- implemented
+        difficulty = nil,    -- implemented
+        solved     = false,  -- implemented
+        autonotes  = 0,      -- implemented
+        timer      = TimerObj.new(),
+    }
+end
 
 local function changeState(newState)
     game.prevState = game.state
@@ -49,8 +63,10 @@ local function changeState(newState)
 
     -- State entry logic
     if newState == STATE.PUZZLE then
+        initializeNewGamePlayState()
+
         -- Reset game state for new puzzle
-        game_timer:reset()
+        game.play.timer:reset()
 
         -- Initialize the cells
         initializeCells()
@@ -60,10 +76,10 @@ local function changeState(newState)
 
         -- Get the difficulty name from options
         local difficultyItem = game.options.items[1]  -- First item is Difficulty
-        local difficultyName = difficultyItem.values[difficultyItem.current]  -- "Easy", "Medium", or "Hard"
+        game.play.difficulty = difficultyItem.values[difficultyItem.current] -- "Easy", "Medium", or "Hard"
 
         -- Get a valid solution into the cells' 'value' settings.
         generateSolution()
-        generatePuzzleByTier(difficultyName)
+        generatePuzzleByTier(game.play.difficulty)
     end
 end

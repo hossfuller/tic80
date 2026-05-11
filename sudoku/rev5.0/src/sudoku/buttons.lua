@@ -25,16 +25,16 @@ local function make_button(params)
     g.TEXT_START_X = params.TEXT_START_X or (g.START_X + math.floor(X_PADDING / 2))
     g.TEXT_START_Y = params.TEXT_START_Y or (g.START_Y + math.floor(Y_PADDING / 2))
     g.BG_COLOR     = params.BG_COLOR     or YELLOW
+    g.COUNT_CLICKS = params.COUNT_CLICKS or false
 
     return g
 end
 
 local auto_note_btn = make_button({
-    TEXT    = "AUTO-NOTE",
-    START_X = notes.END_X + X_PADDING,
+    TEXT         = "AUTO-NOTE",
+    START_X      = notes.END_X + X_PADDING,
+    COUNT_CLICKS = true,
 })
-auto_note_btn.NUM_CLICKED = 0
-
 local undo_btn = make_button({
     TEXT    = "UNDO",
     START_X = notes.END_X + X_PADDING,

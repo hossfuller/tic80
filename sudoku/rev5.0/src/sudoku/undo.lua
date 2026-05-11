@@ -23,7 +23,7 @@ local function undo_last_action()
 
             -- If the auto-note button has been pressed in the past, rerun the
             -- auto-note functionality without incrementing the auto-note counter.
-            if auto_note_btn.NUM_CLICKED ~= nil and auto_note_btn.NUM_CLICKED > 0 then
+            if game.play.autonotes > 0 then
                 checkAutoNote()
             end
         end

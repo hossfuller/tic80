@@ -160,8 +160,8 @@ local function checkPuzzleButtonClicks(mouse_x, mouse_y, left_click, just_presse
 
         if mouseover and just_pressed then
             handled = true
-            if butt.NUM_CLICKED ~= nil then
-                butt.NUM_CLICKED = butt.NUM_CLICKED + 1
+            if butt.COUNT_CLICKS then
+                game.play.autonotes = game.play.autonotes + 1
             end
         end
     end
@@ -200,8 +200,8 @@ local function updateInput()
     end
 
     -- Start the game clock if it hasn't already been started.
-    if just_pressed and not game_timer:isRunning() then
-        game_timer:start()
+    if just_pressed and not game.play.timer:isRunning() then
+        game.play.timer:start()
     end
 
     -- Only work on the notes grid or the puzzle grid. Not both.

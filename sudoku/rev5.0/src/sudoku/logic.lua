@@ -327,7 +327,6 @@ local function applyPuzzleGridToCells(puzzle_grid)
     end
 
     sudoku.clicked.i, sudoku.clicked.j = nil, nil
-    sudoku.solved = false
 end
 
 -- Sets the difficulty target.
@@ -344,5 +343,4 @@ local function generatePuzzleByTier(name)
     local puzzle_grid = makePuzzleUnique(sol_grid, target, tier.max_attempts, tier.symmetric)
 
     applyPuzzleGridToCells(puzzle_grid)
-    sudoku.difficulty = name
 end

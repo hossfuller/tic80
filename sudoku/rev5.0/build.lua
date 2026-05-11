@@ -74,6 +74,94 @@ local GAP_HOUSE              = 0  -- between houses (after col/row 3 and 6)
 -- HELPERS
 -- ==========================================
 
+-- ==========================================
+-- TIME HELPERS
+-- ==========================================
+
+local mdays_common = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
+
+local function get_unix_timestamp()
+    return math.tointeger(tstamp())
+end
+
+local function convert_datetime_obj_to_string(datetime_obj)
+    return string.format(
+        "%04d-%02d-%02d",
+        datetime_obj.year,
+        datetime_obj.month,
+        datetime_obj.day
+    )
+end
+
+local function is_greg_leap(y)
+    return (y % 4 == 0) and ((y % 100 ~= 0) or (y % 400 == 0))
+end
+
+local function greg_days_in_month(y, m)
+    if m == 2 and is_greg_leap(y) then return 29 end
+    return mdays_common[m]
+end
+
+-- Unix seconds -> Gregorian UTC date/time (year,month,day,hour,min,sec)
+local function unix_to_greg_utc(ts)
+    local sec_per_day = 86400
+    local days        = math.floor(ts / sec_per_day)
+    local sod         = ts - days * sec_per_day
+    if sod < 0 then
+        sod = sod + sec_per_day
+        days = days - 1
+    end
+
+    local hour = math.floor(sod / 3600); sod = sod - hour * 3600
+    local min  = math.floor(sod / 60)
+    local sec  = sod - min * 60
+
+    local y    = 1970
+    if days >= 0 then
+        while true do
+            local diy = is_greg_leap(y) and 366 or 365
+            if days >= diy then
+                days = days - diy
+                y = y + 1
+            else
+                break
+            end
+        end
+    else
+        while days < 0 do
+            y = y - 1
+            local diy = is_greg_leap(y) and 366 or 365
+            days = days + diy
+        end
+    end
+
+    local m = 1
+    while true do
+        local dim = greg_days_in_month(y, m)
+        if days >= dim then
+            days = days - dim
+            m = m + 1
+        else
+            break
+        end
+    end
+
+    local d = days + 1
+
+    return {
+        year  = y,
+        month = m,
+        day   = d,
+        hour  = hour,
+        min   = min,
+        sec   = sec
+    }
+end
+
+-- ==========================================
+-- INPUT HELPERS
+-- ==========================================
+
 -- Input tracking for edge detection
 local input = {
     prev = {},
@@ -195,8 +283,6 @@ function TimerObj:isRunning()
     return self.running
 end
 
-game_timer = TimerObj.new()
-
 
 -- [/TQ-Bundler: src.timer]
 
@@ -231,8 +317,6 @@ end
 local sudoku      = make_grid()
 sudoku.clicked    = { i = nil, j = nil }
 sudoku.cells      = {}
-sudoku.difficulty = nil
-sudoku.solved     = false
 
 -- This one is just a convenience table for drawing a numeric representation of
 -- the sudoku.notes grid.
@@ -326,16 +410,16 @@ local function make_button(params)
     g.TEXT_START_X = params.TEXT_START_X or (g.START_X + math.floor(X_PADDING / 2))
     g.TEXT_START_Y = params.TEXT_START_Y or (g.START_Y + math.floor(Y_PADDING / 2))
     g.BG_COLOR     = params.BG_COLOR     or YELLOW
+    g.COUNT_CLICKS = params.COUNT_CLICKS or false
 
     return g
 end
 
 local auto_note_btn = make_button({
-    TEXT    = "AUTO-NOTE",
-    START_X = notes.END_X + X_PADDING,
+    TEXT         = "AUTO-NOTE",
+    START_X      = notes.END_X + X_PADDING,
+    COUNT_CLICKS = true,
 })
-auto_note_btn.NUM_CLICKED = 0
-
 local undo_btn = make_button({
     TEXT    = "UNDO",
     START_X = notes.END_X + X_PADDING,
@@ -713,7 +797,6 @@ local function applyPuzzleGridToCells(puzzle_grid)
     end
 
     sudoku.clicked.i, sudoku.clicked.j = nil, nil
-    sudoku.solved = false
 end
 
 -- Sets the difficulty target.
@@ -730,7 +813,6 @@ local function generatePuzzleByTier(name)
     local puzzle_grid = makePuzzleUnique(sol_grid, target, tier.max_attempts, tier.symmetric)
 
     applyPuzzleGridToCells(puzzle_grid)
-    sudoku.difficulty = name
 end
 
 
@@ -763,7 +845,7 @@ local function undo_last_action()
 
             -- If the auto-note button has been pressed in the past, rerun the
             -- auto-note functionality without incrementing the auto-note counter.
-            if auto_note_btn.NUM_CLICKED ~= nil and auto_note_btn.NUM_CLICKED > 0 then
+            if game.play.autonotes > 0 then
                 checkAutoNote()
             end
         end
@@ -807,6 +889,7 @@ local game = {
     },
 
     -- Statistics
+    -- Load this from memory when game boots up.
     statistics = {
         {name = "AAA", score = 10000},
         {name = "BBB", score = 7500},
@@ -816,8 +899,21 @@ local game = {
     },
 
     -- Gameplay state
-    play = {},
+    play = nil,
 }
+
+local function initializeNewGamePlayState()
+    local cur_dt     = get_unix_timestamp()
+    local cur_std_dt = unix_to_greg_utc(cur_dt)
+
+    game.play = {
+        date       = convert_datetime_obj_to_string(cur_std_dt), -- implemented
+        difficulty = nil,    -- implemented
+        solved     = false,  -- implemented
+        autonotes  = 0,      -- implemented
+        timer      = TimerObj.new(),
+    }
+end
 
 local function changeState(newState)
     game.prevState = game.state
@@ -825,8 +921,10 @@ local function changeState(newState)
 
     -- State entry logic
     if newState == STATE.PUZZLE then
+        initializeNewGamePlayState()
+
         -- Reset game state for new puzzle
-        game_timer:reset()
+        game.play.timer:reset()
 
         -- Initialize the cells
         initializeCells()
@@ -836,11 +934,11 @@ local function changeState(newState)
 
         -- Get the difficulty name from options
         local difficultyItem = game.options.items[1]  -- First item is Difficulty
-        local difficultyName = difficultyItem.values[difficultyItem.current]  -- "Easy", "Medium", or "Hard"
+        game.play.difficulty = difficultyItem.values[difficultyItem.current] -- "Easy", "Medium", or "Hard"
 
         -- Get a valid solution into the cells' 'value' settings.
         generateSolution()
-        generatePuzzleByTier(difficultyName)
+        generatePuzzleByTier(game.play.difficulty)
     end
 end
 
@@ -1116,11 +1214,11 @@ local function checkPuzzle()
             end
         end
     end
-    sudoku.solved = all_guesses_are_correct
+    game.play.solved = all_guesses_are_correct
 
     -- Stop the clock and register "score" in high scores
     if all_guesses_are_correct then
-        game_timer:stop()
+        game.play.timer:stop()
     end
 end
 
@@ -1148,8 +1246,8 @@ local function exitToMainMenu()
 end
 
 local function updatePuzzle()
-    if game_timer:isRunning() then
-        game_timer:update()
+    if game.play.timer:isRunning() then
+        game.play.timer:update()
     end
 
     if auto_note_btn.PREV_CLICK == true then
@@ -1293,21 +1391,17 @@ local function drawStatBox()
     local start_y = box_start_y + Y_PADDING
 
     -- Add clock here.
-    print(game_timer:getFormatted(), start_x, start_y, WHITE, true, 3)
+    print(game.play.timer:getFormatted(), start_x, start_y, WHITE, true, 3)
     print(
-        "Auto-Note: " .. tostring(auto_note_btn.NUM_CLICKED),
-    -- print(
-    --     game_timer:isRunning(),
+        "Auto-Note: " .. tostring(game.play.autonotes),
         start_x,
         start_y + 3*Y_PADDING,
         WHITE
     )
 
-    local difficultyItem = game.options.items[1]  -- First item is Difficulty
-    local difficultyName = difficultyItem.values[difficultyItem.current]  -- "Easy", "Medium", or "Hard"
-
     print(
-        "Level: " .. difficultyName,
+        -- "Level: " .. difficultyName,
+        "Level: " .. game.play.difficulty,
         start_x,
         box_start_y + box_height - Y_PADDING,
         WHITE
@@ -1315,9 +1409,9 @@ local function drawStatBox()
 end
 
 local function drawSuccess()
-    if sudoku.solved then
+    if game.play.solved then
         drawOverlayBox({ "SUCCESS!", "Click 'NEW' or", "'EXIT' to continue." })
-        game_timer:stop()
+        game.play.timer:stop()
     end
 end
 
@@ -1560,8 +1654,8 @@ local function checkPuzzleButtonClicks(mouse_x, mouse_y, left_click, just_presse
 
         if mouseover and just_pressed then
             handled = true
-            if butt.NUM_CLICKED ~= nil then
-                butt.NUM_CLICKED = butt.NUM_CLICKED + 1
+            if butt.COUNT_CLICKS then
+                game.play.autonotes = game.play.autonotes + 1
             end
         end
     end
@@ -1600,8 +1694,8 @@ local function updateInput()
     end
 
     -- Start the game clock if it hasn't already been started.
-    if just_pressed and not game_timer:isRunning() then
-        game_timer:start()
+    if just_pressed and not game.play.timer:isRunning() then
+        game.play.timer:start()
     end
 
     -- Only work on the notes grid or the puzzle grid. Not both.
