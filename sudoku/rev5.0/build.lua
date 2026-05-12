@@ -1448,17 +1448,59 @@ local function updatePuzzle()
     end
 end
 
+local function getCompletedDigitsInAllHouses()
+    local present = {}
+    for d = 1, 9 do present[d] = {} end
+
+    for i = 1, 9 do
+        for j = 1, 9 do
+            local guess = sudoku.cells[i][j].guess -- FIXED
+            if guess then
+                local hi          = math.floor((i - 1) / 3)
+                local hj          = math.floor((j - 1) / 3)
+                local h           = hi * 3 + hj -- 0..8
+                present[guess][h] = true
+            end
+        end
+    end
+
+    local doneDigit = {}
+    for d = 1, 9 do
+        local ok = true
+        for h = 0, 8 do
+            if not present[d][h] then
+                ok = false; break
+            end
+        end
+        doneDigit[d] = ok
+    end
+
+    local doneCell = {}
+    for r = 1, 9 do
+        doneCell[r] = {}
+        for c = 1, 9 do
+            local v = sudoku.cells[r][c].guess
+            doneCell[r][c] = (v ~= nil) and doneDigit[v] or false
+        end
+    end
+
+    return doneDigit, doneCell
+end
 
 function drawPuzzleGrid()
+    local _, doneCell = getCompletedDigitsInAllHouses()
+
     for i = 1, sudoku.DIM_X do
         for j = 1, sudoku.DIM_Y do
             local cell = sudoku.cells[i][j]
 
             local cell_bgcolor = GRAY_DARK
-            local grid_x       = cell.x_left
-            local grid_y       = cell.y_top
-            local grid_width   = cell.x_right - cell.x_left + 1
-            local grid_height  = cell.y_bottom - cell.y_top + 1
+            local number_color = WHITE
+
+            local grid_x      = cell.x_left
+            local grid_y      = cell.y_top
+            local grid_width  = cell.x_right - cell.x_left + 1
+            local grid_height = cell.y_bottom - cell.y_top + 1
 
             -- Check cell status and change the cell's background color.
             if cell.locked == true then
@@ -1491,7 +1533,9 @@ function drawPuzzleGrid()
 
                 -- Otherwise print the guess if there is one.
             else
-                print(cell.guess, grid_x + 2, grid_y + 2, WHITE, true, 2)
+                -- if the digit is complete in all houses, make it blue.
+                number_color = doneCell[i][j] and BLUE_LITE or WHITE
+                print(cell.guess, grid_x + 2, grid_y + 2, number_color, true, 2)
             end
 
             -- Finally, draw the grid.
@@ -1502,6 +1546,8 @@ end
 
 
 local function drawNotesGrid()
+    local doneDigit = getCompletedDigitsInAllHouses()
+
     local grid_x = notes.START_X
     local grid_y = notes.START_Y
 
@@ -1516,17 +1562,22 @@ local function drawNotesGrid()
     local n = 1
     for i = 1, notes.DIM_X do
         for j = 1, notes.DIM_Y do
-            local num_color = GRAY_LITE
+            local number_color = GRAY_LITE
+
+            -- if the digit is complete in all houses, make it blue.
+            if doneDigit[n] then
+                number_color = BLUE_LITE
+            end
 
             local x = grid_x + (j - 1) * cell_w
             local y = grid_y + (i - 1) * cell_h
 
             if (active_cell_notes ~= nil) and (active_cell_notes[i][j] == true) then
-                num_color = YELLOW
+                number_color = YELLOW
             end
 
             rectb(x, y, cell_w, cell_h, WHITE)     -- cell border
-            print(n, x + 2, y + 2, num_color, true, 2) -- number
+            print(n, x + 2, y + 2, number_color, true, 2) -- number
 
             n = n + 1
         end
