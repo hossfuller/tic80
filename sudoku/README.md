@@ -12,7 +12,9 @@ Here's the development plan:
     - [x] Add a timing clock that starts with the first click and stops the moment the puzzle is solved.
     - [x] Under timing clock, display number of times auto-note button has been clicked.
     - [x] Allow the user to undo the last move.
-    - [ ] Implement game play history using date, difficulty, num autoclicks, and time.
+    - [x] Implement game play history using date, difficulty, num autoclicks, and time.
+    - [ ] If all of a particular number is filled in inside the grid, make the corresponding number in the notes grid green.
+    - [ ] Clicking a locked number highlights all the corresponding numbers in the other houses.
 - [ ] *FINAL*: Pull it all together.
     - [ ] Add instructions screen/state from main screen.
     - [ ] Make src.states.title.drawTitle() draw a big-ass graphic.

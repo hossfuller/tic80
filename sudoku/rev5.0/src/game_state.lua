@@ -2,6 +2,12 @@
 -- GAME STATE
 -- ==========================================
 
+local loadHighScores
+local sortHighScores
+local buildLines
+local scroll = 0
+
+
 local STATE = {
     TITLE      = "TITLE",
     OPTIONS    = "OPTIONS",
@@ -73,5 +79,11 @@ local function changeState(newState)
         -- Get a valid solution into the cells' 'value' settings.
         generateSolution()
         generatePuzzleByTier(game.play.difficulty)
+
+    elseif newState == STATE.STATISTICS then
+        loadHighScores()
+        sortHighScores()
+        buildLines()
+        scroll = 0
     end
 end

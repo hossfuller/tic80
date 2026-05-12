@@ -56,5 +56,5 @@ local function drawTitle()
     end
 
     -- Instructions
-    drawCenteredText("UP/DOWN: Select  A: Confirm", EDGE_Y_BOTTOM - 15, GREEN_MED)
+    drawCenteredText("UP/DOWN: Select  A: Confirm", EDGE_Y_BOTTOM - Y_PADDING, GREEN_MED)
 end

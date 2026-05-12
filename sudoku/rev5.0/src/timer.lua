@@ -6,14 +6,16 @@ TimerObj = {}
 TimerObj.__index = TimerObj
 
 -- Creates a new TimerObj instance
-function TimerObj.new()
+function TimerObj.new(params)
+    params = params or {}
     local self = setmetatable({}, TimerObj)
+
     self.running       = false
-    self.start_time    = 0
-    self.saved_time    = 0
-    self.elapsed_time  = 0
-    self.max_mininutes = 99
-    self.max_seconds   = 59
+    self.start_time    = params.start_time or 0
+    self.saved_time    = params.saved_time or 0
+    self.elapsed_time  = params.elapsed_time or 0
+    self.max_mininutes = params.max_mininutes or 99
+    self.max_seconds   = params.max_seconds or 59
     return self
 end
 

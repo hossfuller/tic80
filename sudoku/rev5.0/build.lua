@@ -211,14 +211,16 @@ TimerObj = {}
 TimerObj.__index = TimerObj
 
 -- Creates a new TimerObj instance
-function TimerObj.new()
+function TimerObj.new(params)
+    params = params or {}
     local self = setmetatable({}, TimerObj)
+
     self.running       = false
-    self.start_time    = 0
-    self.saved_time    = 0
-    self.elapsed_time  = 0
-    self.max_mininutes = 99
-    self.max_seconds   = 59
+    self.start_time    = params.start_time or 0
+    self.saved_time    = params.saved_time or 0
+    self.elapsed_time  = params.elapsed_time or 0
+    self.max_mininutes = params.max_mininutes or 99
+    self.max_seconds   = params.max_seconds or 59
     return self
 end
 
@@ -861,6 +863,12 @@ end
 -- GAME STATE
 -- ==========================================
 
+local loadHighScores
+local sortHighScores
+local buildLines
+local scroll = 0
+
+
 local STATE = {
     TITLE      = "TITLE",
     OPTIONS    = "OPTIONS",
@@ -907,26 +915,6 @@ local function initializeNewGamePlayState()
     }
 end
 
-local function saveCurrentScore()
-    -- Need to save the following:
-    --  1. game.play.date - stored as the unix timestamp.
-    --  2. game.play.difficulty - convert to an integer for storage.
-    --  3. game.play.timer:getSeconds() - integer of total seconds.
-    --  4. game.play.autonotes - already an integer.
-
-
-end
-
-local function loadHighScores()
-    -- Don't sort here. Sorting happens when we want to print them.
-    -- Convert game.play.date to a human-readable date after sort but before print.
-
-end
-
-local function sortHighScores()
-    -- Sort by difficulty, then by time, then by autonotes.
-
-end
 
 local function changeState(newState)
     game.prevState = game.state
@@ -952,6 +940,12 @@ local function changeState(newState)
         -- Get a valid solution into the cells' 'value' settings.
         generateSolution()
         generatePuzzleByTier(game.play.difficulty)
+
+    elseif newState == STATE.STATISTICS then
+        loadHighScores()
+        sortHighScores()
+        buildLines()
+        scroll = 0
     end
 end
 
@@ -1017,7 +1011,7 @@ local function drawTitle()
     end
 
     -- Instructions
-    drawCenteredText("UP/DOWN: Select  A: Confirm", EDGE_Y_BOTTOM - 15, GREEN_MED)
+    drawCenteredText("UP/DOWN: Select  A: Confirm", EDGE_Y_BOTTOM - Y_PADDING, GREEN_MED)
 end
 
 
@@ -1031,7 +1025,7 @@ end
 
 local function updateOptions()
     local opts = game.options
-    
+
     -- Navigation
     if btnPressed(BTN_P1_UP) then
         opts.selected = opts.selected - 1
@@ -1039,38 +1033,38 @@ local function updateOptions()
             opts.selected = #opts.items
         end
     end
-    
+
     if btnPressed(BTN_P1_DOWN) then
         opts.selected = opts.selected + 1
         if opts.selected > #opts.items then
             opts.selected = 1
         end
     end
-    
+
     -- Change option value
     local currentItem = opts.items[opts.selected]
-    
+
     if btnPressed(BTN_P1_LEFT) and #currentItem.values > 1 then
         currentItem.current = currentItem.current - 1
         if currentItem.current < 1 then
             currentItem.current = #currentItem.values
         end
     end
-    
+
     if btnPressed(BTN_P1_RIGHT) and #currentItem.values > 1 then
         currentItem.current = currentItem.current + 1
         if currentItem.current > #currentItem.values then
             currentItem.current = 1
         end
     end
-    
+
     -- Select (for Back option) or Back button
     if btnPressed(BTN_P1_A) then
         if opts.items[opts.selected].name == "Back" then
             changeState(STATE.TITLE)
         end
     end
-    
+
     if btnPressed(BTN_P1_B) then
         changeState(STATE.TITLE)
     end
@@ -1078,35 +1072,35 @@ end
 
 local function drawOptions()
     cls(0)
-    
+
     -- Title
     drawCenteredText("OPTIONS", 20, WHITE)
-    
+
     -- Options list
     local startY = 50
     local spacing = 20
-    
+
     for i, item in ipairs(game.options.items) do
         local y = startY + (i - 1) * spacing
         local color = (i == game.options.selected) and WHITE or GREEN_MED
-        
+
         -- Draw selector
         if i == game.options.selected then
             print(">", 30, y, WHITE)
         end
-        
+
         -- Draw option name and value
         print(item.name, 45, y, color)
-        
+
         if #item.values > 0 and item.values[1] ~= "" then
             local valueText = "< " .. item.values[item.current] .. " >"
             print(valueText, 140, y, color)
         end
     end
-    
+
     -- Instructions
-    drawCenteredText("UP/DOWN: Select  LEFT/RIGHT: Change", EDGE_Y_BOTTOM - 25, GREEN_MED)
-    drawCenteredText("B: Back", EDGE_Y_BOTTOM - 15, GREEN_MED)
+    drawCenteredText("UP/DOWN: Select  LEFT/RIGHT: Change", EDGE_Y_BOTTOM - 2 * Y_PADDING, GREEN_MED)
+    drawCenteredText("B: Back", EDGE_Y_BOTTOM - Y_PADDING, GREEN_MED)
 end
 
 
@@ -1118,40 +1112,198 @@ end
 -- STATE: STATISTICS
 -- ==========================================
 
+local MAX_PMEM_CHUNKS = 63
+
+local lines = {}
+
+
+-- Persistent memory has 255 slots. We want to save four pieces of data, so that
+-- restricts us to 252 slots (63 chunks of 4 slots).
+
+function loadHighScores()
+    -- Don't sort here. Sorting happens when we want to print them.
+    -- Convert game.play.date to a human-readable date after sort but before print.
+    game.statistics = {}
+
+    for idx = 0, MAX_PMEM_CHUNKS do
+        local base = idx * 4
+        local date = pmem(base + 0)
+        if date ~= 0 then
+            game.statistics[base] = {
+                date       = date,
+                difficulty = pmem(base + 1),
+                timer      = pmem(base + 2),
+                autonotes  = pmem(base + 3),
+            }
+        end
+    end
+end
+
+function sortHighScores()
+    -- Collect existing entries (0,4,8,...) into a dense list
+    local list = {}
+    for idx = 0, MAX_PMEM_CHUNKS do
+        local base = idx * 4
+        local d = game.statistics[base]
+        if d then
+            list[#list + 1] = d
+        end
+    end
+
+    -- Sort by difficulty desc, then by time asc, then by autonotes asc.
+    table.sort(list, function(a, b)
+        if a.difficulty ~= b.difficulty then
+            return a.difficulty > b.difficulty
+        end
+        if a.timer ~= b.timer then
+            return a.timer < b.timer
+        end
+        if a.autonotes ~= b.autonotes then
+            return a.autonotes < b.autonotes
+        end
+        -- optional tiebreaker so order is stable-ish
+        return a.date > b.date
+    end)
+
+    -- Write back compacted into chunk keys 0,4,8,...
+    game.statistics = {}
+    for i = 1, #list do
+        game.statistics[(i - 1) * 4] = list[i]
+    end
+end
+
+local function saveCurrentScore()
+    -- Always start from what is currently saved
+    loadHighScores()
+
+    -- Find next free chunk index in the CURRENT in-memory table
+    local n = 0
+    for idx = 0, MAX_PMEM_CHUNKS do
+        if game.statistics[idx * 4] then n = n + 1 end
+    end
+    local base = n * 4
+    if base > MAX_PMEM_CHUNKS * 4 then
+        base = MAX_PMEM_CHUNKS * 4 -- will be trimmed after sort
+    end
+
+    -- Map difficulty string -> numeric rank for storage/sorting
+    local diff = (game.play.difficulty == "Easy" and 0)
+              or (game.play.difficulty == "Medium" and 1)
+              or 2
+
+    -- Add current result
+    game.statistics[base] = {
+        date       = game.play.date,
+        difficulty = diff,
+        timer      = game.play.timer:getSeconds(),
+        autonotes  = game.play.autonotes,
+    }
+
+    -- Sort + compact keys to 0,4,8,...
+    sortHighScores()
+
+    -- Save the data.
+    for i = 0, 255 do pmem(i, 0) end
+    for idx = 0, MAX_PMEM_CHUNKS do
+        local b = idx * 4
+        local d = game.statistics[b]
+        if d then
+            pmem(b + 0, d.date)
+            pmem(b + 1, d.difficulty)
+            pmem(b + 2, d.timer)
+            pmem(b + 3, d.autonotes)
+        end
+    end
+end
+
+
+function buildLines()
+    -- Show only the saved/sorted entries (0,4,8,...,252)
+    lines = {}
+    for idx = 0, MAX_PMEM_CHUNKS do
+        local k = idx * 4
+        local d = game.statistics[k]
+        if d then
+            local dt_obj = unix_to_greg_utc(d.date)
+            local dt_str = convert_datetime_obj_to_string(dt_obj)
+            table.insert(lines, dt_str)
+
+            local diff = (d.difficulty == 0 and "Easy")
+                or (d.difficulty == 1 and "Medium")
+                or (d.difficulty == 2 and "Hard")
+            table.insert(lines, string.format("      Difficulty   %s", diff))
+
+            local minutes = math.floor(d.timer / 60)
+            local seconds = d.timer % 60
+            table.insert(lines, string.format("      Clock         %02d:%02d", minutes, seconds))
+
+            table.insert(lines, string.format("      Auto-Notes  %s", d.autonotes))
+            table.insert(lines, "") -- blank spacer line
+        end
+    end
+end
+
+
 local function updateStatistics()
     if btnPressed(BTN_P1_A) or btnPressed(BTN_P1_B) then
         changeState(STATE.TITLE)
+        return
     end
-
-    -- Refresh high scores. Simply re-initializes the game.statistics data
-    -- structure so the user will always see an updated high score table.
-    loadHighScores()
-
-    -- Sort (and save) the high scores.
-    sortHighScores()
 end
+
 
 local function drawStatistics()
     cls(0)
 
-    -- Title
-    drawCenteredText("STATISTICS", 15, WHITE)
+    -- LAYOUT
 
-    -- Scores list
-    local startY = 40
-    local spacing = 15
+    local header_y = EDGE_Y_TOP + Y_PADDING
+    local line_h = FIXED_CHAR_HEIGHT + 1
+    local view_top = header_y + FIXED_CHAR_HEIGHT + Y_PADDING
+    local view_bottom = EDGE_Y_BOTTOM - 2 * Y_PADDING
+    local visible_lines = math.max(1, math.floor((view_bottom - view_top) / line_h))
 
-    for i, entry in ipairs(game.statistics) do
-        local y = startY + (i - 1) * spacing
-        local rankText = string.format("%d.", i)
-        local scoreText = string.format("%s %8d", entry.name, entry.score)
+    -- INPUT
+    local mouse_x, mouse_y, left_click, middle_click, right_click, scroll_x, scroll_y = mouse()
+    local max_scroll = math.max(0, #lines - visible_lines)
 
-        print(rankText, 60, y, GREEN_MED)
-        print(scoreText, 80, y, WHITE)
+    -- keyboard (hold+repeat)
+    if btnp(BTN_P1_UP, 15, 3) then
+        scroll = scroll - 1
+    end
+    if btnp(BTN_P1_DOWN, 15, 3) then
+        scroll = scroll + 1
+    end
+
+    -- mouse wheel (usually +1/-1 per notch)
+    if scroll_y ~= 0 then
+        scroll = scroll - scroll_y
+    end
+
+    -- clamp
+    scroll = math.max(0, math.min(max_scroll, scroll))
+
+    drawCenteredText("STATISTICS", EDGE_Y_TOP + Y_PADDING, WHITE)
+
+    -- draw visible slice
+    for i = 0, visible_lines - 1 do
+        local line = lines[scroll + 1 + i] -- Lua arrays are 1-based
+        if not line then break end
+        local y = view_top + i * line_h
+        print(line, X_PADDING, y, WHITE)
+    end
+
+    -- Small scrollbar indicator
+    if max_scroll > 0 then
+        local bar_x = EDGE_X_RIGHT - 4
+        rect(bar_x, view_top, 2, view_bottom - view_top, GRAY_DARK)
+        local thumb_h = math.max(4, math.floor((view_bottom - view_top) * (visible_lines / #lines)))
+        local thumb_y = view_top + math.floor((view_bottom - view_top - thumb_h) * (scroll / max_scroll))
+        rect(bar_x, thumb_y, 2, thumb_h, GREEN_LITE)
     end
 
     -- Instructions
-    drawCenteredText("Press A or B to return", EDGE_Y_BOTTOM - 15, GREEN_MED)
+    drawCenteredText("Press A or B to return", EDGE_Y_BOTTOM - Y_PADDING, GREEN_MED)
 end
 
 
