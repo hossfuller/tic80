@@ -1487,14 +1487,44 @@ local function getCompletedDigitsInAllHouses()
     return doneDigit, doneCell
 end
 
+local function inSameRowColOrHouse(sel_i, sel_j, i, j)
+    if sel_i == nil or sel_j == nil then
+        return false
+    end
+
+    -- same row or same column
+    if i == sel_i or j == sel_j then
+        return true
+    end
+
+    -- same 3x3 house
+    local sel_hi = math.floor((sel_i - 1) / 3)
+    local sel_hj = math.floor((sel_j - 1) / 3)
+    local hi     = math.floor((i - 1) / 3)
+    local hj     = math.floor((j - 1) / 3)
+
+    return (hi == sel_hi) and (hj == sel_hj)
+end
+
 function drawPuzzleGrid()
     local _, doneCell = getCompletedDigitsInAllHouses()
+
+    -- We want to highlight all the cells in the same house, row, and column
+    -- when a user clicks on an editable cell. This code starts the highlighting
+    -- process.
+    local sel_i, sel_j = sudoku.clicked.i, sudoku.clicked.j
+    local highlight_ok = false
+    if sel_i and sel_j then
+        local sel_cell = sudoku.cells[sel_i][sel_j]
+        highlight_ok = (sel_cell ~= nil) and (sel_cell.locked == false)
+    end
 
     for i = 1, sudoku.DIM_X do
         for j = 1, sudoku.DIM_Y do
             local cell = sudoku.cells[i][j]
 
             local cell_bgcolor = GRAY_DARK
+            local border_color = WHITE
             local number_color = WHITE
 
             local grid_x      = cell.x_left
@@ -1502,7 +1532,7 @@ function drawPuzzleGrid()
             local grid_width  = cell.x_right - cell.x_left + 1
             local grid_height = cell.y_bottom - cell.y_top + 1
 
-            -- Check cell status and change the cell's background color.
+            -- Background coloring.
             if cell.locked == true then
                 cell_bgcolor = BLACK
             elseif sudoku.clicked.i == i and sudoku.clicked.j == j then
@@ -1531,22 +1561,27 @@ function drawPuzzleGrid()
                     end
                 end
 
-                -- Otherwise print the guess if there is one.
+            -- Otherwise print the guess if there is one.
             else
-                -- if the digit is complete in all houses, make it blue.
+                -- If the digit is complete in all houses, make it blue.
                 number_color = doneCell[i][j] and BLUE_LITE or WHITE
                 print(cell.guess, grid_x + 2, grid_y + 2, number_color, true, 2)
             end
 
+            -- Change border color when selecting an unlocked cell.
+            if highlight_ok and inSameRowColOrHouse(sel_i, sel_j, i, j) then
+                border_color = ORANGE
+            end
+
             -- Finally, draw the grid.
-            rectb(grid_x, grid_y, grid_width, grid_height, WHITE)
+            rectb(grid_x, grid_y, grid_width, grid_height, border_color)
         end
     end
 end
 
 
 local function drawNotesGrid()
-    local doneDigit = getCompletedDigitsInAllHouses()
+    local doneDigit = select(1, getCompletedDigitsInAllHouses())
 
     local grid_x = notes.START_X
     local grid_y = notes.START_Y
