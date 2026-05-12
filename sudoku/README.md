@@ -16,9 +16,11 @@ Here's the development plan:
     - [x] If all of a particular number is filled in inside the grid, make the corresponding number in the notes grid green.
     - [x] Clicking a locked number highlights all the corresponding numbers in the other houses.
 - [ ] *FINAL*: Pull it all together.
-    - [ ] Add instructions screen/state from main screen.
+    - [x] Make all instructional text small.
+    - [ ] Add sounds!
+    - [ ] ~~Add instructions screen/state from main screen.~~
     - [ ] Make src.states.title.drawTitle() draw a big-ass graphic.
-    - [ ] Make all screens accept mouse input.
+    - [ ] ~~Make all screens accept mouse input.~~
 
 
 Links:
