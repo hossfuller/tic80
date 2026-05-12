@@ -19,8 +19,9 @@ Here's the development plan:
     - [x] Make all instructional text small.
     - [ ] Add sounds!
     - [ ] ~~Add instructions screen/state from main screen.~~
-    - [ ] Make src.states.title.drawTitle() draw a big-ass graphic.
+    - [x] Make src.states.title.drawTitle() draw a big-ass graphic.
     - [ ] ~~Make all screens accept mouse input.~~
+    - [ ] Add "No Jacket Required" album cover to title screen.
 
 
 Links:

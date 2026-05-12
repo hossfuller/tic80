@@ -143,13 +143,16 @@ end
 
 
 local function drawStatistics()
-    cls(0)
+    cls(BLACK)
+
+    -- Draw the background.
+    map(0, 17, 30, 17, 0, 0)
 
     -- LAYOUT
 
     local header_y = EDGE_Y_TOP + Y_PADDING
     local line_h = FIXED_CHAR_HEIGHT + 1
-    local view_top = header_y + FIXED_CHAR_HEIGHT + Y_PADDING
+    local view_top = header_y + FIXED_CHAR_HEIGHT + 2* Y_PADDING
     local view_bottom = EDGE_Y_BOTTOM - 2 * Y_PADDING
     local visible_lines = math.max(1, math.floor((view_bottom - view_top) / line_h))
 
@@ -173,13 +176,15 @@ local function drawStatistics()
     -- clamp
     scroll = math.max(0, math.min(max_scroll, scroll))
 
-    drawCenteredText("STATISTICS", EDGE_Y_TOP + Y_PADDING, WHITE)
+    -- drawCenteredText("STATISTICS", EDGE_Y_TOP + Y_PADDING, WHITE)
+    drawCenteredText("STATISTICS", EDGE_Y_TOP + Y_PADDING, ORANGE, nil, 3, nil, YELLOW)
 
     -- draw visible slice
     for i = 0, visible_lines - 1 do
         local line = lines[scroll + 1 + i] -- Lua arrays are 1-based
         if not line then break end
         local y = view_top + i * line_h
+        print(line, X_PADDING + 1, y + 1, BLACK) -- the shadow
         print(line, X_PADDING, y, WHITE)
     end
 
@@ -193,5 +198,5 @@ local function drawStatistics()
     end
 
     -- Instructions
-    drawCenteredText("Press A or B to return", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true)
+    drawCenteredText("Press A or B to return", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, BLACK)
 end

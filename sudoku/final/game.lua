@@ -3,11 +3,12 @@
 -- Code changes will be overwritten
 --
 
--- title:   Sudoku for TIC-80
+-- title:   Sussudioku! (Sudoku for TIC-80)
 -- author:  Hoss Fuller <hossfuller@proton.me>
--- version: rev5.0
+-- version: 1.0
 -- script:  lua
 -- input:   mouse
+-- saveid:  sussudioku_bang_bang
 
 -- ==========================================
 -- INCLUDES
@@ -74,6 +75,94 @@ local GAP_HOUSE              = 0  -- between houses (after col/row 3 and 6)
 -- HELPERS
 -- ==========================================
 
+-- ==========================================
+-- TIME HELPERS
+-- ==========================================
+
+local mdays_common = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
+
+local function get_unix_timestamp()
+    return math.tointeger(tstamp())
+end
+
+local function convert_datetime_obj_to_string(datetime_obj)
+    return string.format(
+        "%04d-%02d-%02d",
+        datetime_obj.year,
+        datetime_obj.month,
+        datetime_obj.day
+    )
+end
+
+local function is_greg_leap(y)
+    return (y % 4 == 0) and ((y % 100 ~= 0) or (y % 400 == 0))
+end
+
+local function greg_days_in_month(y, m)
+    if m == 2 and is_greg_leap(y) then return 29 end
+    return mdays_common[m]
+end
+
+-- Unix seconds -> Gregorian UTC date/time (year,month,day,hour,min,sec)
+local function unix_to_greg_utc(ts)
+    local sec_per_day = 86400
+    local days        = math.floor(ts / sec_per_day)
+    local sod         = ts - days * sec_per_day
+    if sod < 0 then
+        sod = sod + sec_per_day
+        days = days - 1
+    end
+
+    local hour = math.floor(sod / 3600); sod = sod - hour * 3600
+    local min  = math.floor(sod / 60)
+    local sec  = sod - min * 60
+
+    local y    = 1970
+    if days >= 0 then
+        while true do
+            local diy = is_greg_leap(y) and 366 or 365
+            if days >= diy then
+                days = days - diy
+                y = y + 1
+            else
+                break
+            end
+        end
+    else
+        while days < 0 do
+            y = y - 1
+            local diy = is_greg_leap(y) and 366 or 365
+            days = days + diy
+        end
+    end
+
+    local m = 1
+    while true do
+        local dim = greg_days_in_month(y, m)
+        if days >= dim then
+            days = days - dim
+            m = m + 1
+        else
+            break
+        end
+    end
+
+    local d = days + 1
+
+    return {
+        year  = y,
+        month = m,
+        day   = d,
+        hour  = hour,
+        min   = min,
+        sec   = sec
+    }
+end
+
+-- ==========================================
+-- INPUT HELPERS
+-- ==========================================
+
 -- Input tracking for edge detection
 local input = {
     prev = {},
@@ -88,9 +177,25 @@ end
 -- DRAWING HELPERS
 -- ==========================================
 
-local function drawCenteredText(text, y, color)
-    local width = print(text, 0, -10)
-    print(text, (EDGE_X_RIGHT - width) / 2, y, color)
+local function drawCenteredText(text, y, color, fixed, scale, smallfont, shadow_color)
+    if fixed == nil then
+        fixed = false
+    end
+    if scale == nil then
+        scale = 1
+    end
+    if smallfont == nil then
+        smallfont = false
+    end
+    if shadow_color == nil then
+        shadow_color = -1
+    end
+    local width = print(text, 0, -50, color, fixed, scale, smallfont)
+
+    if shadow_color >= 0 then
+        print(text, (EDGE_X_RIGHT - width) / 2 + 1, y + 1, shadow_color, fixed, scale, smallfont)
+    end
+    print(text, (EDGE_X_RIGHT - width) / 2, y, color, fixed, scale, smallfont)
 end
 
 local function drawOverlayBox(text_array)
@@ -122,14 +227,16 @@ TimerObj = {}
 TimerObj.__index = TimerObj
 
 -- Creates a new TimerObj instance
-function TimerObj.new()
+function TimerObj.new(params)
+    params = params or {}
     local self = setmetatable({}, TimerObj)
+
     self.running       = false
-    self.start_time    = 0
-    self.saved_time    = 0
-    self.elapsed_time  = 0
-    self.max_mininutes = 99
-    self.max_seconds   = 59
+    self.start_time    = params.start_time or 0
+    self.saved_time    = params.saved_time or 0
+    self.elapsed_time  = params.elapsed_time or 0
+    self.max_mininutes = params.max_mininutes or 99
+    self.max_seconds   = params.max_seconds or 59
     return self
 end
 
@@ -195,8 +302,6 @@ function TimerObj:isRunning()
     return self.running
 end
 
-game_timer = TimerObj.new()
-
 
 -- [/TQ-Bundler: src.timer]
 
@@ -231,8 +336,6 @@ end
 local sudoku      = make_grid()
 sudoku.clicked    = { i = nil, j = nil }
 sudoku.cells      = {}
-sudoku.difficulty = nil
-sudoku.solved     = false
 
 -- This one is just a convenience table for drawing a numeric representation of
 -- the sudoku.notes grid.
@@ -326,16 +429,16 @@ local function make_button(params)
     g.TEXT_START_X = params.TEXT_START_X or (g.START_X + math.floor(X_PADDING / 2))
     g.TEXT_START_Y = params.TEXT_START_Y or (g.START_Y + math.floor(Y_PADDING / 2))
     g.BG_COLOR     = params.BG_COLOR     or YELLOW
+    g.COUNT_CLICKS = params.COUNT_CLICKS or false
 
     return g
 end
 
 local auto_note_btn = make_button({
-    TEXT    = "AUTO-NOTE",
-    START_X = notes.END_X + X_PADDING,
+    TEXT         = "AUTO-NOTE",
+    START_X      = notes.END_X + X_PADDING,
+    COUNT_CLICKS = true,
 })
-auto_note_btn.NUM_CLICKED = 0
-
 local undo_btn = make_button({
     TEXT    = "UNDO",
     START_X = notes.END_X + X_PADDING,
@@ -713,7 +816,6 @@ local function applyPuzzleGridToCells(puzzle_grid)
     end
 
     sudoku.clicked.i, sudoku.clicked.j = nil, nil
-    sudoku.solved = false
 end
 
 -- Sets the difficulty target.
@@ -730,7 +832,6 @@ local function generatePuzzleByTier(name)
     local puzzle_grid = makePuzzleUnique(sol_grid, target, tier.max_attempts, tier.symmetric)
 
     applyPuzzleGridToCells(puzzle_grid)
-    sudoku.difficulty = name
 end
 
 
@@ -763,7 +864,7 @@ local function undo_last_action()
 
             -- If the auto-note button has been pressed in the past, rerun the
             -- auto-note functionality without incrementing the auto-note counter.
-            if auto_note_btn.NUM_CLICKED ~= nil and auto_note_btn.NUM_CLICKED > 0 then
+            if game.play.autonotes > 0 then
                 checkAutoNote()
             end
         end
@@ -777,6 +878,12 @@ end
 -- ==========================================
 -- GAME STATE
 -- ==========================================
+
+local loadHighScores
+local sortHighScores
+local buildLines
+local scroll = 0
+
 
 local STATE = {
     TITLE      = "TITLE",
@@ -806,18 +913,24 @@ local game = {
         },
     },
 
-    -- Statistics
-    statistics = {
-        {name = "AAA", score = 10000},
-        {name = "BBB", score = 7500},
-        {name = "CCC", score = 5000},
-        {name = "DDD", score = 2500},
-        {name = "EEE", score = 1000},
-    },
+    -- Statistics: load from memory every time we go to the high scores screen,
+    -- and save to memory every time we hit a solve a puzzle.
+    statistics = {},
 
     -- Gameplay state
-    play = {},
+    play = nil,
 }
+
+local function initializeNewGamePlayState()
+    game.play = {
+        date       = get_unix_timestamp(),  -- convert to a string on display
+        difficulty = nil,
+        solved     = false,
+        autonotes  = 0,
+        timer      = TimerObj.new(),
+    }
+end
+
 
 local function changeState(newState)
     game.prevState = game.state
@@ -825,8 +938,10 @@ local function changeState(newState)
 
     -- State entry logic
     if newState == STATE.PUZZLE then
+        initializeNewGamePlayState()
+
         -- Reset game state for new puzzle
-        game_timer:reset()
+        game.play.timer:reset()
 
         -- Initialize the cells
         initializeCells()
@@ -836,11 +951,17 @@ local function changeState(newState)
 
         -- Get the difficulty name from options
         local difficultyItem = game.options.items[1]  -- First item is Difficulty
-        local difficultyName = difficultyItem.values[difficultyItem.current]  -- "Easy", "Medium", or "Hard"
+        game.play.difficulty = difficultyItem.values[difficultyItem.current] -- "Easy", "Medium", or "Hard"
 
         -- Get a valid solution into the cells' 'value' settings.
         generateSolution()
-        generatePuzzleByTier(difficultyName)
+        generatePuzzleByTier(game.play.difficulty)
+
+    elseif newState == STATE.STATISTICS then
+        loadHighScores()
+        sortHighScores()
+        buildLines()
+        scroll = 0
     end
 end
 
@@ -882,31 +1003,36 @@ local function updateTitle()
 end
 
 local function drawTitle()
-    cls(0)
-    
+    cls(BLACK)
+
+    -- Draw the background.
+    map(0, 0, 30, 17, 0, 0)
+
     -- Title
-    drawCenteredText("SUDOKU", 20, WHITE)
-    
+    drawCenteredText("SUSSUDIOKU!!", 20, ORANGE, nil, 3, nil, YELLOW)
+
     -- Menu options
     local start_y = 60
     local spacing = 2 * X_PADDING
-    
+
     for i, option in ipairs(game.menu.options) do
         local y = start_y + (i - 1) * spacing
-        local color = (i == game.menu.selected) and WHITE or GREEN_MED
-        
+        local color = (i == game.menu.selected) and ORANGE or WHITE
+
         -- Draw selector
         if i == game.menu.selected then
             local textWidth = print(option, 0, -10)
             local x = (EDGE_X_RIGHT - textWidth) / 2
+            print(">", x - 10 + 1, y + 1, BLACK) -- the shadow
             print(">", x - 10, y, WHITE)
         end
-        
-        drawCenteredText(option, y, color)
+
+        -- drawCenteredText(option, y, color)
+        drawCenteredText(option, y, color, nil, nil, nil, BLACK)
     end
-    
+
     -- Instructions
-    drawCenteredText("UP/DOWN: Select  A: Confirm", EDGE_Y_BOTTOM - 15, GREEN_MED)
+    drawCenteredText("UP/DOWN: Select  A: Confirm", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, BLACK)
 end
 
 
@@ -920,7 +1046,7 @@ end
 
 local function updateOptions()
     local opts = game.options
-    
+
     -- Navigation
     if btnPressed(BTN_P1_UP) then
         opts.selected = opts.selected - 1
@@ -928,74 +1054,79 @@ local function updateOptions()
             opts.selected = #opts.items
         end
     end
-    
+
     if btnPressed(BTN_P1_DOWN) then
         opts.selected = opts.selected + 1
         if opts.selected > #opts.items then
             opts.selected = 1
         end
     end
-    
+
     -- Change option value
     local currentItem = opts.items[opts.selected]
-    
+
     if btnPressed(BTN_P1_LEFT) and #currentItem.values > 1 then
         currentItem.current = currentItem.current - 1
         if currentItem.current < 1 then
             currentItem.current = #currentItem.values
         end
     end
-    
+
     if btnPressed(BTN_P1_RIGHT) and #currentItem.values > 1 then
         currentItem.current = currentItem.current + 1
         if currentItem.current > #currentItem.values then
             currentItem.current = 1
         end
     end
-    
+
     -- Select (for Back option) or Back button
     if btnPressed(BTN_P1_A) then
         if opts.items[opts.selected].name == "Back" then
             changeState(STATE.TITLE)
         end
     end
-    
+
     if btnPressed(BTN_P1_B) then
         changeState(STATE.TITLE)
     end
 end
 
 local function drawOptions()
-    cls(0)
-    
+    cls(BLACK)
+
+    -- Draw the background.
+    map(30, 0, 30, 17, 0, 0)
+
     -- Title
-    drawCenteredText("OPTIONS", 20, WHITE)
-    
+    drawCenteredText("OPTIONS", EDGE_Y_TOP + Y_PADDING, ORANGE, nil, 3, nil, YELLOW)
+
     -- Options list
     local startY = 50
     local spacing = 20
-    
+
     for i, item in ipairs(game.options.items) do
         local y = startY + (i - 1) * spacing
-        local color = (i == game.options.selected) and WHITE or GREEN_MED
-        
+        local color = (i == game.options.selected) and ORANGE or WHITE
+
         -- Draw selector
         if i == game.options.selected then
+            print(">", 30 + 1, y + 1, BLACK) -- the shadow
             print(">", 30, y, WHITE)
         end
-        
+
         -- Draw option name and value
+        print(item.name, 45 + 1, y + 1, BLACK) -- the shadow
         print(item.name, 45, y, color)
-        
+
         if #item.values > 0 and item.values[1] ~= "" then
             local valueText = "< " .. item.values[item.current] .. " >"
+            print(valueText, 140 + 1, y + 1, BLACK) -- the shadow
             print(valueText, 140, y, color)
         end
     end
-    
+
     -- Instructions
-    drawCenteredText("UP/DOWN: Select  LEFT/RIGHT: Change", EDGE_Y_BOTTOM - 25, GREEN_MED)
-    drawCenteredText("B: Back", EDGE_Y_BOTTOM - 15, GREEN_MED)
+    drawCenteredText("UP/DOWN: Select  LEFT/RIGHT: Change", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, BLACK)
 end
 
 
@@ -1007,33 +1138,203 @@ end
 -- STATE: STATISTICS
 -- ==========================================
 
-local function updateStatistics()
-    if btnPressed(BTN_P1_A) or btnPressed(BTN_P1_B) then
-        changeState(STATE.TITLE)
+local MAX_PMEM_CHUNKS = 63
+
+local lines = {}
+
+
+-- Persistent memory has 255 slots. We want to save four pieces of data, so that
+-- restricts us to 252 slots (63 chunks of 4 slots).
+
+function loadHighScores()
+    -- Don't sort here. Sorting happens when we want to print them.
+    -- Convert game.play.date to a human-readable date after sort but before print.
+    game.statistics = {}
+
+    for idx = 0, MAX_PMEM_CHUNKS do
+        local base = idx * 4
+        local date = pmem(base + 0)
+        if date ~= 0 then
+            game.statistics[base] = {
+                date       = date,
+                difficulty = pmem(base + 1),
+                timer      = pmem(base + 2),
+                autonotes  = pmem(base + 3),
+            }
+        end
     end
 end
 
-local function drawStatistics()
-    cls(0)
-    
-    -- Title
-    drawCenteredText("STATISTICS", 15, WHITE)
-    
-    -- Scores list
-    local startY = 40
-    local spacing = 15
-    
-    for i, entry in ipairs(game.statistics) do
-        local y = startY + (i - 1) * spacing
-        local rankText = string.format("%d.", i)
-        local scoreText = string.format("%s %8d", entry.name, entry.score)
-        
-        print(rankText, 60, y, GREEN_MED)
-        print(scoreText, 80, y, WHITE)
+function sortHighScores()
+    -- Collect existing entries (0,4,8,...) into a dense list
+    local list = {}
+    for idx = 0, MAX_PMEM_CHUNKS do
+        local base = idx * 4
+        local d = game.statistics[base]
+        if d then
+            list[#list + 1] = d
+        end
     end
-    
+
+    -- Sort by difficulty desc, then by time asc, then by autonotes asc.
+    table.sort(list, function(a, b)
+        if a.difficulty ~= b.difficulty then
+            return a.difficulty > b.difficulty
+        end
+        if a.timer ~= b.timer then
+            return a.timer < b.timer
+        end
+        if a.autonotes ~= b.autonotes then
+            return a.autonotes < b.autonotes
+        end
+        -- optional tiebreaker so order is stable-ish
+        return a.date > b.date
+    end)
+
+    -- Write back compacted into chunk keys 0,4,8,...
+    game.statistics = {}
+    for i = 1, #list do
+        game.statistics[(i - 1) * 4] = list[i]
+    end
+end
+
+local function saveCurrentScore()
+    -- Always start from what is currently saved
+    loadHighScores()
+
+    -- Find next free chunk index in the CURRENT in-memory table
+    local n = 0
+    for idx = 0, MAX_PMEM_CHUNKS do
+        if game.statistics[idx * 4] then n = n + 1 end
+    end
+    local base = n * 4
+    if base > MAX_PMEM_CHUNKS * 4 then
+        base = MAX_PMEM_CHUNKS * 4 -- will be trimmed after sort
+    end
+
+    -- Map difficulty string -> numeric rank for storage/sorting
+    local diff = (game.play.difficulty == "Easy" and 0)
+              or (game.play.difficulty == "Medium" and 1)
+              or 2
+
+    -- Add current result
+    game.statistics[base] = {
+        date       = game.play.date,
+        difficulty = diff,
+        timer      = game.play.timer:getSeconds(),
+        autonotes  = game.play.autonotes,
+    }
+
+    -- Sort + compact keys to 0,4,8,...
+    sortHighScores()
+
+    -- Save the data.
+    for i = 0, 255 do pmem(i, 0) end
+    for idx = 0, MAX_PMEM_CHUNKS do
+        local b = idx * 4
+        local d = game.statistics[b]
+        if d then
+            pmem(b + 0, d.date)
+            pmem(b + 1, d.difficulty)
+            pmem(b + 2, d.timer)
+            pmem(b + 3, d.autonotes)
+        end
+    end
+end
+
+
+function buildLines()
+    -- Show only the saved/sorted entries (0,4,8,...,252)
+    lines = {}
+    for idx = 0, MAX_PMEM_CHUNKS do
+        local k = idx * 4
+        local d = game.statistics[k]
+        if d then
+            local dt_obj = unix_to_greg_utc(d.date)
+            local dt_str = convert_datetime_obj_to_string(dt_obj)
+            table.insert(lines, dt_str)
+
+            local diff = (d.difficulty == 0 and "Easy")
+                or (d.difficulty == 1 and "Medium")
+                or (d.difficulty == 2 and "Hard")
+            table.insert(lines, string.format("      Difficulty   %s", diff))
+
+            local minutes = math.floor(d.timer / 60)
+            local seconds = d.timer % 60
+            table.insert(lines, string.format("      Clock         %02d:%02d", minutes, seconds))
+
+            table.insert(lines, string.format("      Auto-Notes  %s", d.autonotes))
+            table.insert(lines, "") -- blank spacer line
+        end
+    end
+end
+
+
+local function updateStatistics()
+    if btnPressed(BTN_P1_A) or btnPressed(BTN_P1_B) then
+        changeState(STATE.TITLE)
+        return
+    end
+end
+
+
+local function drawStatistics()
+    cls(BLACK)
+
+    -- Draw the background.
+    map(0, 17, 30, 17, 0, 0)
+
+    -- LAYOUT
+
+    local header_y = EDGE_Y_TOP + Y_PADDING
+    local line_h = FIXED_CHAR_HEIGHT + 1
+    local view_top = header_y + FIXED_CHAR_HEIGHT + 2* Y_PADDING
+    local view_bottom = EDGE_Y_BOTTOM - 2 * Y_PADDING
+    local visible_lines = math.max(1, math.floor((view_bottom - view_top) / line_h))
+
+    -- INPUT
+    local mouse_x, mouse_y, left_click, middle_click, right_click, scroll_x, scroll_y = mouse()
+    local max_scroll = math.max(0, #lines - visible_lines)
+
+    -- keyboard (hold+repeat)
+    if btnp(BTN_P1_UP, 15, 3) then
+        scroll = scroll - 1
+    end
+    if btnp(BTN_P1_DOWN, 15, 3) then
+        scroll = scroll + 1
+    end
+
+    -- mouse wheel (usually +1/-1 per notch)
+    if scroll_y ~= 0 then
+        scroll = scroll - scroll_y
+    end
+
+    -- clamp
+    scroll = math.max(0, math.min(max_scroll, scroll))
+
+    -- drawCenteredText("STATISTICS", EDGE_Y_TOP + Y_PADDING, WHITE)
+    drawCenteredText("STATISTICS", EDGE_Y_TOP + Y_PADDING, ORANGE, nil, 3, nil, YELLOW)
+
+    -- draw visible slice
+    for i = 0, visible_lines - 1 do
+        local line = lines[scroll + 1 + i] -- Lua arrays are 1-based
+        if not line then break end
+        local y = view_top + i * line_h
+        print(line, X_PADDING + 1, y + 1, BLACK) -- the shadow
+        print(line, X_PADDING, y, WHITE)
+    end
+
+    -- Small scrollbar indicator
+    if max_scroll > 0 then
+        local bar_x = EDGE_X_RIGHT - 4
+        rect(bar_x, view_top, 2, view_bottom - view_top, GRAY_DARK)
+        local thumb_h = math.max(4, math.floor((view_bottom - view_top) * (visible_lines / #lines)))
+        local thumb_y = view_top + math.floor((view_bottom - view_top - thumb_h) * (scroll / max_scroll))
+        rect(bar_x, thumb_y, 2, thumb_h, GREEN_LITE)
+    end
+
     -- Instructions
-    drawCenteredText("Press A or B to return", EDGE_Y_BOTTOM - 15, GREEN_MED)
+    drawCenteredText("Press A or B to return", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, BLACK)
 end
 
 
@@ -1116,11 +1417,12 @@ local function checkPuzzle()
             end
         end
     end
-    sudoku.solved = all_guesses_are_correct
+    game.play.solved = all_guesses_are_correct
 
     -- Stop the clock and register "score" in high scores
     if all_guesses_are_correct then
-        game_timer:stop()
+        game.play.timer:stop()
+        saveCurrentScore()
     end
 end
 
@@ -1148,8 +1450,8 @@ local function exitToMainMenu()
 end
 
 local function updatePuzzle()
-    if game_timer:isRunning() then
-        game_timer:update()
+    if game.play.timer:isRunning() then
+        game.play.timer:update()
     end
 
     if auto_note_btn.PREV_CLICK == true then
@@ -1177,19 +1479,91 @@ local function updatePuzzle()
     end
 end
 
+local function getCompletedDigitsInAllHouses()
+    local present = {}
+    for d = 1, 9 do present[d] = {} end
+
+    for i = 1, 9 do
+        for j = 1, 9 do
+            local guess = sudoku.cells[i][j].guess -- FIXED
+            if guess then
+                local hi          = math.floor((i - 1) / 3)
+                local hj          = math.floor((j - 1) / 3)
+                local h           = hi * 3 + hj -- 0..8
+                present[guess][h] = true
+            end
+        end
+    end
+
+    local doneDigit = {}
+    for d = 1, 9 do
+        local ok = true
+        for h = 0, 8 do
+            if not present[d][h] then
+                ok = false; break
+            end
+        end
+        doneDigit[d] = ok
+    end
+
+    local doneCell = {}
+    for r = 1, 9 do
+        doneCell[r] = {}
+        for c = 1, 9 do
+            local v = sudoku.cells[r][c].guess
+            doneCell[r][c] = (v ~= nil) and doneDigit[v] or false
+        end
+    end
+
+    return doneDigit, doneCell
+end
+
+local function inSameRowColOrHouse(sel_i, sel_j, i, j)
+    if sel_i == nil or sel_j == nil then
+        return false
+    end
+
+    -- same row or same column
+    if i == sel_i or j == sel_j then
+        return true
+    end
+
+    -- same 3x3 house
+    local sel_hi = math.floor((sel_i - 1) / 3)
+    local sel_hj = math.floor((sel_j - 1) / 3)
+    local hi     = math.floor((i - 1) / 3)
+    local hj     = math.floor((j - 1) / 3)
+
+    return (hi == sel_hi) and (hj == sel_hj)
+end
 
 function drawPuzzleGrid()
+    local _, doneCell = getCompletedDigitsInAllHouses()
+
+    -- We want to highlight all the cells in the same house, row, and column
+    -- when a user clicks on an editable cell. This code starts the highlighting
+    -- process.
+    local sel_i, sel_j = sudoku.clicked.i, sudoku.clicked.j
+    local highlight_ok = false
+    if sel_i and sel_j then
+        local sel_cell = sudoku.cells[sel_i][sel_j]
+        highlight_ok = (sel_cell ~= nil) and (sel_cell.locked == false)
+    end
+
     for i = 1, sudoku.DIM_X do
         for j = 1, sudoku.DIM_Y do
             local cell = sudoku.cells[i][j]
 
             local cell_bgcolor = GRAY_DARK
-            local grid_x       = cell.x_left
-            local grid_y       = cell.y_top
-            local grid_width   = cell.x_right - cell.x_left + 1
-            local grid_height  = cell.y_bottom - cell.y_top + 1
+            local border_color = WHITE
+            local number_color = WHITE
 
-            -- Check cell status and change the cell's background color.
+            local grid_x      = cell.x_left
+            local grid_y      = cell.y_top
+            local grid_width  = cell.x_right - cell.x_left + 1
+            local grid_height = cell.y_bottom - cell.y_top + 1
+
+            -- Background coloring.
             if cell.locked == true then
                 cell_bgcolor = BLACK
             elseif sudoku.clicked.i == i and sudoku.clicked.j == j then
@@ -1218,19 +1592,28 @@ function drawPuzzleGrid()
                     end
                 end
 
-                -- Otherwise print the guess if there is one.
+            -- Otherwise print the guess if there is one.
             else
-                print(cell.guess, grid_x + 2, grid_y + 2, WHITE, true, 2)
+                -- If the digit is complete in all houses, make it blue.
+                number_color = doneCell[i][j] and BLUE_LITE or WHITE
+                print(cell.guess, grid_x + 2, grid_y + 2, number_color, true, 2)
+            end
+
+            -- Change border color when selecting an unlocked cell.
+            if highlight_ok and inSameRowColOrHouse(sel_i, sel_j, i, j) then
+                border_color = ORANGE
             end
 
             -- Finally, draw the grid.
-            rectb(grid_x, grid_y, grid_width, grid_height, WHITE)
+            rectb(grid_x, grid_y, grid_width, grid_height, border_color)
         end
     end
 end
 
 
 local function drawNotesGrid()
+    local doneDigit = select(1, getCompletedDigitsInAllHouses())
+
     local grid_x = notes.START_X
     local grid_y = notes.START_Y
 
@@ -1245,17 +1628,22 @@ local function drawNotesGrid()
     local n = 1
     for i = 1, notes.DIM_X do
         for j = 1, notes.DIM_Y do
-            local num_color = GRAY_LITE
+            local number_color = GRAY_LITE
+
+            -- if the digit is complete in all houses, make it blue.
+            if doneDigit[n] then
+                number_color = BLUE_LITE
+            end
 
             local x = grid_x + (j - 1) * cell_w
             local y = grid_y + (i - 1) * cell_h
 
             if (active_cell_notes ~= nil) and (active_cell_notes[i][j] == true) then
-                num_color = YELLOW
+                number_color = YELLOW
             end
 
             rectb(x, y, cell_w, cell_h, WHITE)     -- cell border
-            print(n, x + 2, y + 2, num_color, true, 2) -- number
+            print(n, x + 2, y + 2, number_color, true, 2) -- number
 
             n = n + 1
         end
@@ -1293,21 +1681,17 @@ local function drawStatBox()
     local start_y = box_start_y + Y_PADDING
 
     -- Add clock here.
-    print(game_timer:getFormatted(), start_x, start_y, WHITE, true, 3)
+    print(game.play.timer:getFormatted(), start_x, start_y, WHITE, true, 3)
     print(
-        "Auto-Note: " .. tostring(auto_note_btn.NUM_CLICKED),
-    -- print(
-    --     game_timer:isRunning(),
+        "Auto-Note: " .. tostring(game.play.autonotes),
         start_x,
         start_y + 3*Y_PADDING,
         WHITE
     )
 
-    local difficultyItem = game.options.items[1]  -- First item is Difficulty
-    local difficultyName = difficultyItem.values[difficultyItem.current]  -- "Easy", "Medium", or "Hard"
-
     print(
-        "Level: " .. difficultyName,
+        -- "Level: " .. difficultyName,
+        "Level: " .. game.play.difficulty,
         start_x,
         box_start_y + box_height - Y_PADDING,
         WHITE
@@ -1315,9 +1699,9 @@ local function drawStatBox()
 end
 
 local function drawSuccess()
-    if sudoku.solved then
+    if game.play.solved then
         drawOverlayBox({ "SUCCESS!", "Click 'NEW' or", "'EXIT' to continue." })
-        game_timer:stop()
+        game.play.timer:stop()
     end
 end
 
@@ -1560,8 +1944,8 @@ local function checkPuzzleButtonClicks(mouse_x, mouse_y, left_click, just_presse
 
         if mouseover and just_pressed then
             handled = true
-            if butt.NUM_CLICKED ~= nil then
-                butt.NUM_CLICKED = butt.NUM_CLICKED + 1
+            if butt.COUNT_CLICKS then
+                game.play.autonotes = game.play.autonotes + 1
             end
         end
     end
@@ -1600,8 +1984,8 @@ local function updateInput()
     end
 
     -- Start the game clock if it hasn't already been started.
-    if just_pressed and not game_timer:isRunning() then
-        game_timer:start()
+    if just_pressed and not game.play.timer:isRunning() then
+        game.play.timer:start()
     end
 
     -- Only work on the notes grid or the puzzle grid. Not both.
@@ -1640,6 +2024,47 @@ function TIC()
         currentState.draw()
     end
 end
+-- <TILES>
+-- 001:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+-- </TILES>
+
+-- <MAP>
+-- 000:101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 001:100000000000000010000000000000001000000000000000101000000000000000100000000000000010000000000000001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 002:100000001010000010001010101010001000000000000000101000000000000000100000000000000010000000000000001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 003:100000101010000010000000001010001000000000000000101000000000000000100000000000000010000000000000001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 004:100000001010000010000000101000001000000000000000101000000000000000100000000000000010000000000000001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 005:100000001010000010000010100000001000000000000000101000000000000000100000000000000010000000000000001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 006:100000101010100010001010000000001000000000000000101000000000000000100000000000000010000000000000001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 007:100000000000000010000000000000001000000000000000101000000000000000100000000000000010000000000000001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 008:101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 009:100000000000000010000000000000001000000000000000101000000000000000100000000000000010000000000000001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 010:100000000000000010000000101000001000001010100000101000101010100000100010101010100010000000000000001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 011:100000000000000010000010101000001000101000001000101000000000101000100000000010100010000000000000001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 012:100000000000000010001010001000001000001010100000101000001010100000100000001010000010000000000000001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 013:100000000000000010001010101010001000101000001000101000101000000000100000101000000010000000000000001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 014:100000000000000010000000001000001000001010100000101000101010101000100010100000000010000000000000001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 015:100000000000000010000000000000001000000000000000101000000000000000100000000000000010000000000000001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 016:101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 017:100000000000000010000000000000001000000000000000101000000000000000100000000000000010000000000000001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 018:100000000000000010000000000000001000000000000000101000000000000000100000000000000010000010101000001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 019:100000000000000010000000000000001000000000000000101000000000000000100000000000000010001010000000001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 020:100000000000000010000000000000001000000000000000101000000000000000100000000000000010001010101000001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 021:100000000000000010000000000000001000000000000000101000000000000000100000000000000010001010000010001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 022:100000000000000010000000000000001000000000000000101000000000000000100000000000000010000010101000001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 023:100000000000000010000000000000001000000000000000101000000000000000100000000000000010000000000000001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 024:101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 025:101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 026:100000000000000010000000000000001000000000000000101000000000000000100000000000000010000000000000001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 027:100010101010100010000000101000001000000000000000101000000000000000100000000000000010000000000000001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 028:100010100000000010000010101000001000000000000000101000000000000000100000000000000010000000000000001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 029:100010101010000010000000101000001000000000000000101000000000000000100000000000000010000000000000001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 030:100000000010100010000000101000001000000000000000101000000000000000100000000000000010000000000000001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 031:100010101010000010000010101010001000000000000000101000000000000000100000000000000010000000000000001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 032:100000000000000010000000000000001000000000000000101000000000000000100000000000000010000000000000001010000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- 033:101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- </MAP>
+
 -- <WAVES>
 -- 000:00000000ffffffff00000000ffffffff
 -- 001:0123456789abcdeffedcba9876543210

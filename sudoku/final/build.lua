@@ -177,7 +177,7 @@ end
 -- DRAWING HELPERS
 -- ==========================================
 
-local function drawCenteredText(text, y, color, fixed, scale, smallfont)
+local function drawCenteredText(text, y, color, fixed, scale, smallfont, shadow_color)
     if fixed == nil then
         fixed = false
     end
@@ -187,7 +187,14 @@ local function drawCenteredText(text, y, color, fixed, scale, smallfont)
     if smallfont == nil then
         smallfont = false
     end
+    if shadow_color == nil then
+        shadow_color = -1
+    end
     local width = print(text, 0, -50, color, fixed, scale, smallfont)
+
+    if shadow_color >= 0 then
+        print(text, (EDGE_X_RIGHT - width) / 2 + 1, y + 1, shadow_color, fixed, scale, smallfont)
+    end
     print(text, (EDGE_X_RIGHT - width) / 2, y, color, fixed, scale, smallfont)
 end
 
@@ -996,10 +1003,13 @@ local function updateTitle()
 end
 
 local function drawTitle()
-    cls(0)
+    cls(BLACK)
+
+    -- Draw the background.
+    map(0, 0, 30, 17, 0, 0)
 
     -- Title
-    drawCenteredText("SUSSUDIOKU!!", 20, WHITE)
+    drawCenteredText("SUSSUDIOKU!!", 20, ORANGE, nil, 3, nil, YELLOW)
 
     -- Menu options
     local start_y = 60
@@ -1007,20 +1017,22 @@ local function drawTitle()
 
     for i, option in ipairs(game.menu.options) do
         local y = start_y + (i - 1) * spacing
-        local color = (i == game.menu.selected) and GREEN_MED or WHITE
+        local color = (i == game.menu.selected) and ORANGE or WHITE
 
         -- Draw selector
         if i == game.menu.selected then
             local textWidth = print(option, 0, -10)
             local x = (EDGE_X_RIGHT - textWidth) / 2
+            print(">", x - 10 + 1, y + 1, BLACK) -- the shadow
             print(">", x - 10, y, WHITE)
         end
 
-        drawCenteredText(option, y, color)
+        -- drawCenteredText(option, y, color)
+        drawCenteredText(option, y, color, nil, nil, nil, BLACK)
     end
 
     -- Instructions
-    drawCenteredText("UP/DOWN: Select  A: Confirm", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true)
+    drawCenteredText("UP/DOWN: Select  A: Confirm", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, BLACK)
 end
 
 
@@ -1080,10 +1092,13 @@ local function updateOptions()
 end
 
 local function drawOptions()
-    cls(0)
+    cls(BLACK)
+
+    -- Draw the background.
+    map(30, 0, 30, 17, 0, 0)
 
     -- Title
-    drawCenteredText("OPTIONS", 20, WHITE)
+    drawCenteredText("OPTIONS", EDGE_Y_TOP + Y_PADDING, ORANGE, nil, 3, nil, YELLOW)
 
     -- Options list
     local startY = 50
@@ -1091,24 +1106,27 @@ local function drawOptions()
 
     for i, item in ipairs(game.options.items) do
         local y = startY + (i - 1) * spacing
-        local color = (i == game.options.selected) and GREEN_MED or WHITE
+        local color = (i == game.options.selected) and ORANGE or WHITE
 
         -- Draw selector
         if i == game.options.selected then
+            print(">", 30 + 1, y + 1, BLACK) -- the shadow
             print(">", 30, y, WHITE)
         end
 
         -- Draw option name and value
+        print(item.name, 45 + 1, y + 1, BLACK) -- the shadow
         print(item.name, 45, y, color)
 
         if #item.values > 0 and item.values[1] ~= "" then
             local valueText = "< " .. item.values[item.current] .. " >"
+            print(valueText, 140 + 1, y + 1, BLACK) -- the shadow
             print(valueText, 140, y, color)
         end
     end
 
     -- Instructions
-    drawCenteredText("UP/DOWN: Select  LEFT/RIGHT: Change", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true)
+    drawCenteredText("UP/DOWN: Select  LEFT/RIGHT: Change", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, BLACK)
 end
 
 
@@ -1261,13 +1279,16 @@ end
 
 
 local function drawStatistics()
-    cls(0)
+    cls(BLACK)
+
+    -- Draw the background.
+    map(0, 17, 30, 17, 0, 0)
 
     -- LAYOUT
 
     local header_y = EDGE_Y_TOP + Y_PADDING
     local line_h = FIXED_CHAR_HEIGHT + 1
-    local view_top = header_y + FIXED_CHAR_HEIGHT + Y_PADDING
+    local view_top = header_y + FIXED_CHAR_HEIGHT + 2* Y_PADDING
     local view_bottom = EDGE_Y_BOTTOM - 2 * Y_PADDING
     local visible_lines = math.max(1, math.floor((view_bottom - view_top) / line_h))
 
@@ -1291,13 +1312,15 @@ local function drawStatistics()
     -- clamp
     scroll = math.max(0, math.min(max_scroll, scroll))
 
-    drawCenteredText("STATISTICS", EDGE_Y_TOP + Y_PADDING, WHITE)
+    -- drawCenteredText("STATISTICS", EDGE_Y_TOP + Y_PADDING, WHITE)
+    drawCenteredText("STATISTICS", EDGE_Y_TOP + Y_PADDING, ORANGE, nil, 3, nil, YELLOW)
 
     -- draw visible slice
     for i = 0, visible_lines - 1 do
         local line = lines[scroll + 1 + i] -- Lua arrays are 1-based
         if not line then break end
         local y = view_top + i * line_h
+        print(line, X_PADDING + 1, y + 1, BLACK) -- the shadow
         print(line, X_PADDING, y, WHITE)
     end
 
@@ -1311,7 +1334,7 @@ local function drawStatistics()
     end
 
     -- Instructions
-    drawCenteredText("Press A or B to return", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true)
+    drawCenteredText("Press A or B to return", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, BLACK)
 end
 
 
