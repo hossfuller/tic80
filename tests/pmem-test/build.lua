@@ -1,3 +1,8 @@
+--
+-- Bundle file
+-- Code changes will be overwritten
+--
+
 -- title:   PMEM-TEST
 -- author:  Hoss Fuller <hossfuller@proton.me>
 -- desc:    Test code reading and writing to the persistent memory. This is a test script for the sudoku app.

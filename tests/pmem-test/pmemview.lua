@@ -1,7 +1,7 @@
 -- title:  Persistent Memory Viewer / Modifier
 -- author: StinkerB06
 -- desc:   Created with the assistance of NesBox
--- saveid: sussudioku_bang_bang
+-- saveid: pmem_test
 
 -- Change saveid tag to choose game
 -- to read persistent memory data from.
