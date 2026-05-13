@@ -16,9 +16,11 @@ include "src.timer"
 include "src.sudoku.grid"
 include "src.sudoku.buttons"
 include "src.sudoku.logic"
-include "src.sudoku.undo"
 
 include "src.game_state"
+
+include "src.sudoku.undo"
+
 include "src.states.title"
 include "src.states.options"
 include "src.states.statistics"

@@ -34,6 +34,10 @@ end
 local function drawTitle()
     cls(0)
 
+    -- Phil Collins
+    -- spr(259, 0, 0, 0, 1, 0, 0, 9, 16)
+    spr(372, 10, 10, 0, 1, 0, 0, 2, 2)
+
     -- Title
     drawCenteredText("SUSSUDIOKU!!", 20, WHITE)
 

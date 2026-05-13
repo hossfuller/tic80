@@ -37,8 +37,11 @@ local function drawTitle()
     -- Draw the background.
     map(0, 0, 30, 17, 0, 0)
 
+    -- Draw Phil Collins
+    spr(256, -20, EDGE_Y_TOP + Y_PADDING/2, YELLOW, 1, 0, 0, 16, 16)
+
     -- Title
-    drawCenteredText("SUSSUDIOKU!!", 20, ORANGE, nil, 3, nil, YELLOW)
+    drawCenteredText("SUSSUDIOKU!!", EDGE_Y_TOP + Y_PADDING, ORANGE, nil, 3, nil, YELLOW)
 
     -- Menu options
     local start_y = 60
@@ -46,7 +49,7 @@ local function drawTitle()
 
     for i, option in ipairs(game.menu.options) do
         local y = start_y + (i - 1) * spacing
-        local color = (i == game.menu.selected) and ORANGE or WHITE
+        local color = (i == game.menu.selected) and YELLOW or WHITE
 
         -- Draw selector
         if i == game.menu.selected then

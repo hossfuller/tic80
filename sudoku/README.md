@@ -21,7 +21,7 @@ Here's the development plan:
     - [ ] ~~Add instructions screen/state from main screen.~~
     - [x] Make src.states.title.drawTitle() draw a big-ass graphic.
     - [ ] ~~Make all screens accept mouse input.~~
-    - [ ] Add "No Jacket Required" album cover to title screen.
+    - [x] Add "No Jacket Required" album cover to title screen.
 
 
 Links:

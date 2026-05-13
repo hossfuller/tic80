@@ -64,7 +64,7 @@ local function drawOptions()
 
     for i, item in ipairs(game.options.items) do
         local y = startY + (i - 1) * spacing
-        local color = (i == game.options.selected) and ORANGE or WHITE
+        local color = (i == game.options.selected) and YELLOW or WHITE
 
         -- Draw selector
         if i == game.options.selected then

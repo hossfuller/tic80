@@ -837,42 +837,6 @@ end
 
 -- [/TQ-Bundler: src.sudoku.logic]
 
--- [TQ-Bundler: src.sudoku.undo]
-
--- ==========================================
--- UNDO FUNCTION
--- ==========================================
-
-local checkAutoNote -- forward declaration, see src.states.puzzle
-
-local undo_list = {}
-
-local function register_action(x_pos, y_pos, new_value, prev_value)
-    undo_list[#undo_list + 1] = {
-        x    = x_pos,
-        y    = y_pos,
-        new  = new_value,
-        prev = prev_value,
-    }
-end
-
-local function undo_last_action()
-    local last_action = table.remove(undo_list)
-    if last_action ~= nil then
-        if sudoku.cells[last_action.x][last_action.y].guess == last_action.new then
-            sudoku.cells[last_action.x][last_action.y].guess = last_action.prev
-
-            -- If the auto-note button has been pressed in the past, rerun the
-            -- auto-note functionality without incrementing the auto-note counter.
-            if game.play.autonotes > 0 then
-                checkAutoNote()
-            end
-        end
-    end
-end
-
--- [/TQ-Bundler: src.sudoku.undo]
-
 -- [TQ-Bundler: src.game_state]
 
 -- ==========================================
@@ -967,6 +931,42 @@ end
 
 -- [/TQ-Bundler: src.game_state]
 
+-- [TQ-Bundler: src.sudoku.undo]
+
+-- ==========================================
+-- UNDO FUNCTION
+-- ==========================================
+
+local checkAutoNote -- forward declaration, see src.states.puzzle
+
+local undo_list = {}
+
+local function register_action(x_pos, y_pos, new_value, prev_value)
+    undo_list[#undo_list + 1] = {
+        x    = x_pos,
+        y    = y_pos,
+        new  = new_value,
+        prev = prev_value,
+    }
+end
+
+local function undo_last_action()
+    local last_action = table.remove(undo_list)
+    if last_action ~= nil then
+        if sudoku.cells[last_action.x][last_action.y].guess == last_action.new then
+            sudoku.cells[last_action.x][last_action.y].guess = last_action.prev
+
+            -- If the auto-note button has been pressed in the past, rerun the
+            -- auto-note functionality without incrementing the auto-note counter.
+            if game.play.autonotes > 0 then
+                checkAutoNote()
+            end
+        end
+    end
+end
+
+-- [/TQ-Bundler: src.sudoku.undo]
+
 -- [TQ-Bundler: src.states.title]
 
 -- ==========================================
@@ -1008,8 +1008,11 @@ local function drawTitle()
     -- Draw the background.
     map(0, 0, 30, 17, 0, 0)
 
+    -- Draw Phil Collins
+    spr(256, -20, EDGE_Y_TOP + Y_PADDING/2, YELLOW, 1, 0, 0, 16, 16)
+
     -- Title
-    drawCenteredText("SUSSUDIOKU!!", 20, ORANGE, nil, 3, nil, YELLOW)
+    drawCenteredText("SUSSUDIOKU!!", EDGE_Y_TOP + Y_PADDING, ORANGE, nil, 3, nil, YELLOW)
 
     -- Menu options
     local start_y = 60
@@ -1017,7 +1020,7 @@ local function drawTitle()
 
     for i, option in ipairs(game.menu.options) do
         local y = start_y + (i - 1) * spacing
-        local color = (i == game.menu.selected) and ORANGE or WHITE
+        local color = (i == game.menu.selected) and YELLOW or WHITE
 
         -- Draw selector
         if i == game.menu.selected then
@@ -1106,7 +1109,7 @@ local function drawOptions()
 
     for i, item in ipairs(game.options.items) do
         local y = startY + (i - 1) * spacing
-        local color = (i == game.options.selected) and ORANGE or WHITE
+        local color = (i == game.options.selected) and YELLOW or WHITE
 
         -- Draw selector
         if i == game.options.selected then
