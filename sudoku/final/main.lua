@@ -1,4 +1,4 @@
--- title:   Sussudioku! (Sudoku for TIC-80)
+-- title:   Sussudioku!! (Sudoku for TIC-80)
 -- author:  Hoss Fuller <hossfuller@proton.me>
 -- version: 1.0
 -- script:  lua
