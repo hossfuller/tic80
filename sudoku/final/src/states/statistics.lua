@@ -198,5 +198,5 @@ local function drawStatistics()
     end
 
     -- Instructions
-    drawCenteredText("Press A or B to return", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, BLACK)
+    drawCenteredText("Press Z or X to return", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, BLACK)
 end
