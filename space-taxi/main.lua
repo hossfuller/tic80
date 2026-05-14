@@ -14,12 +14,12 @@ include "src.helpers"
 
 include "src.game_state"
 include "src.states.start"
--- include "src.states.options"
--- include "src.states.hiscores"
--- include "src.states.ready"
--- include "src.states.play"
--- include "src.states.pause"
--- include "src.states.gameover"
+include "src.states.options"
+include "src.states.hiscores"
+include "src.states.ready"
+include "src.states.play"
+include "src.states.pause"
+include "src.states.gameover"
 
 include "src.state_machine"
 

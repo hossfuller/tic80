@@ -3,7 +3,7 @@
 -- ==========================================
 
 local function updatePause()
-    if btnPressed(BTN_P1_B) then
+    if btnPressed(BTN_P1_START) then
         changeState(STATE.PLAY)
     end
 end
@@ -11,10 +11,10 @@ end
 local function drawPause()
     -- Draw the game state (frozen)
     drawGame()
-    
+
     -- Draw overlay
     drawOverlayBox("PAUSED")
-    
+
     -- Instructions
-    drawCenteredText("Press B to Resume", EDGE_Y_BOTTOM / 2 + 30, 12)
+    drawCenteredText("Press START to Resume", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, BLACK)
 end

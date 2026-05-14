@@ -50,10 +50,10 @@ local function updateOptions()
 end
 
 local function drawOptions()
-    cls(0)
+    cls(BLACK)
 
     -- Title
-    drawCenteredText("OPTIONS", 20, 12)
+    drawCenteredText("OPTIONS", EDGE_Y_TOP + Y_PADDING, ORANGE, nil, 3, nil, YELLOW)
 
     -- Options list
     local startY = 50
@@ -61,23 +61,25 @@ local function drawOptions()
 
     for i, item in ipairs(game.options.items) do
         local y = startY + (i - 1) * spacing
-        local color = (i == game.options.selected) and 12 or 6
+        local color = (i == game.options.selected) and YELLOW or WHITE
 
         -- Draw selector
         if i == game.options.selected then
-            print(">", 30, y, 12)
+            print(">", 30 + 1, y + 1, BLACK) -- the shadow
+            print(">", 30, y, WHITE)
         end
 
         -- Draw option name and value
+        print(item.name, 45 + 1, y + 1, BLACK) -- the shadow
         print(item.name, 45, y, color)
 
         if #item.values > 0 and item.values[1] ~= "" then
             local valueText = "< " .. item.values[item.current] .. " >"
+            print(valueText, 140 + 1, y + 1, BLACK) -- the shadow
             print(valueText, 140, y, color)
         end
     end
 
     -- Instructions
-    drawCenteredText("UP/DOWN: Select  LEFT/RIGHT: Change", EDGE_Y_BOTTOM - 25, 6)
-    drawCenteredText("X: Back", EDGE_Y_BOTTOM - 15, 6)
+    drawCenteredText("UP/DOWN: Select  LEFT/RIGHT: Change", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, BLACK)
 end

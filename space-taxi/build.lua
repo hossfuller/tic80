@@ -39,14 +39,16 @@ local GRAY_MED   = 14
 local GRAY_DARK  = 15
 
 -- Button mappings
-local BTN_P1_UP    = 0
-local BTN_P1_DOWN  = 1
-local BTN_P1_LEFT  = 2
-local BTN_P1_RIGHT = 3
-local BTN_P1_A     = 4  -- Primary action / Select
-local BTN_P1_B     = 5  -- Secondary action / Back / Pause
-local BTN_P1_X     = 6
-local BTN_P1_Y     = 7
+local BTN_P1_UP     = 0
+local BTN_P1_DOWN   = 1
+local BTN_P1_LEFT   = 2
+local BTN_P1_RIGHT  = 3
+local BTN_P1_A      = 4         -- Primary action / Select
+local BTN_P1_B      = 5         -- Secondary action / Back / Pause
+local BTN_P1_X      = 6
+local BTN_P1_Y      = 7
+local BTN_P1_SELECT = BTN_P1_X
+local BTN_P1_START  = BTN_P1_Y
 
 -- Screen dimensions
 local EDGE_X_LEFT   = 0
@@ -359,12 +361,440 @@ end
 
 -- [/TQ-Bundler: src.states.start]
 
--- include "src.states.options"
--- include "src.states.hiscores"
--- include "src.states.ready"
--- include "src.states.play"
--- include "src.states.pause"
--- include "src.states.gameover"
+-- [TQ-Bundler: src.states.options]
+
+-- ==========================================
+-- STATE: OPTIONS
+-- ==========================================
+
+local function updateOptions()
+    local opts = game.options
+
+    -- Navigation
+    if btnPressed(BTN_P1_UP) then
+        opts.selected = opts.selected - 1
+        if opts.selected < 1 then
+            opts.selected = #opts.items
+        end
+    end
+
+    if btnPressed(BTN_P1_DOWN) then
+        opts.selected = opts.selected + 1
+        if opts.selected > #opts.items then
+            opts.selected = 1
+        end
+    end
+
+    -- Change option value
+    local currentItem = opts.items[opts.selected]
+
+    if btnPressed(BTN_P1_LEFT) and #currentItem.values > 1 then
+        currentItem.current = currentItem.current - 1
+        if currentItem.current < 1 then
+            currentItem.current = #currentItem.values
+        end
+    end
+
+    if btnPressed(BTN_P1_RIGHT) and #currentItem.values > 1 then
+        currentItem.current = currentItem.current + 1
+        if currentItem.current > #currentItem.values then
+            currentItem.current = 1
+        end
+    end
+
+    -- Select (for Back option) or Back button
+    if btnPressed(BTN_P1_A) then
+        if opts.items[opts.selected].name == "Back" then
+            changeState(STATE.START)
+        end
+    end
+
+    if btnPressed(BTN_P1_B) then
+        changeState(STATE.START)
+    end
+end
+
+local function drawOptions()
+    cls(BLACK)
+
+    -- Title
+    drawCenteredText("OPTIONS", EDGE_Y_TOP + Y_PADDING, ORANGE, nil, 3, nil, YELLOW)
+
+    -- Options list
+    local startY = 50
+    local spacing = 20
+
+    for i, item in ipairs(game.options.items) do
+        local y = startY + (i - 1) * spacing
+        local color = (i == game.options.selected) and YELLOW or WHITE
+
+        -- Draw selector
+        if i == game.options.selected then
+            print(">", 30 + 1, y + 1, BLACK) -- the shadow
+            print(">", 30, y, WHITE)
+        end
+
+        -- Draw option name and value
+        print(item.name, 45 + 1, y + 1, BLACK) -- the shadow
+        print(item.name, 45, y, color)
+
+        if #item.values > 0 and item.values[1] ~= "" then
+            local valueText = "< " .. item.values[item.current] .. " >"
+            print(valueText, 140 + 1, y + 1, BLACK) -- the shadow
+            print(valueText, 140, y, color)
+        end
+    end
+
+    -- Instructions
+    drawCenteredText("UP/DOWN: Select  LEFT/RIGHT: Change", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, BLACK)
+end
+
+
+-- [/TQ-Bundler: src.states.options]
+
+-- [TQ-Bundler: src.states.hiscores]
+
+-- ==========================================
+-- STATE: HISCORES
+-- ==========================================
+
+-- Persistent memory has 255 slots. We want to save four pieces of data, so that
+-- restricts us to 252 slots (63 chunks of 4 slots).
+local MAX_PMEM_CHUNKS = 63
+
+local lines = {}
+
+
+function loadHighScores()
+    game.statistics = {}
+
+    -- for idx = 0, MAX_PMEM_CHUNKS do
+    --     local base = idx * 4
+    --     local date = pmem(base + 0)
+    --     if date ~= 0 then
+    --         game.statistics[base] = {
+    --             date       = date,
+    --             difficulty = pmem(base + 1),
+    --             timer      = pmem(base + 2),
+    --             autonotes  = pmem(base + 3),
+    --         }
+    --     end
+    -- end
+end
+
+function sortHighScores()
+    -- Collect existing entries (0,4,8,...) into a dense list
+    local list = {}
+    -- for idx = 0, MAX_PMEM_CHUNKS do
+    --     local base = idx * 4
+    --     local d = game.statistics[base]
+    --     if d then
+    --         list[#list + 1] = d
+    --     end
+    -- end
+
+    -- -- Sort by difficulty desc, then by time asc, then by autonotes asc.
+    -- table.sort(list, function(a, b)
+    --     if a.difficulty ~= b.difficulty then
+    --         return a.difficulty > b.difficulty
+    --     end
+    --     if a.timer ~= b.timer then
+    --         return a.timer < b.timer
+    --     end
+    --     if a.autonotes ~= b.autonotes then
+    --         return a.autonotes < b.autonotes
+    --     end
+    --     -- optional tiebreaker so order is stable-ish
+    --     return a.date > b.date
+    -- end)
+
+    -- Write back compacted into chunk keys 0,4,8,...
+    game.statistics = {}
+    -- for i = 1, #list do
+    --     game.statistics[(i - 1) * 4] = list[i]
+    -- end
+end
+
+local function saveCurrentScore()
+    -- Always start from what is currently saved
+    loadHighScores()
+
+    -- -- Find next free chunk index in the CURRENT in-memory table
+    -- local n = 0
+    -- for idx = 0, MAX_PMEM_CHUNKS do
+    --     if game.statistics[idx * 4] then n = n + 1 end
+    -- end
+    -- local base = n * 4
+    -- if base > MAX_PMEM_CHUNKS * 4 then
+    --     base = MAX_PMEM_CHUNKS * 4 -- will be trimmed after sort
+    -- end
+
+    -- -- Map difficulty string -> numeric rank for storage/sorting
+    -- local diff = (game.play.difficulty == "Easy" and 0)
+    --     or (game.play.difficulty == "Medium" and 1)
+    --     or 2
+
+    -- -- Add current result
+    -- game.statistics[base] = {
+    --     date       = game.play.date,
+    --     difficulty = diff,
+    --     timer      = game.play.timer:getSeconds(),
+    --     autonotes  = game.play.autonotes,
+    -- }
+
+    -- Sort + compact keys to 0,4,8,...
+    sortHighScores()
+
+    -- -- Save the data.
+    for i = 0, 255 do pmem(i, 0) end
+    -- for idx = 0, MAX_PMEM_CHUNKS do
+    --     local b = idx * 4
+    --     local d = game.statistics[b]
+    --     if d then
+    --         pmem(b + 0, d.date)
+    --         pmem(b + 1, d.difficulty)
+    --         pmem(b + 2, d.timer)
+    --         pmem(b + 3, d.autonotes)
+    --     end
+    -- end
+end
+
+
+function buildLines()
+    -- Show only the saved/sorted entries (0,4,8,...,252)
+    lines = {}
+    -- for idx = 0, MAX_PMEM_CHUNKS do
+    --     local k = idx * 4
+    --     local d = game.statistics[k]
+    --     if d then
+    --         local dt_obj = unix_to_greg_utc(d.date)
+    --         local dt_str = convert_datetime_obj_to_string(dt_obj)
+    --         table.insert(lines, dt_str)
+
+    --         local diff = (d.difficulty == 0 and "Easy")
+    --             or (d.difficulty == 1 and "Medium")
+    --             or (d.difficulty == 2 and "Hard")
+    --         table.insert(lines, string.format("      Difficulty   %s", diff))
+
+    --         local minutes = math.floor(d.timer / 60)
+    --         local seconds = d.timer % 60
+    --         table.insert(lines, string.format("      Clock         %02d:%02d", minutes, seconds))
+
+    --         table.insert(lines, string.format("      Auto-Notes  %s", d.autonotes))
+    --         table.insert(lines, "") -- blank spacer line
+    --     end
+    -- end
+end
+
+local function updateHiscores()
+    if btnPressed(BTN_P1_A) or btnPressed(BTN_P1_B) then
+        changeState(STATE.START)
+    end
+end
+
+local function drawHiscores()
+    cls(0)
+
+    -- LAYOUT
+    local header_y = EDGE_Y_TOP + Y_PADDING
+    local line_h = FIXED_CHAR_HEIGHT + 1
+    local view_top = header_y + FIXED_CHAR_HEIGHT + 2 * Y_PADDING
+    local view_bottom = EDGE_Y_BOTTOM - 2 * Y_PADDING
+    local visible_lines = math.max(1, math.floor((view_bottom - view_top) / line_h))
+
+    -- INPUT
+    local max_scroll = math.max(0, #lines - visible_lines)
+
+    -- keyboard (hold+repeat)
+    if btnp(BTN_P1_UP, 15, 3) then
+        scroll = scroll - 1
+    end
+    if btnp(BTN_P1_DOWN, 15, 3) then
+        scroll = scroll + 1
+    end
+
+    -- clamp
+    -- scroll = math.max(0, math.min(max_scroll, scroll))
+
+    drawCenteredText("HIGH SCORES", EDGE_Y_TOP + Y_PADDING, ORANGE, nil, 3, nil, YELLOW)
+
+    -- -- draw visible slice
+    -- for i = 0, visible_lines - 1 do
+    --     local line = lines[scroll + 1 + i] -- Lua arrays are 1-based
+    --     if not line then break end
+    --     local y = view_top + i * line_h
+    --     print(line, X_PADDING + 1, y + 1, BLACK) -- the shadow
+    --     print(line, X_PADDING, y, WHITE)
+    -- end
+
+    -- -- Small scrollbar indicator
+    -- if max_scroll > 0 then
+    --     local bar_x = EDGE_X_RIGHT - 4
+    --     rect(bar_x, view_top, 2, view_bottom - view_top, GRAY_DARK)
+    --     local thumb_h = math.max(4, math.floor((view_bottom - view_top) * (visible_lines / #lines)))
+    --     local thumb_y = view_top + math.floor((view_bottom - view_top - thumb_h) * (scroll / max_scroll))
+    --     rect(bar_x, thumb_y, 2, thumb_h, GREEN_LITE)
+    -- end
+
+    -- Instructions
+    drawCenteredText("Press Z or X to return", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, BLACK)
+end
+
+
+-- [/TQ-Bundler: src.states.hiscores]
+
+-- [TQ-Bundler: src.states.ready]
+
+-- ==========================================
+-- STATE: READY
+-- ==========================================
+
+local function updateReady()
+    if btnPressed(BTN_P1_A) then
+        changeState(STATE.PLAY)
+    end
+
+    if btnPressed(BTN_P1_B) then
+        changeState(STATE.START)
+    end
+end
+
+local function drawReady()
+    -- Draw the game state (paused/initial state)
+    drawGame()
+
+    -- Draw overlay
+    drawOverlayBox("READY?")
+
+    -- Instructions
+    -- drawCenteredText("Press Z to Start", EDGE_Y_BOTTOM / 2 + 30, 12)
+    drawCenteredText("Press Z to Start", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, BLACK)
+end
+
+
+-- [/TQ-Bundler: src.states.ready]
+
+-- [TQ-Bundler: src.states.play]
+
+-- ==========================================
+-- STATE: PLAY
+-- ==========================================
+
+local function updatePlay()
+    -- Pause
+    if btnPressed(BTN_P1_START) then
+        changeState(STATE.PAUSE)
+        return
+    end
+
+    -- Game over (for testing - press UP+DOWN)
+    if btn(BTN_P1_UP) and btn(BTN_P1_DOWN) then
+        changeState(STATE.GAMEOVER)
+        return
+    end
+
+    -- ================================
+    -- YOUR GAME LOGIC HERE
+    -- ================================
+    -- local speed = 2
+
+    -- if btn(BTN_P1_UP) then
+    --     game.play.playerY = game.play.playerY - speed
+    -- end
+    -- if btn(BTN_P1_DOWN) then
+    --     game.play.playerY = game.play.playerY + speed
+    -- end
+    -- if btn(BTN_P1_LEFT) then
+    --     game.play.playerX = game.play.playerX - speed
+    -- end
+    -- if btn(BTN_P1_RIGHT) then
+    --     game.play.playerX = game.play.playerX + speed
+    -- end
+
+    -- -- Keep player in bounds
+    -- game.play.playerX = math.max(0, math.min(EDGE_X_RIGHT - 8, game.play.playerX))
+    -- game.play.playerY = math.max(0, math.min(EDGE_Y_BOTTOM - 8, game.play.playerY))
+
+    -- -- Update score (example)
+    -- game.play.score = game.play.score + 1
+end
+
+function drawGame()
+    cls(PURPLE)
+
+    -- ================================
+    -- YOUR GAME RENDERING HERE
+    -- ================================
+
+    -- -- Example: Draw player
+    -- rect(game.play.playerX, game.play.playerY, 8, 8, 12)
+
+    -- -- Draw HUD
+    -- print("SCORE: " .. game.play.score, 5, 5, 12)
+end
+
+local function drawPlay()
+    drawGame()
+end
+
+
+-- [/TQ-Bundler: src.states.play]
+
+-- [TQ-Bundler: src.states.pause]
+
+-- ==========================================
+-- STATE: PAUSE
+-- ==========================================
+
+local function updatePause()
+    if btnPressed(BTN_P1_START) then
+        changeState(STATE.PLAY)
+    end
+end
+
+local function drawPause()
+    -- Draw the game state (frozen)
+    drawGame()
+
+    -- Draw overlay
+    drawOverlayBox("PAUSED")
+
+    -- Instructions
+    drawCenteredText("Press START to Resume", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, BLACK)
+end
+
+
+-- [/TQ-Bundler: src.states.pause]
+
+-- [TQ-Bundler: src.states.gameover]
+
+-- ==========================================
+-- STATE: GAMEOVER
+-- ==========================================
+
+local function updateGameover()
+    if btnPressed(BTN_P1_A) or btnPressed(BTN_P1_B) then
+        changeState(STATE.START)
+    end
+end
+
+local function drawGameover()
+    -- Draw the game state (final state)
+    drawGame()
+
+    -- Draw overlay
+    drawOverlayBox("GAME OVER")
+
+    -- -- Show final score
+    -- local scoreText = "Final Score: " .. game.play.score
+    -- drawCenteredText(scoreText, EDGE_Y_BOTTOM / 2 + 25, 12)
+
+    -- Instructions
+    drawCenteredText("Press any button", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, BLACK)
+end
+
+
+-- [/TQ-Bundler: src.states.gameover]
 
 -- [TQ-Bundler: src.state_machine]
 

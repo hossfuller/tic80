@@ -21,14 +21,16 @@ local GRAY_MED   = 14
 local GRAY_DARK  = 15
 
 -- Button mappings
-local BTN_P1_UP    = 0
-local BTN_P1_DOWN  = 1
-local BTN_P1_LEFT  = 2
-local BTN_P1_RIGHT = 3
-local BTN_P1_A     = 4  -- Primary action / Select
-local BTN_P1_B     = 5  -- Secondary action / Back / Pause
-local BTN_P1_X     = 6
-local BTN_P1_Y     = 7
+local BTN_P1_UP     = 0
+local BTN_P1_DOWN   = 1
+local BTN_P1_LEFT   = 2
+local BTN_P1_RIGHT  = 3
+local BTN_P1_A      = 4         -- Primary action / Select
+local BTN_P1_B      = 5         -- Secondary action / Back / Pause
+local BTN_P1_X      = 6
+local BTN_P1_Y      = 7
+local BTN_P1_SELECT = BTN_P1_X
+local BTN_P1_START  = BTN_P1_Y
 
 -- Screen dimensions
 local EDGE_X_LEFT   = 0
