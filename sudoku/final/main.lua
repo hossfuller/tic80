@@ -1,5 +1,5 @@
 -- title:   Sussudioku!! (Sudoku for TIC-80)
--- author:  Hoss Fuller <hossfuller@proton.me>
+-- author:  Hoss Fuller
 -- version: 1.0
 -- script:  lua
 -- input:   mouse

@@ -3,8 +3,8 @@
 -- Code changes will be overwritten
 --
 
--- title:   Sussudioku! (Sudoku for TIC-80)
--- author:  Hoss Fuller <hossfuller@proton.me>
+-- title:   Sussudioku!! (Sudoku for TIC-80)
+-- author:  Hoss Fuller
 -- version: 1.0
 -- script:  lua
 -- input:   mouse
@@ -1035,7 +1035,7 @@ local function drawTitle()
     end
 
     -- Instructions
-    drawCenteredText("UP/DOWN: Select  A: Confirm", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, BLACK)
+    drawCenteredText("UP/DOWN: Select  Z: Confirm", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, BLACK)
 end
 
 
@@ -1337,7 +1337,7 @@ local function drawStatistics()
     end
 
     -- Instructions
-    drawCenteredText("Press A or B to return", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, BLACK)
+    drawCenteredText("Press Z or X to return", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, BLACK)
 end
 
 

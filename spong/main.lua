@@ -1,5 +1,5 @@
 -- title:   SPong (Son of Pong)
--- author:  Hoss Fuller <hossfuller@proton.me>
+-- author:  Hoss Fuller
 -- version: 0.3
 -- script:  lua
 
