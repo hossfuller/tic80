@@ -1,9 +1,9 @@
--- title:   Space Taxi
+-- title:   Space Junk
 -- author:  Hoss Fuller
--- desc:    Travel the universe, delivering space passengers to their space destinations.
+-- desc:    Travel the universe, cleaning up space junk.
 -- version: 0.1
 -- script:  lua
--- saveid:  space_taxi
+-- saveid:  space_junk
 
 -- ==========================================
 -- INCLUDES
@@ -18,6 +18,7 @@ include "src.states.play"
 include "src.states.gameover"
 include "src.state_machine"
 
+include "src.classes.SpaceShip"
 
 -- ==========================================
 -- MAIN GAME LOOP

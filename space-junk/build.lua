@@ -3,12 +3,12 @@
 -- Code changes will be overwritten
 --
 
--- title:   Space Taxi
+-- title:   Space Junk
 -- author:  Hoss Fuller
--- desc:    Travel the universe, delivering space passengers to their space destinations.
+-- desc:    Travel the universe, cleaning up space junk.
 -- version: 0.1
 -- script:  lua
--- saveid:  space_taxi
+-- saveid:  space_junk
 
 -- ==========================================
 -- INCLUDES
@@ -62,6 +62,7 @@ local FIXED_CHAR_HEIGHT = 6
 local X_PADDING         = FIXED_CHAR_WIDTH + 2
 local Y_PADDING         = FIXED_CHAR_HEIGHT + 2
 
+local DEBUG = true
 
 -- [/TQ-Bundler: src.constants]
 
@@ -78,7 +79,7 @@ local Y_PADDING         = FIXED_CHAR_HEIGHT + 2
 -- DRAWING HELPERS
 -- ==========================================
 
-local function drawCenteredText(text, y, color, fixed, scale, smallfont, shadow_color)
+function drawCenteredText(text, y, color, fixed, scale, smallfont, shadow_color)
     if fixed == nil then
         fixed = false
     end
@@ -108,19 +109,20 @@ end
 -- GAME STATE
 -- ==========================================
 
-local STATE = {
+STATE = {
     START    = "START",
     PLAY     = "PLAY",
     GAMEOVER = "GAMEOVER",
 }
 
-local game = {
+game = {
     state = STATE.START,
     prevState = nil,
 
     -- Gameplay state
     play = {
-        score = 0,
+        player = {},
+        score  = 0,
     },
 }
 
@@ -129,14 +131,15 @@ local game = {
 -- STATE CHANGE
 -- ==========================================
 
-local function changeState(newState)
+function changeState(newState)
     game.prevState = game.state
     game.state = newState
 
     -- State entry logic
     if newState == STATE.PLAY then
         -- Reset game state for new game
-        game.play.score = 0
+        game.play.player = SpaceShip.new()
+        game.play.score  = 0
     end
 end
 
@@ -149,21 +152,21 @@ end
 -- STATE: START (Main Menu)
 -- ==========================================
 
-local function inputStart()
+function inputStart()
     if btnp(BTN_P1_A) or btnp(BTN_P1_START) then
         changeState(STATE.PLAY)
     end
 end
 
-local function updateStart()
+function updateStart()
 
 end
 
-local function drawStart()
+function drawStart()
     cls(0)
 
     local title_y_pos = math.floor(EDGE_Y_BOTTOM / 2) - 3 * Y_PADDING
-    drawCenteredText("ASTEROIDS", title_y_pos, ORANGE, nil, 3, nil, YELLOW)
+    drawCenteredText("SPACE JUNK", title_y_pos, ORANGE, nil, 3, nil, YELLOW)
     drawCenteredText("Press Z to start", title_y_pos + 3 * Y_PADDING, WHITE, false, 1, false, GRAY_DARK)
 end
 
@@ -176,21 +179,30 @@ end
 -- STATE: PLAY
 -- ==========================================
 
-local function inputPlay()
+function inputPlay()
     if btnp(BTN_P1_SELECT) and btnp(BTN_P1_START) then
         changeState(STATE.GAMEOVER)
     end
+
+    game.play.player:input()
 end
 
-local function updatePlay()
+function updatePlay()
 
 end
 
-local function drawPlay()
+function drawPlay()
     cls(PURPLE)
 
+    game.play.player:draw()
 
+    if DEBUG == true then
+        local pos = game.play.player:getPosition()
+        local rot = game.play.player:getRotation()
 
+        print("X: " .. tostring(pos.x) .. "; Y: " .. tostring(pos.y), EDGE_X_LEFT, EDGE_Y_TOP, WHITE)
+        print("Radians: " .. tostring(rot.rotation) .. "; Speed: " .. tostring(rot.speed), EDGE_X_LEFT, EDGE_Y_TOP + Y_PADDING, WHITE)
+    end
 
 end
 
@@ -203,17 +215,17 @@ end
 -- STATE: GAMEOVER
 -- ==========================================
 
-local function inputGameover()
+function inputGameover()
     if btnp(BTN_P1_A) or btnp(BTN_P1_B) then
         changeState(STATE.START)
     end
 end
 
-local function updateGameover()
+function updateGameover()
 
 end
 
-local function drawGameover()
+function drawGameover()
     drawPlay()
 
     local title_y_pos = math.floor(EDGE_Y_BOTTOM / 2) - 3 * Y_PADDING
@@ -250,6 +262,124 @@ local states = {
 
 
 -- [/TQ-Bundler: src.state_machine]
+
+-- [TQ-Bundler: src.classes.SpaceShip]
+
+-- ==========================================
+-- SPACESHIP OBJECT
+-- ==========================================
+
+SpaceShip = {}
+SpaceShip.__index = SpaceShip
+
+-- Creates a new SpaceShip instance
+function SpaceShip.new(params)
+    params             = params or {}
+    local self         = setmetatable({}, SpaceShip)
+
+    self.color    = params.color or BLUE_MED
+    self.position = {
+        x = params.x or math.floor(EDGE_X_RIGHT / 2),
+        y = params.y or math.floor(EDGE_Y_BOTTOM / 2)
+
+    }
+    self.rotation      = params.rotation or 5
+    self.rotationSpeed = params.rotationSpeed or 0.07
+    self.shape         = params.shape or {
+        {x=8, y=0},
+        {x=-8, y=6},
+        {x=-4, y=0},
+        {x=-8, y=-6},
+        {x=8, y=0}
+	}
+    return self
+end
+
+-- ==========================================
+-- SPACESHIP HELPERS
+-- ==========================================
+
+function SpaceShip:getPosition()
+    return self.position
+end
+
+function SpaceShip:getRotation()
+    return {
+        rotation = self.rotation,
+        speed    = self.rotationSpeed
+    }
+end
+
+
+-- ==========================================
+-- SPACESHIP INPUT
+-- ==========================================
+
+function SpaceShip:input()
+    if btn(BTN_P1_LEFT) then
+        self.rotation = self.rotation - self.rotationSpeed
+    end
+    if btn(BTN_P1_RIGHT) then
+        self.rotation = self.rotation + self.rotationSpeed
+    end
+
+    self.rotation = self:keepAngleInRange(self.rotation)
+end
+
+-- ==========================================
+-- SPACESHIP UPDATE
+-- ==========================================
+
+function SpaceShip:keepAngleInRange(angle)
+    if angle < 0 then
+        while angle < 0 do
+            angle = angle + (2 * math.pi)
+        end
+    end
+    if angle > (2 * math.pi) then
+        while angle > (2 * math.pi) do
+            angle = angle - (2 * math.pi)
+        end
+    end
+    return angle
+end
+
+function SpaceShip:rotatePoint(point, rotation)
+    local rotated_x = (point.x * math.cos(rotation)) - (point.y * math.sin(rotation))
+    local rotated_y = (point.y * math.cos(rotation)) + (point.x * math.sin(rotation))
+    return { x = rotated_x, y = rotated_y }
+end
+
+-- ==========================================
+-- SPACESHIP DRAW
+-- ==========================================
+
+-- Draw the spaceship.
+function SpaceShip:draw()
+    local first_point = true
+    local last_point = 0
+    local rotated_point = 0
+    for index, point in ipairs(self.shape) do
+        rotated_point = self:rotatePoint(point, self.rotation)
+
+        if first_point then
+            last_point = rotated_point
+            first_point = false
+        else
+            line(
+                last_point.x + self.position.x,
+                last_point.y + self.position.y,
+                rotated_point.x + self.position.x,
+                rotated_point.y + self.position.y,
+                self.color
+            )
+            last_point = rotated_point
+        end
+    end
+end
+
+
+-- [/TQ-Bundler: src.classes.SpaceShip]
 
 -- ==========================================
 -- MAIN GAME LOOP

@@ -2,19 +2,20 @@
 -- GAME STATE
 -- ==========================================
 
-local STATE = {
+STATE = {
     START    = "START",
     PLAY     = "PLAY",
     GAMEOVER = "GAMEOVER",
 }
 
-local game = {
+game = {
     state = STATE.START,
     prevState = nil,
 
     -- Gameplay state
     play = {
-        score = 0,
+        player = {},
+        score  = 0,
     },
 }
 
@@ -23,13 +24,14 @@ local game = {
 -- STATE CHANGE
 -- ==========================================
 
-local function changeState(newState)
+function changeState(newState)
     game.prevState = game.state
     game.state = newState
 
     -- State entry logic
     if newState == STATE.PLAY then
         -- Reset game state for new game
-        game.play.score = 0
+        game.play.player = SpaceShip.new()
+        game.play.score  = 0
     end
 end

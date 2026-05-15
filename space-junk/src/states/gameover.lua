@@ -2,17 +2,17 @@
 -- STATE: GAMEOVER
 -- ==========================================
 
-local function inputGameover()
+function inputGameover()
     if btnp(BTN_P1_A) or btnp(BTN_P1_B) then
         changeState(STATE.START)
     end
 end
 
-local function updateGameover()
+function updateGameover()
 
 end
 
-local function drawGameover()
+function drawGameover()
     drawPlay()
 
     local title_y_pos = math.floor(EDGE_Y_BOTTOM / 2) - 3 * Y_PADDING

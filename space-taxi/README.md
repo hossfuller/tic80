@@ -28,6 +28,13 @@ Completion of the objective results in the score increasing.
 #### Development Plan
 
 - [ ] **0.1**: Create vector spaceship objects.
+    - [ ] Add a ship designer interface.
+        - [ ] Save first 10 slots/chunks for high scores.
+        - [ ] After that, chunk mapping is first slot stores num of total slots for ship, and remaining slots contain x/y coords.
+        - [ ] Add menu option for ship designer
+        - [ ] Need interface to select color, add/remove line endpoints.
+        - [ ] Note that default ship requires 10 coord slots, so 11 slots total.
+        - [ ] Need to put a limit on number of slots per spaceship.
 - [ ] **0.2**: Space travel
     - [ ] Some sort of background so we can verify we're moving.
     - [ ] Camera follows spaceship across space.

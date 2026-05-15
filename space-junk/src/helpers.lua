@@ -9,7 +9,7 @@
 -- DRAWING HELPERS
 -- ==========================================
 
-local function drawCenteredText(text, y, color, fixed, scale, smallfont, shadow_color)
+function drawCenteredText(text, y, color, fixed, scale, smallfont, shadow_color)
     if fixed == nil then
         fixed = false
     end
