@@ -11,11 +11,11 @@ function inputPlay()
 end
 
 function updatePlay()
-
+    game.play.player:move()
 end
 
 function drawPlay()
-    cls(PURPLE)
+    cls(BLACK)
 
     game.play.player:draw()
 
@@ -23,8 +23,13 @@ function drawPlay()
         local pos = game.play.player:getPosition()
         local rot = game.play.player:getRotation()
 
-        print("X: " .. tostring(pos.x) .. "; Y: " .. tostring(pos.y), EDGE_X_LEFT, EDGE_Y_TOP, WHITE)
-        print("Radians: " .. tostring(rot.rotation) .. "; Speed: " .. tostring(rot.speed), EDGE_X_LEFT, EDGE_Y_TOP + Y_PADDING, WHITE)
+        local pos_x   = string.format("%0.2f", pos.x)
+        local pos_y   = string.format("%0.2f", pos.y)
+        local radians = string.format("%0.2f", rot.rotation)
+        local speed   = string.format("%0.2f", rot.speed)
+
+        print("X: " .. pos_x .. "; Y: " .. pos_y, EDGE_X_LEFT, EDGE_Y_TOP, WHITE)
+        print("Radians: " .. radians .. "; Speed: " .. speed, EDGE_X_LEFT, EDGE_Y_TOP + Y_PADDING, WHITE)
     end
 
 end

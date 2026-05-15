@@ -25,9 +25,6 @@ include "src.classes.SpaceShip"
 -- MAIN GAME LOOP
 -- ==========================================
 
--- DELETE THIS LINE ONCE THIS CODE HAS BEEN INCORPORATED:
--- https://bytesnbits.co.uk/wp-content/uploads/2020/01/Asteroids-1.txt
-
 function TIC()
     local currentState = states[game.state]
     if currentState then
