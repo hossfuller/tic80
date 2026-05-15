@@ -8,6 +8,11 @@ local states = {
         update = updateStart,
         draw   = drawStart,
     },
+    [STATE.OPTIONS] = {
+        input  = inputOptions,
+        update = updateOptions,
+        draw   = drawOptions,
+    },
     [STATE.PLAY] = {
         input  = inputPlay,
         update = updatePlay,

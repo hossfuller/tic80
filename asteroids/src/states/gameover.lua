@@ -15,7 +15,6 @@ end
 function drawGameover()
     drawPlay()
 
-    local title_y_pos = math.floor(EDGE_Y_BOTTOM / 2) - 3 * Y_PADDING
-    drawCenteredText("GAME OVER", title_y_pos, ORANGE, nil, 3, nil, YELLOW)
-    drawCenteredText("Press Z or X to see high scores", title_y_pos + 3 * Y_PADDING, WHITE, false, 1, false, GRAY_DARK)
+    drawCenteredText("GAME OVER", EDGE_Y_TOP + Y_PADDING, ORANGE, nil, 3, nil, YELLOW)
+    drawCenteredText("Press Z or X to see high scores", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, false, GRAY_MED)
 end

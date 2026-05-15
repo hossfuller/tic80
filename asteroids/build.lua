@@ -3,12 +3,12 @@
 -- Code changes will be overwritten
 --
 
--- title:   Space Junk
+-- title:   Asteroids
 -- author:  Hoss Fuller
 -- desc:    Travel the universe, cleaning up space junk.
 -- version: 0.1
 -- script:  lua
--- saveid:  space_junk
+-- saveid:  asteroids_bang_bang
 
 -- ==========================================
 -- INCLUDES
@@ -193,6 +193,7 @@ end
 
 STATE = {
     START      = "START",
+    OPTIONS    = "OPTIONS",
     PLAY       = "PLAY",
     GAMEOVER   = "GAMEOVER",
     HIGHSCORES = "HIGHSCORES",
@@ -202,6 +203,55 @@ game = {
     state = STATE.START,
     prevState = nil,
 
+    -- Menu state
+    menu = {
+        selected = 1,
+        options = {"Start", "Options", "High Scores"},
+    },
+
+    -- Options state
+    options = {
+        selected = 1,
+        items = {
+            {
+                name = "Difficulty",
+                values = {"Easy", "Medium", "Hard"},
+                current = 2,
+                -- Function to apply this setting
+                apply = function(value)
+                    if value == 1 then -- Easy
+                        game.play.params.asteroids.num_population = 3
+                        game.play.params.asteroids.velocity_max = 0.3
+                        game.play.params.asteroids.velocity_min = 0.05
+                    elseif value == 2 then -- Medium
+                        game.play.params.asteroids.num_population = 5
+                        game.play.params.asteroids.velocity_max = 0.5
+                        game.play.params.asteroids.velocity_min = 0.1
+                    elseif value == 3 then -- Hard
+                        game.play.params.asteroids.num_population = 8
+                        game.play.params.asteroids.velocity_max = 0.8
+                        game.play.params.asteroids.velocity_min = 0.2
+                    end
+                end,
+            },
+            {
+                name = "Dead Stop",
+                values = {"On", "Off"},
+                current = 1,
+                apply = function(value)
+                    game.play.params.player.deadstop_allow = (value == 1)
+                end,
+            },
+            {
+                name = "Back",
+                values = nil,  -- No values means this is an action, not a setting
+                current = 1,
+                apply = function()
+                    changeState(STATE.START)
+                end,
+            },
+        },
+    },
     -- For any forthcoming options, make all params below configurable.
     -- Also, as ship takes damage, some parameters should change.
 
@@ -241,7 +291,9 @@ function changeState(newState)
     game.prevState = game.state
     game.state = newState
 
-    -- State entry logic
+    -- Generate a bunch of asteroids to dance about each state's screen.
+    generateAsteroids()
+
     if newState == STATE.PLAY then
         -- Reset game state for new game
         game.play.player = Ship:new({
@@ -250,32 +302,7 @@ function changeState(newState)
             snap  = game.play.params.player.deadstop_snap,
         })
         game.play.score  = 0
-
-        -- Generate Asteroids
-        for count = 1, game.play.params.asteroids.num_population do
-            local vel_speed = (math.random() * (game.play.params.asteroids.velocity_max - game.play.params.asteroids.velocity_min)) + game.play.params.asteroids.velocity_min
-            local rot_speed = (math.random() * (2 * game.play.params.asteroids.rotation_max)) - game.play.params.asteroids.rotation_max
-
-            local pos_x = math.random(0, (EDGE_X_RIGHT - 1))
-            local pos_y = 0
-            if math.random(1,2) == 1 then
-                pos_x = 0
-                pos_y = math.random(0, (EDGE_Y_BOTTOM - 1))
-            end
-
-            local asteroid = Asteroid:new({
-                x             = pos_x,
-                y             = pos_y,
-                speed         = vel_speed,
-                direction     = math.random() * math.pi * 2,
-                rotationSpeed = rot_speed,
-                radius        = game.play.params.asteroids.radius,
-                radius_minus  = game.play.params.asteroids.radius_minus,
-                radius_plus   = game.play.params.asteroids.radius_plus,
-                num_vertices  = game.play.params.asteroids.num_vertices,
-            })
-            table.insert(game.play.asteroids, asteroid)
-        end
+        -- Generate a bunch of asteroids to actually shoot.
 
     elseif newState == STATE.HIGHSCORES then
         loadHighScores()
@@ -285,6 +312,42 @@ function changeState(newState)
     end
 end
 
+function generateAsteroids()
+    if game.state == STATE.PLAY then
+        color = WHITE
+    else
+        color = GRAY_LITE
+    end
+
+    -- Flush current asteroids table.
+    game.play.asteroids = {}
+
+    for count = 1, game.play.params.asteroids.num_population do
+        local vel_speed = (math.random() * (game.play.params.asteroids.velocity_max - game.play.params.asteroids.velocity_min)) + game.play.params.asteroids.velocity_min
+        local rot_speed = (math.random() * (2 * game.play.params.asteroids.rotation_max)) - game.play.params.asteroids.rotation_max
+
+        local pos_x = math.random(0, (EDGE_X_RIGHT - 1))
+        local pos_y = 0
+        if math.random(1,2) == 1 then
+            pos_x = 0
+            pos_y = math.random(0, (EDGE_Y_BOTTOM - 1))
+        end
+
+        local asteroid = Asteroid:new({
+            color         = color,
+            x             = pos_x,
+            y             = pos_y,
+            speed         = vel_speed,
+            direction     = math.random() * math.pi * 2,
+            rotationSpeed = rot_speed,
+            radius        = game.play.params.asteroids.radius,
+            radius_minus  = game.play.params.asteroids.radius_minus,
+            radius_plus   = game.play.params.asteroids.radius_plus,
+            num_vertices  = game.play.params.asteroids.num_vertices,
+        })
+        table.insert(game.play.asteroids, asteroid)
+    end
+end
 
 -- [/TQ-Bundler: src.game_state]
 
@@ -295,25 +358,200 @@ end
 -- ==========================================
 
 function inputStart()
-    if btnp(BTN_P1_A) or btnp(BTN_P1_START) then
-        changeState(STATE.PLAY)
+    -- Menu navigation
+    if btnp(BTN_P1_UP) then
+        game.menu.selected = game.menu.selected - 1
+        if game.menu.selected < 1 then
+            game.menu.selected = #game.menu.options
+        end
+    end
+
+    if btnp(BTN_P1_DOWN) then
+        game.menu.selected = game.menu.selected + 1
+        if game.menu.selected > #game.menu.options then
+            game.menu.selected = 1
+        end
+    end
+
+    -- Menu selection
+    if btnp(BTN_P1_A) then
+        local selected = game.menu.selected
+        if selected == 1 then
+            changeState(STATE.PLAY)
+        elseif selected == 2 then
+            changeState(STATE.OPTIONS)
+        elseif selected == 3 then
+            changeState(STATE.HIGHSCORES)
+        end
     end
 end
 
 function updateStart()
-
+    for index, asteroid in ipairs(game.play.asteroids) do
+        asteroid:move()
+    end
 end
 
 function drawStart()
-    cls(0)
+    cls(BLACK)
 
-    local title_y_pos = math.floor(EDGE_Y_BOTTOM / 2) - 3 * Y_PADDING
-    drawCenteredText("ASTEROIDS", title_y_pos, ORANGE, nil, 3, nil, YELLOW)
-    drawCenteredText("Press Z to start", title_y_pos + 3 * Y_PADDING, WHITE, false, 1, false, GRAY_DARK)
+    for index, asteroid in ipairs(game.play.asteroids) do
+        asteroid:draw()
+    end
+
+    drawCenteredText("ASTEROIDS!!", EDGE_Y_TOP + Y_PADDING, ORANGE, nil, 3, nil, YELLOW)
+
+    -- Menu options
+    local start_y = 60
+    local spacing = 2 * X_PADDING
+
+    for i, option in ipairs(game.menu.options) do
+        local y = start_y + (i - 1) * spacing
+        local color = (i == game.menu.selected) and YELLOW or WHITE
+
+        -- Draw selector
+        if i == game.menu.selected then
+            local textWidth = print(option, 0, -10)
+            local x = (EDGE_X_RIGHT - textWidth) / 2
+            print(">", x - 10 + 1, y + 1, GRAY_MED) -- the shadow
+            print(">", x - 10, y, WHITE)
+        end
+
+        -- drawCenteredText(option, y, color)
+        drawCenteredText(option, y, color, nil, nil, nil, GRAY_MED)
+    end
+
+    drawCenteredText("Press Z to select options", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, false, GRAY_MED)
 end
 
 
 -- [/TQ-Bundler: src.states.start]
+
+-- [TQ-Bundler: src.states.options]
+
+-- ==========================================
+-- STATE: OPTIONS
+-- ==========================================
+
+function applyAllOptions()
+    for _, item in ipairs(game.options.items) do
+        if item.apply and item.values then
+            item.apply(item.current)
+        end
+    end
+end
+
+function inputOptions()
+    -- Navigate up/down through menu items
+    if btnp(BTN_P1_UP) then
+        game.options.selected = game.options.selected - 1
+        if game.options.selected < 1 then
+            game.options.selected = #game.options.items
+        end
+    end
+
+    if btnp(BTN_P1_DOWN) then
+        game.options.selected = game.options.selected + 1
+        if game.options.selected > #game.options.items then
+            game.options.selected = 1
+        end
+    end
+
+    local item = game.options.items[game.options.selected]
+
+    -- If item has values, left/right cycles through them
+    if item.values then
+        if btnp(BTN_P1_LEFT) then
+            item.current = item.current - 1
+            if item.current < 1 then
+                item.current = #item.values
+            end
+            if item.apply then
+                item.apply(item.current)
+            end
+        end
+
+        if btnp(BTN_P1_RIGHT) then
+            item.current = item.current + 1
+            if item.current > #item.values then
+                item.current = 1
+            end
+            if item.apply then
+                item.apply(item.current)
+            end
+        end
+    end
+
+    -- A button activates items (for "Back" or items without values)
+    if btnp(BTN_P1_A) then
+        if item.values == nil and item.apply then
+            -- Action item like "Back"
+            item.apply()
+        end
+    end
+
+    -- B button always goes back
+    if btnp(BTN_P1_B) then
+        changeState(STATE.START)
+    end
+end
+
+function updateOptions()
+    -- Asteroids still float around in the background
+    for index, asteroid in ipairs(game.play.asteroids) do
+        asteroid:move()
+    end
+end
+
+function drawOptions()
+    cls(BLACK)
+
+    -- Draw background asteroids
+    for index, asteroid in ipairs(game.play.asteroids) do
+        asteroid:draw()
+    end
+
+    -- Title
+    drawCenteredText("OPTIONS", EDGE_Y_TOP + Y_PADDING, ORANGE, nil, 3, nil, YELLOW)
+
+    -- Menu items
+    local start_y = 50
+    local spacing = 2 * Y_PADDING
+
+    for i, item in ipairs(game.options.items) do
+        local y = start_y + (i - 1) * spacing
+        local is_selected = (i == game.options.selected)
+        local name_color = is_selected and YELLOW or WHITE
+
+        -- Draw selector arrow
+        if is_selected then
+            print(">", X_PADDING + 1, y + 1, BLACK)
+            print(">", X_PADDING, y, WHITE)
+        end
+
+        -- Draw item name
+        local name_x = X_PADDING + 12
+        print(item.name, name_x + 1, y + 1, BLACK)
+        print(item.name, name_x, y, name_color)
+
+        -- Draw value (if it has one)
+        if item.values then
+            local value_text = "< " .. item.values[item.current] .. " >"
+            local value_x = EDGE_X_RIGHT - X_PADDING - print(value_text, 0, -50)
+            local value_color = is_selected and CYAN or GRAY_LITE
+
+            print(value_text, value_x + 1, y + 1, BLACK)
+            print(value_text, value_x, y, value_color)
+        end
+    end
+
+    -- Instructions
+    local inst_y = EDGE_Y_BOTTOM - 2 * Y_PADDING
+    drawCenteredText("UP/DOWN: Select  LEFT/RIGHT: Change", inst_y, WHITE, false, 1, true, GRAY_MED)
+    drawCenteredText("Z: Confirm  X: Back", inst_y + Y_PADDING, WHITE, false, 1, true, GRAY_MED)
+end
+
+-- [/TQ-Bundler: src.states.options]
 
 -- [TQ-Bundler: src.states.play]
 
@@ -389,9 +627,8 @@ end
 function drawGameover()
     drawPlay()
 
-    local title_y_pos = math.floor(EDGE_Y_BOTTOM / 2) - 3 * Y_PADDING
-    drawCenteredText("GAME OVER", title_y_pos, ORANGE, nil, 3, nil, YELLOW)
-    drawCenteredText("Press Z or X to see high scores", title_y_pos + 3 * Y_PADDING, WHITE, false, 1, false, GRAY_DARK)
+    drawCenteredText("GAME OVER", EDGE_Y_TOP + Y_PADDING, ORANGE, nil, 3, nil, YELLOW)
+    drawCenteredText("Press Z or X to see high scores", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, false, GRAY_MED)
 end
 
 
@@ -568,7 +805,7 @@ function drawHighScores()
     end
 
     -- Instructions
-    drawCenteredText("Press Z or X to return to start screen", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, BLACK)
+    drawCenteredText("Press Z or X to return to start screen", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
 end
 
 -- [/TQ-Bundler: src.states.highscores]
@@ -584,6 +821,11 @@ local states = {
         input  = inputStart,
         update = updateStart,
         draw   = drawStart,
+    },
+    [STATE.OPTIONS] = {
+        input  = inputOptions,
+        update = updateOptions,
+        draw   = drawOptions,
     },
     [STATE.PLAY] = {
         input  = inputPlay,
@@ -990,6 +1232,11 @@ end
 -- ==========================================
 -- MAIN GAME LOOP
 -- ==========================================
+
+function BOOT()
+    applyAllOptions()
+    changeState(STATE.START)
+end
 
 function TIC()
     local currentState = states[game.state]

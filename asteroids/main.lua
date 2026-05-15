@@ -1,9 +1,9 @@
--- title:   Space Junk
+-- title:   Asteroids
 -- author:  Hoss Fuller
 -- desc:    Travel the universe, cleaning up space junk.
 -- version: 0.1
 -- script:  lua
--- saveid:  space_junk
+-- saveid:  asteroids_bang_bang
 
 -- ==========================================
 -- INCLUDES
@@ -14,6 +14,7 @@ include "src.helpers"
 
 include "src.game_state"
 include "src.states.start"
+include "src.states.options"
 include "src.states.play"
 include "src.states.gameover"
 include "src.states.highscores"
@@ -26,6 +27,11 @@ include "src.classes.Asteroid"
 -- ==========================================
 -- MAIN GAME LOOP
 -- ==========================================
+
+function BOOT()
+    applyAllOptions()
+    changeState(STATE.START)
+end
 
 function TIC()
     local currentState = states[game.state]
