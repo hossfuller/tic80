@@ -29,6 +29,8 @@ function SpaceObj.new(params)
         { x = -10, y = -10 },
         { x = 10,  y = -10 },
     }
+    self.timer = params.timer or 0
+    
     return self
 end
 
@@ -113,15 +115,24 @@ function SpaceObj:getPosition()
     return self.position
 end
 
-function SpaceObj:getVelocity()
-    return self.velocity
-end
-
 function SpaceObj:getRotation()
     return {
         rotation = self.rotation,
         speed    = self.rotationSpeed
     }
+end
+
+function SpaceObj:getTimer()
+    return self.timer
+end
+
+function SpaceObj:getVelocity()
+    return self.velocity
+end
+
+-- Returns true every N ticks
+function SpaceObj:everyNTicks(n)
+    return (self.timer % n) == 0
 end
 
 -- ==========================================
@@ -131,6 +142,10 @@ end
 -- ==========================================
 -- SPACEOBJ UPDATE
 -- ==========================================
+
+function SpaceObj:updateTimer()
+    self.timer = (self.timer + 1) % 60
+end
 
 function SpaceObj:wrapPosition()
     if (self.position.x >= EDGE_X_RIGHT) then
@@ -150,6 +165,7 @@ end
 function SpaceObj:move()
     self.position = self:movePointByVelocity()
     self:wrapPosition() -- don't assign if wrapPosition returns nil
+    self:updateTimer()
 end
 
 -- ==========================================

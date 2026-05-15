@@ -31,17 +31,23 @@ game = {
                 -- Function to apply this setting
                 apply = function(value)
                     if value == 1 then -- Easy
+                        game.play.params.player.max_lasers        = 10
+                        game.play.params.player.reload_time       = 20
                         game.play.params.asteroids.num_population = 3
-                        game.play.params.asteroids.velocity_max = 0.3
-                        game.play.params.asteroids.velocity_min = 0.05
+                        game.play.params.asteroids.velocity_max   = 0.3
+                        game.play.params.asteroids.velocity_min   = 0.05
                     elseif value == 2 then -- Medium
+                        game.play.params.player.max_lasers        = 7
+                        game.play.params.player.reload_time       = 40
                         game.play.params.asteroids.num_population = 5
-                        game.play.params.asteroids.velocity_max = 0.5
-                        game.play.params.asteroids.velocity_min = 0.1
+                        game.play.params.asteroids.velocity_max   = 0.5
+                        game.play.params.asteroids.velocity_min   = 0.1
                     elseif value == 3 then -- Hard
+                        game.play.params.player.max_lasers        = 4
+                        game.play.params.player.reload_time       = 60
                         game.play.params.asteroids.num_population = 8
-                        game.play.params.asteroids.velocity_max = 0.8
-                        game.play.params.asteroids.velocity_min = 0.2
+                        game.play.params.asteroids.velocity_max   = 0.8
+                        game.play.params.asteroids.velocity_min   = 0.2
                     end
                 end,
             },
@@ -73,6 +79,8 @@ game = {
                 deadstop_allow = true,
                 deadstop_break = 0.35, -- 0..1, higher = faster stop per frame
                 deadstop_snap  = 0.02,   -- below this speed, just snap to 0
+                max_lasers     = 4,
+                reload_time    = 60,
             },
             asteroids = {
                 num_population = 5,
@@ -108,9 +116,11 @@ function changeState(newState)
     if newState == STATE.PLAY then
         -- Reset game state for new game
         game.play.player = Ship:new({
-            color = BLUE_MED,
-            brake = game.play.params.player.deadstop_brake,
-            snap  = game.play.params.player.deadstop_snap,
+            color       = BLUE_MED,
+            brake       = game.play.params.player.deadstop_brake,
+            snap        = game.play.params.player.deadstop_snap,
+            shots       = game.play.params.player.max_lasers,
+            reload_time = game.play.params.player.reload_time,
         })
         game.play.score  = 0
         -- Generate a bunch of asteroids to actually shoot.

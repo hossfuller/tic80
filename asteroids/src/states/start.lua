@@ -11,7 +11,7 @@ function inputStart()
         end
     end
 
-    if btnp(BTN_P1_DOWN) then
+    if btnp(BTN_P1_DOWN) or btnp(BTN_P1_SELECT) then
         game.menu.selected = game.menu.selected + 1
         if game.menu.selected > #game.menu.options then
             game.menu.selected = 1
@@ -19,7 +19,7 @@ function inputStart()
     end
 
     -- Menu selection
-    if btnp(BTN_P1_A) then
+    if btnp(BTN_P1_START) then
         local selected = game.menu.selected
         if selected == 1 then
             changeState(STATE.PLAY)
@@ -66,5 +66,5 @@ function drawStart()
         drawCenteredText(option, y, color, nil, nil, nil, GRAY_MED)
     end
 
-    drawCenteredText("Press Z to select options", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, false, GRAY_MED)
+    drawCenteredText("Press 'START' (S) to select options", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, false, GRAY_MED)
 end
