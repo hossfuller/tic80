@@ -202,9 +202,30 @@ game = {
     state = STATE.START,
     prevState = nil,
 
+    -- For any forthcoming options, make all params below configurable.
+    -- Also, as ship takes damage, some parameters should change.
+
     -- Gameplay state
     play = {
+        params = {
+            player = {
+                deadstop_allow = true,
+                deadstop_break = 0.35, -- 0..1, higher = faster stop per frame
+                deadstop_snap  = 0.02,   -- below this speed, just snap to 0
+            },
+            asteroids = {
+                num_population = 5,
+                num_vertices   = 10,
+                radius         = 15,
+                radius_plus    = 4,
+                radius_minus   = 6,
+                velocity_max   = 0.5,
+                velocity_min   = 0.1,
+                rotation_max   = 0.03,
+            },
+        },
         player = {},
+        asteroids = {},
         score  = 0,
     },
 
@@ -223,8 +244,38 @@ function changeState(newState)
     -- State entry logic
     if newState == STATE.PLAY then
         -- Reset game state for new game
-        game.play.player = SpaceShip.new()
+        game.play.player = Ship:new({
+            color = BLUE_MED,
+            brake = game.play.params.player.deadstop_brake,
+            snap  = game.play.params.player.deadstop_snap,
+        })
         game.play.score  = 0
+
+        -- Generate Asteroids
+        for count = 1, game.play.params.asteroids.num_population do
+            local vel_speed = (math.random() * (game.play.params.asteroids.velocity_max - game.play.params.asteroids.velocity_min)) + game.play.params.asteroids.velocity_min
+            local rot_speed = (math.random() * (2 * game.play.params.asteroids.rotation_max)) - game.play.params.asteroids.rotation_max
+
+            local pos_x = math.random(0, (EDGE_X_RIGHT - 1))
+            local pos_y = 0
+            if math.random(1,2) == 1 then
+                pos_x = 0
+                pos_y = math.random(0, (EDGE_Y_BOTTOM - 1))
+            end
+
+            local asteroid = Asteroid:new({
+                x             = pos_x,
+                y             = pos_y,
+                speed         = vel_speed,
+                direction     = math.random() * math.pi * 2,
+                rotationSpeed = rot_speed,
+                radius        = game.play.params.asteroids.radius,
+                radius_minus  = game.play.params.asteroids.radius_minus,
+                radius_plus   = game.play.params.asteroids.radius_plus,
+                num_vertices  = game.play.params.asteroids.num_vertices,
+            })
+            table.insert(game.play.asteroids, asteroid)
+        end
 
     elseif newState == STATE.HIGHSCORES then
         loadHighScores()
@@ -280,12 +331,26 @@ end
 
 function updatePlay()
     game.play.player:move()
+    if game.play.params.player.deadstop_allow == true and btn(BTN_P1_DOWN) then
+        -- brake and snap can change as player takes damage.
+        game.play.player:deadStop(
+            game.play.params.player.deadstop_break,
+            game.play.params.player.deadstop_snap
+        )
+    end
+
+    for index, asteroid in ipairs(game.play.asteroids) do
+        asteroid:move()
+    end
 end
 
 function drawPlay()
     cls(BLACK)
 
     game.play.player:draw()
+    for index, asteroid in ipairs(game.play.asteroids) do
+        asteroid:draw()
+    end
 
     if DEBUG == true then
         local pos = game.play.player:getPosition()
@@ -540,49 +605,47 @@ local states = {
 
 -- [/TQ-Bundler: src.state_machine]
 
--- [TQ-Bundler: src.classes.SpaceShip]
+-- [TQ-Bundler: src.classes.SpaceObj]
 
 -- ==========================================
--- SPACESHIP OBJECT
+-- SPACEOBJ OBJECT
 -- ==========================================
 
-SpaceShip = {}
-SpaceShip.__index = SpaceShip
+SpaceObj = {}
+SpaceObj.__index = SpaceObj
 
--- Creates a new SpaceShip instance
-function SpaceShip.new(params)
-    params             = params or {}
-    local self         = setmetatable({}, SpaceShip)
+function SpaceObj.new(params)
+    params       = params or {}
+    local self   = setmetatable({}, SpaceObj)
 
-    self.color    = params.color or BLUE_MED
-    self.position = {
+    self.color         = params.color or WHITE
+    self.position      = {
         x = params.x or math.floor(EDGE_X_RIGHT / 2),
         y = params.y or math.floor(EDGE_Y_BOTTOM / 2)
 
     }
     self.velocity = {
-        speed     = 0,
-        direction = 0,
+        speed     = params.speed     or 0,
+        direction = params.direction or 0,
     }
-    self.acceleration  = 0.05
-    self.deceleration  = 0.01
-    self.rotation      = params.rotation or 5
+    self.acceleration  = params.acceleration  or 0.05
+    self.deceleration  = params.deceleration  or 0.01
+    self.rotation      = params.rotation      or 5
     self.rotationSpeed = params.rotationSpeed or 0.07
-    self.shape         = params.shape or {
-        {x=8, y=0},
-        {x=-8, y=6},
-        {x=-4, y=0},
-        {x=-8, y=-6},
-        {x=8, y=0}
-	}
+    self.shape         = params.shape         or {
+        { x = 10,  y = 10  },
+        { x = -10, y = 10  },
+        { x = -10, y = -10 },
+        { x = 10,  y = -10 },
+    }
     return self
 end
 
 -- ==========================================
--- SPACESHIP MATH
+-- SPACEOBJ MATH
 -- ==========================================
 
-function SpaceShip:keepAngleInRange(angle)
+function SpaceObj:keepAngleInRange(angle)
     if angle < 0 then
         while angle < 0 do
             angle = angle + (2 * math.pi)
@@ -597,13 +660,13 @@ function SpaceShip:keepAngleInRange(angle)
 end
 
 -- 'rotation' parameter is in radians.
-function SpaceShip:rotatePoint(point, rotation)
+function SpaceObj:rotatePoint(point, rotation)
     local rotated_x = (point.x * math.cos(rotation)) - (point.y * math.sin(rotation))
     local rotated_y = (point.y * math.cos(rotation)) + (point.x * math.sin(rotation))
     return { x = rotated_x, y = rotated_y }
 end
 
-function SpaceShip:getVectorComponents(vector)
+function SpaceObj:getVectorComponents(vector)
     local xComp = vector.speed * math.cos(vector.direction)
     local yComp = vector.speed * math.sin(vector.direction)
 
@@ -615,7 +678,7 @@ function SpaceShip:getVectorComponents(vector)
     return components
 end
 
-function SpaceShip:addVectors(vector1, vector2)
+function SpaceObj:addVectors(vector1, vector2)
     v1Comp = self:getVectorComponents(vector1)
     v2Comp = self:getVectorComponents(vector2)
     resultantX = v1Comp.xComp + v2Comp.xComp
@@ -626,7 +689,7 @@ function SpaceShip:addVectors(vector1, vector2)
     return resVector
 end
 
-function SpaceShip:compToVector(x, y)
+function SpaceObj:compToVector(x, y)
     local magnitude = math.sqrt((x * x) + (y * y))
     local direction = math.atan(y, x)
 
@@ -640,7 +703,7 @@ function SpaceShip:compToVector(x, y)
     return vector
 end
 
-function SpaceShip:movePointByVelocity()
+function SpaceObj:movePointByVelocity()
     components = self:getVectorComponents(self.velocity)
 
     local newPosition = {
@@ -651,47 +714,34 @@ function SpaceShip:movePointByVelocity()
     return newPosition
 end
 
-
 -- ==========================================
--- SPACESHIP GETTERS
+-- SPACEOBJ GETTERS
 -- ==========================================
 
-function SpaceShip:getPosition()
+function SpaceObj:getPosition()
     return self.position
 end
 
-function SpaceShip:getVelocity()
+function SpaceObj:getVelocity()
     return self.velocity
 end
 
-function SpaceShip:getRotation()
+function SpaceObj:getRotation()
     return {
         rotation = self.rotation,
         speed    = self.rotationSpeed
     }
 end
 
-
 -- ==========================================
--- SPACESHIP INPUT
--- ==========================================
-
-function SpaceShip:input()
-    if btn(BTN_P1_LEFT) then
-        self.rotation = self.rotation - self.rotationSpeed
-    end
-    if btn(BTN_P1_RIGHT) then
-        self.rotation = self.rotation + self.rotationSpeed
-    end
-    self.rotation = self:keepAngleInRange(self.rotation)
-end
-
-
--- ==========================================
--- SPACESHIP UPDATE
+-- SPACEOBJ INPUT
 -- ==========================================
 
-function SpaceShip:wrapPosition()
+-- ==========================================
+-- SPACEOBJ UPDATE
+-- ==========================================
+
+function SpaceObj:wrapPosition()
     if (self.position.x >= EDGE_X_RIGHT) then
         self.position.x = 0
     elseif (self.position.x < 0) then
@@ -706,35 +756,17 @@ function SpaceShip:wrapPosition()
     return self.position
 end
 
-function SpaceShip:thrust()
-    local acceleration = {
-        speed     = self.acceleration,
-        direction = self.rotation
-    }
-    self.velocity = self:addVectors(self.velocity, acceleration)
-end
-
-function SpaceShip:move()
-    if btn(BTN_P1_UP) then
-        self:thrust()
-    end
-
-    self.velocity.speed = self.velocity.speed - self.deceleration
-    if self.velocity.speed < 0 then
-        self.velocity.speed = 0
-    end
-
+function SpaceObj:move()
     self.position = self:movePointByVelocity()
-    self.position = self:wrapPosition()
+    self:wrapPosition() -- don't assign if wrapPosition returns nil
 end
 
-
 -- ==========================================
--- SPACESHIP DRAW
+-- SPACEOBJ DRAW
 -- ==========================================
 
--- Draw the spaceship.
-function SpaceShip:draw()
+-- Draw the SpaceObj.
+function SpaceObj:draw()
     local first_point = true
     local last_point = 0
     local rotated_point = 0
@@ -758,7 +790,202 @@ function SpaceShip:draw()
 end
 
 
--- [/TQ-Bundler: src.classes.SpaceShip]
+-- [/TQ-Bundler: src.classes.SpaceObj]
+
+-- [TQ-Bundler: src.classes.Ship]
+
+-- ==========================================
+-- SHIP OBJECT
+-- ==========================================
+
+Ship = setmetatable({}, { __index = SpaceObj })
+Ship.__index = Ship
+
+function Ship:new(params)
+    params = params or {}
+    local self = SpaceObj.new(params) -- build base fields
+    setmetatable(self, Ship)          -- make it a Ship instance
+
+    -- Ship-specific properties
+    self.deadstop = {
+        brake = params.brake or 0.35, -- 0..1, higher = faster stop per frame
+        snap  = params.snap  or 0.02  -- below this speed, just snap to 0
+    }
+    self.shape        = params.shape or {
+        { x = 8,  y = 0  },
+        { x = -8, y = 6  },
+        { x = -4, y = 0  },
+        { x = -8, y = -6 },
+        { x = 8,  y = 0  }
+    }
+
+    return self
+end
+
+-- ==========================================
+-- SHIP MATH
+-- ==========================================
+
+-- ==========================================
+-- SHIP GETTERS
+-- ==========================================
+
+-- ==========================================
+-- SHIP INPUT
+-- ==========================================
+
+function Ship:input()
+    if btn(BTN_P1_LEFT) then
+        self.rotation = self.rotation - self.rotationSpeed
+    end
+    if btn(BTN_P1_RIGHT) then
+        self.rotation = self.rotation + self.rotationSpeed
+    end
+    self.rotation = self:keepAngleInRange(self.rotation)
+end
+
+
+-- ==========================================
+-- SHIP UPDATE
+-- ==========================================
+
+function Ship:deadStop(brake, snap)
+    if brake == nil then
+        brake = self.deadstop.brake
+    end
+    if snap == nil then
+        snap = self.deadstop.snap
+    end
+    local s = self.velocity.speed
+    if s <= 0 then
+        self.velocity.speed = 0
+        self.velocity.direction = 0
+        return
+    end
+
+    -- Smoothly reduce speed; never goes negative
+    s = s * (1 - brake)
+    if s < snap then
+        s = 0
+        self.velocity.direction = 0
+    end
+    self.velocity.speed = s
+end
+
+function Ship:thrust()
+    local acceleration = {
+        speed     = self.acceleration,
+        direction = self.rotation
+    }
+    self.velocity = self:addVectors(self.velocity, acceleration)
+end
+
+function Ship:move()
+    if btn(BTN_P1_UP) then
+        self:thrust()
+    end
+
+    self.velocity.speed = self.velocity.speed - self.deceleration
+    if self.velocity.speed < 0 then
+        self.velocity.speed = 0
+    end
+
+    SpaceObj.move(self)
+end
+
+
+-- ==========================================
+-- SHIP DRAW
+-- ==========================================
+
+
+
+-- [/TQ-Bundler: src.classes.Ship]
+
+-- [TQ-Bundler: src.classes.Asteroid]
+
+-- ==========================================
+-- ASTEROID OBJECT
+-- ==========================================
+
+Asteroid = setmetatable({}, { __index = SpaceObj })
+Asteroid.__index = Asteroid
+
+function Asteroid:new(params)
+    params = params or {}
+    local self = SpaceObj.new(params) -- build base fields
+    setmetatable(self, Asteroid)          -- make it a Asteroid instance
+
+    -- Asteroid-specific properties
+    self.radius       = params.radius       or 15
+    self.radius_minus = params.radius_minus or 6
+    self.radius_plus  = params.radius_plus  or 4
+    self.num_vertices = params.num_vertices or 10
+    self.shape        = params.shape or self:spawn()
+
+    return self
+end
+
+-- ==========================================
+-- ASTEROID MATH
+-- ==========================================
+
+-- ==========================================
+-- ASTEROID GETTERS
+-- ==========================================
+
+-- ==========================================
+-- ASTEROID INPUT
+-- ==========================================
+
+-- ==========================================
+-- ASTEROID UPDATE
+-- ==========================================
+
+-- Generates Asteroid shape. Called by default when creating an asteroid with
+-- default shape settings.
+function Asteroid:spawn()
+    local vertices = {}
+
+    -- Insert first vertex using default radius.
+    table.insert(vertices, { x = self.radius, y = 0 })
+
+    -- Now do the vertices in between the first and last ones.
+    for vertex = 1, (self.num_vertices - 1) do
+        local radius = math.random(
+            self.radius - self.radius_minus,
+            self.radius + self.radius_plus
+        )
+        local angle = ((math.pi * 2) / self.num_vertices) * vertex
+        local vector = {
+            speed     = radius,
+            direction = angle
+        }
+        local components = self:getVectorComponents(vector)
+        table.insert(vertices, {
+            x = components.xComp,
+            y = components.yComp
+        })
+    end
+
+    -- Last vertex is the same as the first vertex
+    table.insert(vertices, { x = self.radius, y = 0 })
+
+    return vertices
+end
+
+function Asteroid:move()
+    self.rotation = self.rotation + self.rotationSpeed
+
+    SpaceObj.move(self)
+end
+
+-- ==========================================
+-- ASTEROID DRAW
+-- ==========================================
+
+
+-- [/TQ-Bundler: src.classes.Asteroid]
 
 -- ==========================================
 -- MAIN GAME LOOP

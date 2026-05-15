@@ -19,7 +19,9 @@ include "src.states.gameover"
 include "src.states.highscores"
 include "src.state_machine"
 
-include "src.classes.SpaceShip"
+include "src.classes.SpaceObj"
+include "src.classes.Ship"
+include "src.classes.Asteroid"
 
 -- ==========================================
 -- MAIN GAME LOOP

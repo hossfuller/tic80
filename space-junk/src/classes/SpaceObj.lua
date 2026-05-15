@@ -1,44 +1,42 @@
 -- ==========================================
--- SPACESHIP OBJECT
+-- SPACEOBJ OBJECT
 -- ==========================================
 
-SpaceShip = {}
-SpaceShip.__index = SpaceShip
+SpaceObj = {}
+SpaceObj.__index = SpaceObj
 
--- Creates a new SpaceShip instance
-function SpaceShip.new(params)
-    params             = params or {}
-    local self         = setmetatable({}, SpaceShip)
+function SpaceObj.new(params)
+    params       = params or {}
+    local self   = setmetatable({}, SpaceObj)
 
-    self.color    = params.color or BLUE_MED
-    self.position = {
+    self.color         = params.color or WHITE
+    self.position      = {
         x = params.x or math.floor(EDGE_X_RIGHT / 2),
         y = params.y or math.floor(EDGE_Y_BOTTOM / 2)
 
     }
     self.velocity = {
-        speed     = 0,
-        direction = 0,
+        speed     = params.speed     or 0,
+        direction = params.direction or 0,
     }
-    self.acceleration  = 0.05
-    self.deceleration  = 0.01
-    self.rotation      = params.rotation or 5
+    self.acceleration  = params.acceleration  or 0.05
+    self.deceleration  = params.deceleration  or 0.01
+    self.rotation      = params.rotation      or 5
     self.rotationSpeed = params.rotationSpeed or 0.07
-    self.shape         = params.shape or {
-        {x=8, y=0},
-        {x=-8, y=6},
-        {x=-4, y=0},
-        {x=-8, y=-6},
-        {x=8, y=0}
-	}
+    self.shape         = params.shape         or {
+        { x = 10,  y = 10  },
+        { x = -10, y = 10  },
+        { x = -10, y = -10 },
+        { x = 10,  y = -10 },
+    }
     return self
 end
 
 -- ==========================================
--- SPACESHIP MATH
+-- SPACEOBJ MATH
 -- ==========================================
 
-function SpaceShip:keepAngleInRange(angle)
+function SpaceObj:keepAngleInRange(angle)
     if angle < 0 then
         while angle < 0 do
             angle = angle + (2 * math.pi)
@@ -53,13 +51,13 @@ function SpaceShip:keepAngleInRange(angle)
 end
 
 -- 'rotation' parameter is in radians.
-function SpaceShip:rotatePoint(point, rotation)
+function SpaceObj:rotatePoint(point, rotation)
     local rotated_x = (point.x * math.cos(rotation)) - (point.y * math.sin(rotation))
     local rotated_y = (point.y * math.cos(rotation)) + (point.x * math.sin(rotation))
     return { x = rotated_x, y = rotated_y }
 end
 
-function SpaceShip:getVectorComponents(vector)
+function SpaceObj:getVectorComponents(vector)
     local xComp = vector.speed * math.cos(vector.direction)
     local yComp = vector.speed * math.sin(vector.direction)
 
@@ -71,7 +69,7 @@ function SpaceShip:getVectorComponents(vector)
     return components
 end
 
-function SpaceShip:addVectors(vector1, vector2)
+function SpaceObj:addVectors(vector1, vector2)
     v1Comp = self:getVectorComponents(vector1)
     v2Comp = self:getVectorComponents(vector2)
     resultantX = v1Comp.xComp + v2Comp.xComp
@@ -82,7 +80,7 @@ function SpaceShip:addVectors(vector1, vector2)
     return resVector
 end
 
-function SpaceShip:compToVector(x, y)
+function SpaceObj:compToVector(x, y)
     local magnitude = math.sqrt((x * x) + (y * y))
     local direction = math.atan(y, x)
 
@@ -96,7 +94,7 @@ function SpaceShip:compToVector(x, y)
     return vector
 end
 
-function SpaceShip:movePointByVelocity()
+function SpaceObj:movePointByVelocity()
     components = self:getVectorComponents(self.velocity)
 
     local newPosition = {
@@ -107,47 +105,34 @@ function SpaceShip:movePointByVelocity()
     return newPosition
 end
 
-
 -- ==========================================
--- SPACESHIP GETTERS
+-- SPACEOBJ GETTERS
 -- ==========================================
 
-function SpaceShip:getPosition()
+function SpaceObj:getPosition()
     return self.position
 end
 
-function SpaceShip:getVelocity()
+function SpaceObj:getVelocity()
     return self.velocity
 end
 
-function SpaceShip:getRotation()
+function SpaceObj:getRotation()
     return {
         rotation = self.rotation,
         speed    = self.rotationSpeed
     }
 end
 
-
 -- ==========================================
--- SPACESHIP INPUT
--- ==========================================
-
-function SpaceShip:input()
-    if btn(BTN_P1_LEFT) then
-        self.rotation = self.rotation - self.rotationSpeed
-    end
-    if btn(BTN_P1_RIGHT) then
-        self.rotation = self.rotation + self.rotationSpeed
-    end
-    self.rotation = self:keepAngleInRange(self.rotation)
-end
-
-
--- ==========================================
--- SPACESHIP UPDATE
+-- SPACEOBJ INPUT
 -- ==========================================
 
-function SpaceShip:wrapPosition()
+-- ==========================================
+-- SPACEOBJ UPDATE
+-- ==========================================
+
+function SpaceObj:wrapPosition()
     if (self.position.x >= EDGE_X_RIGHT) then
         self.position.x = 0
     elseif (self.position.x < 0) then
@@ -162,35 +147,17 @@ function SpaceShip:wrapPosition()
     return self.position
 end
 
-function SpaceShip:thrust()
-    local acceleration = {
-        speed     = self.acceleration,
-        direction = self.rotation
-    }
-    self.velocity = self:addVectors(self.velocity, acceleration)
-end
-
-function SpaceShip:move()
-    if btn(BTN_P1_UP) then
-        self:thrust()
-    end
-
-    self.velocity.speed = self.velocity.speed - self.deceleration
-    if self.velocity.speed < 0 then
-        self.velocity.speed = 0
-    end
-
+function SpaceObj:move()
     self.position = self:movePointByVelocity()
-    self.position = self:wrapPosition()
+    self:wrapPosition() -- don't assign if wrapPosition returns nil
 end
 
-
 -- ==========================================
--- SPACESHIP DRAW
+-- SPACEOBJ DRAW
 -- ==========================================
 
--- Draw the spaceship.
-function SpaceShip:draw()
+-- Draw the SpaceObj.
+function SpaceObj:draw()
     local first_point = true
     local last_point = 0
     local rotated_point = 0

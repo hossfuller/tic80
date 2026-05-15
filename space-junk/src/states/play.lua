@@ -12,12 +12,26 @@ end
 
 function updatePlay()
     game.play.player:move()
+    if game.play.params.player.deadstop_allow == true and btn(BTN_P1_DOWN) then
+        -- brake and snap can change as player takes damage.
+        game.play.player:deadStop(
+            game.play.params.player.deadstop_break,
+            game.play.params.player.deadstop_snap
+        )
+    end
+
+    for index, asteroid in ipairs(game.play.asteroids) do
+        asteroid:move()
+    end
 end
 
 function drawPlay()
     cls(BLACK)
 
     game.play.player:draw()
+    for index, asteroid in ipairs(game.play.asteroids) do
+        asteroid:draw()
+    end
 
     if DEBUG == true then
         local pos = game.play.player:getPosition()
