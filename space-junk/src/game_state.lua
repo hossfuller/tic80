@@ -3,9 +3,10 @@
 -- ==========================================
 
 STATE = {
-    START    = "START",
-    PLAY     = "PLAY",
-    GAMEOVER = "GAMEOVER",
+    START      = "START",
+    PLAY       = "PLAY",
+    GAMEOVER   = "GAMEOVER",
+    HIGHSCORES = "HIGHSCORES",
 }
 
 game = {
@@ -17,6 +18,8 @@ game = {
         player = {},
         score  = 0,
     },
+
+    high_scores = {},
 }
 
 
@@ -33,5 +36,11 @@ function changeState(newState)
         -- Reset game state for new game
         game.play.player = SpaceShip.new()
         game.play.score  = 0
+
+    elseif newState == STATE.HIGHSCORES then
+        loadHighScores()
+        sortHighScores()
+        buildLines()
+        scroll = 0
     end
 end

@@ -18,4 +18,9 @@ local states = {
         update = updateGameover,
         draw   = drawGameover,
     },
+    [STATE.HIGHSCORES] = {
+        input  = inputHighScores,
+        update = updateHighScores,
+        draw   = drawHighScores,
+    },
 }

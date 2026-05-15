@@ -77,6 +77,7 @@ function SpaceShip:keepAngleInRange(angle)
     return angle
 end
 
+-- 'rotation' parameter is in radians.
 function SpaceShip:rotatePoint(point, rotation)
     local rotated_x = (point.x * math.cos(rotation)) - (point.y * math.sin(rotation))
     local rotated_y = (point.y * math.cos(rotation)) + (point.x * math.sin(rotation))

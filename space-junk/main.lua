@@ -16,6 +16,7 @@ include "src.game_state"
 include "src.states.start"
 include "src.states.play"
 include "src.states.gameover"
+include "src.states.highscores"
 include "src.state_machine"
 
 include "src.classes.SpaceShip"
