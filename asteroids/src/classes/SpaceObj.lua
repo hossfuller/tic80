@@ -96,12 +96,16 @@ function SpaceObj:compToVector(x, y)
     return vector
 end
 
-function SpaceObj:movePointByVelocity()
-    components = self:getVectorComponents(self.velocity)
+function SpaceObj:movePointByVelocity(obj)
+    if obj == nil then
+        obj = self
+    end
+
+    components = self:getVectorComponents(obj.velocity)
 
     local newPosition = {
-        x = self.position.x + components.xComp,
-        y = self.position.y + components.yComp
+        x = obj.position.x + components.xComp,
+        y = obj.position.y + components.yComp
     }
 
     return newPosition
@@ -147,19 +151,22 @@ function SpaceObj:updateTimer()
     self.timer = (self.timer + 1) % 60
 end
 
-function SpaceObj:wrapPosition()
-    if (self.position.x >= EDGE_X_RIGHT) then
-        self.position.x = 0
-    elseif (self.position.x < 0) then
-        self.position.x = EDGE_X_RIGHT - 1
+function SpaceObj:wrapPosition(obj)
+    if obj == nil then
+        obj = self
+    end
+    if (obj.position.x >= EDGE_X_RIGHT) then
+        obj.position.x = 0
+    elseif (obj.position.x < 0) then
+        obj.position.x = EDGE_X_RIGHT - 1
     end
 
-    if (self.position.y >= EDGE_Y_BOTTOM) then
-        self.position.y = 0
-    elseif (self.position.y < 0) then
-        self.position.y = EDGE_Y_BOTTOM - 1
+    if (obj.position.y >= EDGE_Y_BOTTOM) then
+        obj.position.y = 0
+    elseif (obj.position.y < 0) then
+        obj.position.y = EDGE_Y_BOTTOM - 1
     end
-    return self.position
+    return obj.position
 end
 
 function SpaceObj:move()

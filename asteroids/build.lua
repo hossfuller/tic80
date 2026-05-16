@@ -220,20 +220,20 @@ game = {
                 -- Function to apply this setting
                 apply = function(value)
                     if value == 1 then -- Easy
-                        game.play.params.player.max_lasers        = 10
-                        game.play.params.player.reload_time       = 20
-                        game.play.params.asteroids.num_population = 3
+                        game.play.params.player.max_lasers        = 6
+                        game.play.params.player.laser_lifetime    = 60
+                        game.play.params.asteroids.num_population = 4
                         game.play.params.asteroids.velocity_max   = 0.3
                         game.play.params.asteroids.velocity_min   = 0.05
                     elseif value == 2 then -- Medium
-                        game.play.params.player.max_lasers        = 7
-                        game.play.params.player.reload_time       = 40
-                        game.play.params.asteroids.num_population = 5
+                        game.play.params.player.max_lasers        = 5
+                        game.play.params.player.laser_lifetime    = 50
+                        game.play.params.asteroids.num_population = 6
                         game.play.params.asteroids.velocity_max   = 0.5
                         game.play.params.asteroids.velocity_min   = 0.1
                     elseif value == 3 then -- Hard
                         game.play.params.player.max_lasers        = 4
-                        game.play.params.player.reload_time       = 60
+                        game.play.params.player.laser_lifetime    = 40
                         game.play.params.asteroids.num_population = 8
                         game.play.params.asteroids.velocity_max   = 0.8
                         game.play.params.asteroids.velocity_min   = 0.2
@@ -269,7 +269,7 @@ game = {
                 deadstop_break = 0.35, -- 0..1, higher = faster stop per frame
                 deadstop_snap  = 0.02,   -- below this speed, just snap to 0
                 max_lasers     = 4,
-                reload_time    = 60,
+                laser_lifetime = 60,
             },
             asteroids = {
                 num_population = 5,
@@ -309,7 +309,7 @@ function changeState(newState)
             brake       = game.play.params.player.deadstop_brake,
             snap        = game.play.params.player.deadstop_snap,
             shots       = game.play.params.player.max_lasers,
-            reload_time = game.play.params.player.reload_time,
+            lifetime    = game.play.params.player.laser_lifetime       
         })
         game.play.score  = 0
         -- Generate a bunch of asteroids to actually shoot.
@@ -384,7 +384,7 @@ function inputStart()
     end
 
     -- Menu selection
-    if btnp(BTN_P1_START) then
+    if btnp(BTN_P1_A) or btnp(BTN_P1_START) then
         local selected = game.menu.selected
         if selected == 1 then
             changeState(STATE.PLAY)
@@ -586,6 +586,8 @@ function updatePlay()
             game.play.params.player.deadstop_snap
         )
     end
+    game.play.player:moveLaserBlasts()
+    game.play.player:checkLaserHit()
 
     for index, asteroid in ipairs(game.play.asteroids) do
         asteroid:move()
@@ -596,6 +598,8 @@ function drawPlay()
     cls(BLACK)
 
     game.play.player:draw()
+    game.play.player:drawLaserBlasts()
+
     for index, asteroid in ipairs(game.play.asteroids) do
         asteroid:draw()
     end
@@ -611,6 +615,7 @@ function drawPlay()
 
         print("X: " .. pos_x .. "; Y: " .. pos_y, EDGE_X_LEFT, EDGE_Y_TOP, WHITE)
         print("Radians: " .. radians .. "; Speed: " .. speed, EDGE_X_LEFT, EDGE_Y_TOP + Y_PADDING, WHITE)
+        print("Num of Lasers: " .. tostring(game.play.player:getNumOfLaserBlasts()), EDGE_X_LEFT, EDGE_Y_TOP + 2* Y_PADDING, WHITE)
     end
 
 end
@@ -957,12 +962,16 @@ function SpaceObj:compToVector(x, y)
     return vector
 end
 
-function SpaceObj:movePointByVelocity()
-    components = self:getVectorComponents(self.velocity)
+function SpaceObj:movePointByVelocity(obj)
+    if obj == nil then
+        obj = self
+    end
+
+    components = self:getVectorComponents(obj.velocity)
 
     local newPosition = {
-        x = self.position.x + components.xComp,
-        y = self.position.y + components.yComp
+        x = obj.position.x + components.xComp,
+        y = obj.position.y + components.yComp
     }
 
     return newPosition
@@ -1008,19 +1017,22 @@ function SpaceObj:updateTimer()
     self.timer = (self.timer + 1) % 60
 end
 
-function SpaceObj:wrapPosition()
-    if (self.position.x >= EDGE_X_RIGHT) then
-        self.position.x = 0
-    elseif (self.position.x < 0) then
-        self.position.x = EDGE_X_RIGHT - 1
+function SpaceObj:wrapPosition(obj)
+    if obj == nil then
+        obj = self
+    end
+    if (obj.position.x >= EDGE_X_RIGHT) then
+        obj.position.x = 0
+    elseif (obj.position.x < 0) then
+        obj.position.x = EDGE_X_RIGHT - 1
     end
 
-    if (self.position.y >= EDGE_Y_BOTTOM) then
-        self.position.y = 0
-    elseif (self.position.y < 0) then
-        self.position.y = EDGE_Y_BOTTOM - 1
+    if (obj.position.y >= EDGE_Y_BOTTOM) then
+        obj.position.y = 0
+    elseif (obj.position.y < 0) then
+        obj.position.y = EDGE_Y_BOTTOM - 1
     end
-    return self.position
+    return obj.position
 end
 
 function SpaceObj:move()
@@ -1087,12 +1099,16 @@ function Ship:new(params)
         { x = 8,  y = 0  }
     }
 
-    self.max_shots    = params.shots or 4
-    self.laser_speed  = 2
+    -- laser blast stuff
     self.laser_blasts = {}
-    self.laser_offset = {
-        x = 8,
-        y = 0
+    self.laser_params = {
+        lifetime  = params.lifetime or 60,
+        max_shots = params.shots    or 4,
+        speed     = 2,
+        offset    = {
+            x = 8,
+            y = 0,
+        }
     }
 
     return self
@@ -1106,6 +1122,14 @@ end
 -- SHIP GETTERS
 -- ==========================================
 
+-- function Ship:getLaserBlasts()
+--     return self.laser_blasts
+-- end
+
+function Ship:getNumOfLaserBlasts()
+    return #self.laser_blasts
+end
+
 -- ==========================================
 -- SHIP INPUT
 -- ==========================================
@@ -1117,8 +1141,8 @@ function Ship:input()
     if btn(BTN_P1_RIGHT) then
         self.rotation = self.rotation + self.rotationSpeed
     end
-    if btn(BTN_P1_A) then
-        self:fireLaserBlaster()
+    if btnp(BTN_P1_A) then
+        self:fireLaserBlast()
     end
 
     self.rotation = self:keepAngleInRange(self.rotation)
@@ -1173,73 +1197,56 @@ function Ship:move()
     SpaceObj.move(self)
 end
 
-function Ship:fireLaserBlaster()
-    if #self.laser_blasts < self.max_shots then
-        -- Okay to fire
-        local rel_spawn_pos = self:rotatePoint(self.laser_offset, self.rotation)
-        local laser_blast = LaserBlast:new({
+function Ship:spawnLaserBlast()
+    local rel_spawn_pos = self:rotatePoint(self.laser_params.offset, self.rotation)
+    return {
+        position = {
             x = rel_spawn_pos.x + self.position.x,
             y = rel_spawn_pos.y + self.position.y,
-            speed = self.laser_speed,
+        },
+        velocity = {
+            speed = self.laser_params.speed,
             direction = self.rotation,
-            lifetime = 60,
-        })
-        table.insert(self.laser_blasts, laser_blast)
+        },
+        lifetime = self.laser_params.lifetime,
+    }
+end
+
+function Ship:fireLaserBlast()
+    if #self.laser_blasts < self.laser_params.max_shots then
+        -- Okay to fire
+        table.insert(self.laser_blasts, self:spawnLaserBlast())
         sfx(0, 40, 5, 0, 15, 1)
     end
 end
 
+function Ship:moveLaserBlasts()
+	for index, laser in ipairs(self.laser_blasts) do
+        laser.lifetime = laser.lifetime - 1
+        if laser.lifetime < 0 then
+            table.remove(self.laser_blasts, index)
+        else 
+            laser.position = self:movePointByVelocity(laser)
+            laser.position = self:wrapPosition(laser)
+        end
+	end
+end
+
+function Ship:checkLaserHit()
+    return false
+end
 
 -- ==========================================
 -- SHIP DRAW
 -- ==========================================
 
-
-
--- [/TQ-Bundler: src.classes.Ship]
-
--- [TQ-Bundler: src.classes.LaserBlast]
-
--- ==========================================
--- LASERBLAST OBJECT
--- ==========================================
-
-LaserBlast = setmetatable({}, { __index = SpaceObj })
-LaserBlast.__index = LaserBlast
-
-function LaserBlast:new(params)
-    params = params or {}
-    local self = SpaceObj.new(params) -- build base fields
-    setmetatable(self, LaserBlast)    -- make it a LaserBlast instance
-
-    -- LASERBLAST-specific properties
-    self.lifetime = params.lifetime or 60
-
-    return self
+function Ship:drawLaserBlasts()
+	for index, laser in ipairs(self.laser_blasts) do
+		spr(1, laser.position.x, laser.position.y, 0)
+	end
 end
 
--- ==========================================
--- LASERBLAST MATH
--- ==========================================
-
--- ==========================================
--- LASERBLAST GETTERS
--- ==========================================
-
--- ==========================================
--- LASERBLAST INPUT
--- ==========================================
-
--- ==========================================
--- LASERBLAST UPDATE
--- ==========================================
-
--- ==========================================
--- LASERBLAST DRAW
--- ==========================================
-
-
--- [/TQ-Bundler: src.classes.LaserBlast]
+-- [/TQ-Bundler: src.classes.Ship]
 
 -- [TQ-Bundler: src.classes.Asteroid]
 

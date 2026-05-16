@@ -19,6 +19,8 @@ function updatePlay()
             game.play.params.player.deadstop_snap
         )
     end
+    game.play.player:moveLaserBlasts()
+    game.play.player:checkLaserHit()
 
     for index, asteroid in ipairs(game.play.asteroids) do
         asteroid:move()
@@ -29,6 +31,8 @@ function drawPlay()
     cls(BLACK)
 
     game.play.player:draw()
+    game.play.player:drawLaserBlasts()
+
     for index, asteroid in ipairs(game.play.asteroids) do
         asteroid:draw()
     end
@@ -44,6 +48,7 @@ function drawPlay()
 
         print("X: " .. pos_x .. "; Y: " .. pos_y, EDGE_X_LEFT, EDGE_Y_TOP, WHITE)
         print("Radians: " .. radians .. "; Speed: " .. speed, EDGE_X_LEFT, EDGE_Y_TOP + Y_PADDING, WHITE)
+        print("Num of Lasers: " .. tostring(game.play.player:getNumOfLaserBlasts()), EDGE_X_LEFT, EDGE_Y_TOP + 2* Y_PADDING, WHITE)
     end
 
 end

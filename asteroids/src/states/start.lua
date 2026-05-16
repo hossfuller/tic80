@@ -19,7 +19,7 @@ function inputStart()
     end
 
     -- Menu selection
-    if btnp(BTN_P1_START) then
+    if btnp(BTN_P1_A) or btnp(BTN_P1_START) then
         local selected = game.menu.selected
         if selected == 1 then
             changeState(STATE.PLAY)

@@ -23,12 +23,16 @@ function Ship:new(params)
         { x = 8,  y = 0  }
     }
 
-    self.max_shots    = params.shots or 4
-    self.laser_speed  = 2
+    -- laser blast stuff
     self.laser_blasts = {}
-    self.laser_offset = {
-        x = 8,
-        y = 0
+    self.laser_params = {
+        lifetime  = params.lifetime or 60,
+        max_shots = params.shots    or 4,
+        speed     = 2,
+        offset    = {
+            x = 8,
+            y = 0,
+        }
     }
 
     return self
@@ -42,6 +46,14 @@ end
 -- SHIP GETTERS
 -- ==========================================
 
+-- function Ship:getLaserBlasts()
+--     return self.laser_blasts
+-- end
+
+function Ship:getNumOfLaserBlasts()
+    return #self.laser_blasts
+end
+
 -- ==========================================
 -- SHIP INPUT
 -- ==========================================
@@ -53,8 +65,8 @@ function Ship:input()
     if btn(BTN_P1_RIGHT) then
         self.rotation = self.rotation + self.rotationSpeed
     end
-    if btn(BTN_P1_A) then
-        self:fireLaserBlaster()
+    if btnp(BTN_P1_A) then
+        self:fireLaserBlast()
     end
 
     self.rotation = self:keepAngleInRange(self.rotation)
@@ -109,24 +121,51 @@ function Ship:move()
     SpaceObj.move(self)
 end
 
-function Ship:fireLaserBlaster()
-    if #self.laser_blasts < self.max_shots then
-        -- Okay to fire
-        local rel_spawn_pos = self:rotatePoint(self.laser_offset, self.rotation)
-        local laser_blast = LaserBlast:new({
+function Ship:spawnLaserBlast()
+    local rel_spawn_pos = self:rotatePoint(self.laser_params.offset, self.rotation)
+    return {
+        position = {
             x = rel_spawn_pos.x + self.position.x,
             y = rel_spawn_pos.y + self.position.y,
-            speed = self.laser_speed,
+        },
+        velocity = {
+            speed = self.laser_params.speed,
             direction = self.rotation,
-            lifetime = 60,
-        })
-        table.insert(self.laser_blasts, laser_blast)
+        },
+        lifetime = self.laser_params.lifetime,
+    }
+end
+
+function Ship:fireLaserBlast()
+    if #self.laser_blasts < self.laser_params.max_shots then
+        -- Okay to fire
+        table.insert(self.laser_blasts, self:spawnLaserBlast())
         sfx(0, 40, 5, 0, 15, 1)
     end
 end
 
+function Ship:moveLaserBlasts()
+	for index, laser in ipairs(self.laser_blasts) do
+        laser.lifetime = laser.lifetime - 1
+        if laser.lifetime < 0 then
+            table.remove(self.laser_blasts, index)
+        else 
+            laser.position = self:movePointByVelocity(laser)
+            laser.position = self:wrapPosition(laser)
+        end
+	end
+end
+
+function Ship:checkLaserHit()
+    return false
+end
 
 -- ==========================================
 -- SHIP DRAW
 -- ==========================================
 
+function Ship:drawLaserBlasts()
+	for index, laser in ipairs(self.laser_blasts) do
+		spr(1, laser.position.x, laser.position.y, 0)
+	end
+end
