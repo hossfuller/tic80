@@ -20,10 +20,10 @@ function updatePlay()
         )
     end
     game.play.player:moveLaserBlasts()
-    hit_asteroid = game.play.player:checkLaserHit(game.play.asteroids)
-    if hit_asteroid > -1 then
-        asteroid:explode()
-        table.remove(game.play.asteroids, hit_asteroid)
+    hit_asteroid_index = game.play.player:checkLaserHit(game.play.asteroids)
+    if hit_asteroid_index > -1 then
+        game.play.asteroids[hit_asteroid_index]:explode()
+        table.remove(game.play.asteroids, hit_asteroid_index)
     end
 
     for index, asteroid in ipairs(game.play.asteroids) do

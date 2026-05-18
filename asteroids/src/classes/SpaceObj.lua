@@ -30,7 +30,7 @@ function SpaceObj.new(params)
         { x = 10,  y = -10 },
     }
     self.timer = params.timer or 0
-    
+
     return self
 end
 
@@ -109,6 +109,83 @@ function SpaceObj:movePointByVelocity(obj)
     }
 
     return newPosition
+end
+
+
+-- ==========================================
+-- SPACEOBJ COLLISION DETECTION
+-- ==========================================
+
+function SpaceObj:checkSeparation(point1, point2, separation)
+    -- leaving as squares removes need to do a sqrt
+    local separationSq = separation * separation
+    local distanceSq =
+        ((point1.x - point2.x) * (point1.x - point2.x))
+        + ((point1.y - point2.y) * (point1.y - point2.y))
+    return (distanceSq <= separationSq)
+end
+
+function SpaceObj:pointInPolygon(point, shape)
+    local first_point   = true
+    local last_point    = 0
+    local rotated_point = 0
+    local on_right      = 0
+    local on_left       = 0
+    local x_crossing    = 0
+
+    for index, shape_point in ipairs(shape.shape) do
+        rotated_point = self:rotatePoint(shape_point, shape.rotation)
+
+        if first_point then
+            last_point  = rotated_point
+            first_point = false
+        else
+            start_point = {
+                x = last_point.x + shape.position.x,
+                y = last_point.y + shape.position.y
+            }
+            end_point = {
+                x = rotated_point.x + shape.position.x,
+                y = rotated_point.y + shape.position.y
+            }
+            if (
+                ((start_point.y >= point.y) and (end_point.y < point.y)) or
+                ((start_point.y < point.y) and (end_point.y >= point.y))
+            ) then
+                -- line crosses ray
+                if (start_point.x <= point.x) and (end_point.x <= point.x) then
+                    -- line is to left
+                    on_left = on_left + 1
+                elseif (start_point.x >= point.x) and (end_point.x >= point.x) then
+                    -- line is to right
+                    on_right = on_right + 1
+                else
+                    -- need to calculate crossing x coordinate
+                    if (start_point.y ~= end_point.y) then
+                        -- filter out horizontal line
+                        x_crossing = start_point.x + (
+                            (point.y - start_point.y) * (end_point.x - start_point.x) / (end_point.y - start_point.y)
+                        )
+                        if (x_crossing >= point.x) then
+                            on_right = on_right + 1
+                        else
+                            on_left = on_left + 1
+                        end
+                    end
+                end
+            end
+
+            last_point = rotated_point
+        end
+    end
+
+    -- only need to check on side
+    if (on_right % 2) == 1 then
+        -- odd = inside
+        return true
+    else
+        return false
+    end
 end
 
 -- ==========================================

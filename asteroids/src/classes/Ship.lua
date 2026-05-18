@@ -168,21 +168,16 @@ function Ship:checkLaserHit(asteroids)
                 ast_r + ast_r_var.plus
             )
             if separation_value then
-                asteroid_was_hit = asteroid_index
-                return asteroid_was_hit  -- immediately break out of loop
+                if self:pointInPolygon(laser.position, asteroid) then
+                    -- Remove laser blast and mark the asteroid hit.
+                    table.remove(self.laser_blasts, laser_index)
+                    asteroid_was_hit = asteroid_index
+                    return asteroid_was_hit -- immediately break out of loop
+                end
             end
         end
     end
     return asteroid_was_hit
-end
-
-function Ship:checkSeparation(point1, point2, separation)
-    -- leaving as squares removes need to do a sqrt
-    local separationSq = separation * separation
-    local distanceSq =
-        ((point1.x - point2.x) * (point1.x - point2.x))
-        + ((point1.y - point2.y) * (point1.y - point2.y))
-    return (distanceSq <= separationSq)
 end
 
 
