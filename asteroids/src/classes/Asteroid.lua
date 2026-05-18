@@ -28,6 +28,17 @@ end
 -- ASTEROID GETTERS
 -- ==========================================
 
+function Asteroid:getRadius()
+    return self.radius
+end
+
+function Asteroid:getRadiusPlusMinus()
+    return {
+        plus  = self.radius_plus,
+        minus = self.radius_minus
+    }
+end
+
 -- ==========================================
 -- ASTEROID INPUT
 -- ==========================================
@@ -77,3 +88,7 @@ end
 -- ==========================================
 -- ASTEROID DRAW
 -- ==========================================
+
+function Asteroid:explode()
+    -- insert something fancy here.
+end

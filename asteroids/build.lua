@@ -587,7 +587,11 @@ function updatePlay()
         )
     end
     game.play.player:moveLaserBlasts()
-    game.play.player:checkLaserHit()
+    hit_asteroid = game.play.player:checkLaserHit(game.play.asteroids)
+    if hit_asteroid > -1 then
+        asteroid:explode()
+        table.remove(game.play.asteroids, hit_asteroid)
+    end
 
     for index, asteroid in ipairs(game.play.asteroids) do
         asteroid:move()
@@ -1221,29 +1225,55 @@ function Ship:fireLaserBlast()
 end
 
 function Ship:moveLaserBlasts()
-	for index, laser in ipairs(self.laser_blasts) do
+    for index, laser in ipairs(self.laser_blasts) do
         laser.lifetime = laser.lifetime - 1
         if laser.lifetime < 0 then
             table.remove(self.laser_blasts, index)
-        else 
+        else
             laser.position = self:movePointByVelocity(laser)
             laser.position = self:wrapPosition(laser)
         end
-	end
+    end
 end
 
-function Ship:checkLaserHit()
-    return false
+function Ship:checkLaserHit(asteroids)
+    asteroid_was_hit = -1
+    for laser_index, laser in ipairs(self.laser_blasts) do
+        for asteroid_index, asteroid in ipairs(asteroids) do
+            ast_r = asteroid:getRadius()
+            ast_r_var = asteroid:getRadiusPlusMinus()
+            separation_value = self:checkSeparation(
+                laser.position,
+                asteroid.position,
+                ast_r + ast_r_var.plus
+            )
+            if separation_value then
+                asteroid_was_hit = asteroid_index
+                return asteroid_was_hit  -- immediately break out of loop
+            end
+        end
+    end
+    return asteroid_was_hit
 end
+
+function Ship:checkSeparation(point1, point2, separation)
+    -- leaving as squares removes need to do a sqrt
+    local separationSq = separation * separation
+    local distanceSq =
+        ((point1.x - point2.x) * (point1.x - point2.x))
+        + ((point1.y - point2.y) * (point1.y - point2.y))
+    return (distanceSq <= separationSq)
+end
+
 
 -- ==========================================
 -- SHIP DRAW
 -- ==========================================
 
 function Ship:drawLaserBlasts()
-	for index, laser in ipairs(self.laser_blasts) do
-		spr(1, laser.position.x, laser.position.y, 0)
-	end
+    for index, laser in ipairs(self.laser_blasts) do
+        spr(1, laser.position.x, laser.position.y, 0)
+    end
 end
 
 -- [/TQ-Bundler: src.classes.Ship]
@@ -1279,6 +1309,17 @@ end
 -- ==========================================
 -- ASTEROID GETTERS
 -- ==========================================
+
+function Asteroid:getRadius()
+    return self.radius
+end
+
+function Asteroid:getRadiusPlusMinus()
+    return {
+        plus  = self.radius_plus,
+        minus = self.radius_minus
+    }
+end
 
 -- ==========================================
 -- ASTEROID INPUT
@@ -1330,6 +1371,9 @@ end
 -- ASTEROID DRAW
 -- ==========================================
 
+function Asteroid:explode()
+    -- insert something fancy here.
+end
 
 -- [/TQ-Bundler: src.classes.Asteroid]
 
