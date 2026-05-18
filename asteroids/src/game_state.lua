@@ -93,9 +93,9 @@ game = {
                 rotation_max   = 0.03,
             },
         },
-        player = {},
+        player    = {},
         asteroids = {},
-        score  = 0,
+        score     = 0,
     },
 
     high_scores = {},
@@ -120,7 +120,7 @@ function changeState(newState)
             brake       = game.play.params.player.deadstop_brake,
             snap        = game.play.params.player.deadstop_snap,
             shots       = game.play.params.player.max_lasers,
-            lifetime    = game.play.params.player.laser_lifetime       
+            lifetime    = game.play.params.player.laser_lifetime
         })
         game.play.score  = 0
         -- Generate a bunch of asteroids to actually shoot.
@@ -155,16 +155,19 @@ function generateAsteroids()
         end
 
         local asteroid = Asteroid:new({
-            color         = color,
-            x             = pos_x,
-            y             = pos_y,
-            speed         = vel_speed,
-            direction     = math.random() * math.pi * 2,
-            rotationSpeed = rot_speed,
-            radius        = game.play.params.asteroids.radius,
-            radius_minus  = game.play.params.asteroids.radius_minus,
-            radius_plus   = game.play.params.asteroids.radius_plus,
-            num_vertices  = game.play.params.asteroids.num_vertices,
+            color          = color,
+            x              = pos_x,
+            y              = pos_y,
+            speed          = vel_speed,
+            direction      = math.random() * math.pi * 2,
+            scale          = 1,
+            rotation_speed = rot_speed,
+            velocity_max   = game.play.params.asteroids.velocity_max,
+            velocity_min   = game.play.params.asteroids.velocity_min,
+            radius         = game.play.params.asteroids.radius,
+            radius_minus   = game.play.params.asteroids.radius_minus,
+            radius_plus    = game.play.params.asteroids.radius_plus,
+            num_vertices   = game.play.params.asteroids.num_vertices,
         })
         table.insert(game.play.asteroids, asteroid)
     end

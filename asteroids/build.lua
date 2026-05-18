@@ -282,9 +282,9 @@ game = {
                 rotation_max   = 0.03,
             },
         },
-        player = {},
+        player    = {},
         asteroids = {},
-        score  = 0,
+        score     = 0,
     },
 
     high_scores = {},
@@ -309,7 +309,7 @@ function changeState(newState)
             brake       = game.play.params.player.deadstop_brake,
             snap        = game.play.params.player.deadstop_snap,
             shots       = game.play.params.player.max_lasers,
-            lifetime    = game.play.params.player.laser_lifetime       
+            lifetime    = game.play.params.player.laser_lifetime
         })
         game.play.score  = 0
         -- Generate a bunch of asteroids to actually shoot.
@@ -344,16 +344,19 @@ function generateAsteroids()
         end
 
         local asteroid = Asteroid:new({
-            color         = color,
-            x             = pos_x,
-            y             = pos_y,
-            speed         = vel_speed,
-            direction     = math.random() * math.pi * 2,
-            rotationSpeed = rot_speed,
-            radius        = game.play.params.asteroids.radius,
-            radius_minus  = game.play.params.asteroids.radius_minus,
-            radius_plus   = game.play.params.asteroids.radius_plus,
-            num_vertices  = game.play.params.asteroids.num_vertices,
+            color          = color,
+            x              = pos_x,
+            y              = pos_y,
+            speed          = vel_speed,
+            direction      = math.random() * math.pi * 2,
+            scale          = 1,
+            rotation_speed = rot_speed,
+            velocity_max   = game.play.params.asteroids.velocity_max,
+            velocity_min   = game.play.params.asteroids.velocity_min,
+            radius         = game.play.params.asteroids.radius,
+            radius_minus   = game.play.params.asteroids.radius_minus,
+            radius_plus    = game.play.params.asteroids.radius_plus,
+            num_vertices   = game.play.params.asteroids.num_vertices,
         })
         table.insert(game.play.asteroids, asteroid)
     end
@@ -586,15 +589,35 @@ function updatePlay()
             game.play.params.player.deadstop_snap
         )
     end
+
+    -- Move the laser blast and then check if it hit anything.
     game.play.player:moveLaserBlasts()
     hit_asteroid_index = game.play.player:checkLaserHit(game.play.asteroids)
-    if hit_asteroid_index > -1 then
-        game.play.asteroids[hit_asteroid_index]:explode()
-        table.remove(game.play.asteroids, hit_asteroid_index)
+    for index, asteroid in ipairs(game.play.asteroids) do
+        if hit_asteroid_index == index then
+            game.play.score = game.play.score + asteroid:getPoints()
+            local fragments = asteroid:explode()
+
+            -- remove original asteroid from list of asteroids
+            table.remove(game.play.asteroids, hit_asteroid_index)
+
+            -- If the asteroid was big enough to break into pieces, add the
+            -- pieces to the asteroids table.
+            if fragments ~= nil then
+                for frag_index, fragment in ipairs(fragments) do
+                    table.insert(game.play.asteroids, fragment)
+                end
+            end
+        else
+            asteroid:move()
+        end
     end
 
+    -- Now check if any asteroids have hit the ship.
     for index, asteroid in ipairs(game.play.asteroids) do
-        asteroid:move()
+        if game.play.player:polygonInPolygon(game.play.player, asteroid) then
+            changeState(STATE.GAMEOVER)
+        end
     end
 end
 
@@ -608,6 +631,9 @@ function drawPlay()
         asteroid:draw()
     end
 
+    print("SCORE: " .. tostring(game.play.score), EDGE_X_LEFT, EDGE_Y_TOP, CYAN, true)
+
+
     if DEBUG == true then
         local pos = game.play.player:getPosition()
         local rot = game.play.player:getRotation()
@@ -617,9 +643,10 @@ function drawPlay()
         local radians = string.format("%0.2f", rot.rotation)
         local speed   = string.format("%0.2f", rot.speed)
 
-        print("X: " .. pos_x .. "; Y: " .. pos_y, EDGE_X_LEFT, EDGE_Y_TOP, WHITE)
-        print("Radians: " .. radians .. "; Speed: " .. speed, EDGE_X_LEFT, EDGE_Y_TOP + Y_PADDING, WHITE)
-        print("Num of Lasers: " .. tostring(game.play.player:getNumOfLaserBlasts()), EDGE_X_LEFT, EDGE_Y_TOP + 2* Y_PADDING, WHITE)
+        print("X: " .. pos_x .. "; Y: " .. pos_y, EDGE_X_LEFT, EDGE_Y_BOTTOM - 4 * Y_PADDING, GRAY_DARK)
+        print("Radians: " .. radians .. "; Speed: " .. speed, EDGE_X_LEFT, EDGE_Y_BOTTOM - 3 * Y_PADDING, GRAY_DARK)
+        print("Num of Lasers: " .. tostring(game.play.player:getNumOfLaserBlasts()), EDGE_X_LEFT, EDGE_Y_BOTTOM - 2 * Y_PADDING, GRAY_DARK)
+        print("Num of Asteroids: " .. tostring(#game.play.asteroids), EDGE_X_LEFT, EDGE_Y_BOTTOM - Y_PADDING, GRAY_DARK)
     end
 
 end
@@ -889,11 +916,12 @@ function SpaceObj.new(params)
         speed     = params.speed     or 0,
         direction = params.direction or 0,
     }
-    self.acceleration  = params.acceleration  or 0.05
-    self.deceleration  = params.deceleration  or 0.01
-    self.rotation      = params.rotation      or 5
-    self.rotationSpeed = params.rotationSpeed or 0.07
-    self.shape         = params.shape         or {
+    self.acceleration   = params.acceleration   or 0.05
+    self.deceleration   = params.deceleration   or 0.01
+    self.rotation       = params.rotation       or 5
+    self.rotation_speed = params.rotation_speed or 0.07
+    self.radius         = params.radius         or 10
+    self.shape          = params.shape          or {
         { x = 10,  y = 10  },
         { x = -10, y = 10  },
         { x = -10, y = -10 },
@@ -1058,6 +1086,30 @@ function SpaceObj:pointInPolygon(point, shape)
     end
 end
 
+function SpaceObj:polygonInPolygon(shape1, shape2)
+    local collisionDetected = false
+    if (self:checkSeparation(shape1.position, shape2.position, shape1.radius + shape2.radius)) then
+        -- first shape points in second shape?
+        for index, point in ipairs(shape1.shape) do
+            if self:pointInPolygon(point, shape2) then
+                collisionDetected = true
+                break;
+            end
+        end
+
+        if collisionDetected == false then
+            for index, point in ipairs(shape2.shape) do
+                if self:pointInPolygon(point, shape1) then
+                    collisionDetected = true
+                    break;
+                end
+            end
+        end
+    end
+
+    return collisionDetected
+end
+
 -- ==========================================
 -- SPACEOBJ GETTERS
 -- ==========================================
@@ -1069,7 +1121,7 @@ end
 function SpaceObj:getRotation()
     return {
         rotation = self.rotation,
-        speed    = self.rotationSpeed
+        speed    = self.rotation_speed
     }
 end
 
@@ -1150,6 +1202,10 @@ function SpaceObj:draw()
     end
 end
 
+function SpaceObj:explode()
+    -- All space objects explode. How is another matter.
+end
+
 
 -- [/TQ-Bundler: src.classes.SpaceObj]
 
@@ -1172,7 +1228,8 @@ function Ship:new(params)
         brake = params.brake or 0.35, -- 0..1, higher = faster stop per frame
         snap  = params.snap  or 0.02  -- below this speed, just snap to 0
     }
-    self.shape = params.shape or {
+    self.radius = params.radius or 10
+    self.shape  = params.shape or {
         { x = 8,  y = 0  },
         { x = -8, y = 6  },
         { x = -4, y = 0  },
@@ -1217,10 +1274,10 @@ end
 
 function Ship:input()
     if btn(BTN_P1_LEFT) then
-        self.rotation = self.rotation - self.rotationSpeed
+        self.rotation = self.rotation - self.rotation_speed
     end
     if btn(BTN_P1_RIGHT) then
-        self.rotation = self.rotation + self.rotationSpeed
+        self.rotation = self.rotation + self.rotation_speed
     end
     if btnp(BTN_P1_A) then
         self:fireLaserBlast()
@@ -1365,11 +1422,16 @@ function Asteroid:new(params)
     setmetatable(self, Asteroid)          -- make it a Asteroid instance
 
     -- Asteroid-specific properties
-    self.radius       = params.radius       or 15
+    self.base_points  = params.base_points  or 50
+    self.clumpiness   = params.clumpiness   or 0.35
+    self.scale        = params.scale        or 1  -- set this first!
+    self.num_vertices = params.num_vertices or 10
     self.radius_minus = params.radius_minus or 6
     self.radius_plus  = params.radius_plus  or 4
-    self.num_vertices = params.num_vertices or 10
-    self.shape        = params.shape or self:spawn()
+    self.rotation_max = params.rotation_max or 0.03
+    self.velocity_max = params.velocity_max or 0.5
+    self.velocity_min = params.velocity_min or 0.1
+    self.shape        = params.shape        or self:spawn()
 
     return self
 end
@@ -1382,8 +1444,16 @@ end
 -- ASTEROID GETTERS
 -- ==========================================
 
+function Asteroid:getPoints()
+    return self.base_points * self.scale
+end
+
 function Asteroid:getRadius()
     return self.radius
+end
+
+function Asteroid:getScale()
+    return self.scale
 end
 
 function Asteroid:getRadiusPlusMinus()
@@ -1406,35 +1476,29 @@ end
 function Asteroid:spawn()
     local vertices = {}
 
-    -- Insert first vertex using default radius.
-    table.insert(vertices, { x = self.radius, y = 0 })
+    local baseR    = self.radius
+    -- scale the "clumpiness" with size
+    local minus    = math.min(self.radius_minus, baseR * self.clumpiness)
+    local plus     = math.min(self.radius_plus, baseR * self.clumpiness)
 
-    -- Now do the vertices in between the first and last ones.
+    table.insert(vertices, { x = baseR, y = 0 })
+
     for vertex = 1, (self.num_vertices - 1) do
-        local radius = math.random(
-            self.radius - self.radius_minus,
-            self.radius + self.radius_plus
-        )
-        local angle = ((math.pi * 2) / self.num_vertices) * vertex
-        local vector = {
-            speed     = radius,
-            direction = angle
-        }
-        local components = self:getVectorComponents(vector)
-        table.insert(vertices, {
-            x = components.xComp,
-            y = components.yComp
-        })
+        local minr = math.max(1, baseR - minus) -- never <= 0
+        local maxr = math.max(minr + 0.01, baseR + plus)
+
+        local r = minr + math.random() * (maxr - minr)
+        local a = (math.pi * 2 / self.num_vertices) * vertex
+
+        table.insert(vertices, { x = r * math.cos(a), y = r * math.sin(a) })
     end
 
-    -- Last vertex is the same as the first vertex
-    table.insert(vertices, { x = self.radius, y = 0 })
-
+    table.insert(vertices, { x = baseR, y = 0 })
     return vertices
 end
 
 function Asteroid:move()
-    self.rotation = self.rotation + self.rotationSpeed
+    self.rotation = self.rotation + self.rotation_speed
 
     SpaceObj.move(self)
 end
@@ -1444,8 +1508,38 @@ end
 -- ==========================================
 
 function Asteroid:explode()
-    -- insert something fancy here.
+    local position      = self.position
+    local orig_scale    = self.scale
+
+    local asteroid_fragments = {}
+
+    if orig_scale < 4 then
+        local new_scale = orig_scale * 2
+        for count = 1, 2 do
+            local asteroid = Asteroid:new({
+                color          = self.color,
+                x              = self.position.x,
+                y              = self.position.y,
+                speed          = (math.random() * (self.velocity_max - self.velocity_min)) + self.velocity_min,
+                direction      = math.random() * math.pi * 2,
+                acceleration   = self.acceleration,
+                deceleration   = self.deceleration,
+                scale          = new_scale,
+                rotation_speed = (math.random() * (2 * self.rotation_max)) - self.rotation_max,
+                radius         = self.radius / new_scale,
+                radius_minus   = self.radius_minus,
+                radius_plus    = self.radius_plus,
+                num_vertices   = self.num_vertices,
+            })
+            table.insert(asteroid_fragments, asteroid)
+        end
+    end
+
+    sfx(1, 1, 15, 1, 15)
+
+    return asteroid_fragments
 end
+
 
 -- [/TQ-Bundler: src.classes.Asteroid]
 

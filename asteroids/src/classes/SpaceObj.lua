@@ -19,11 +19,12 @@ function SpaceObj.new(params)
         speed     = params.speed     or 0,
         direction = params.direction or 0,
     }
-    self.acceleration  = params.acceleration  or 0.05
-    self.deceleration  = params.deceleration  or 0.01
-    self.rotation      = params.rotation      or 5
-    self.rotationSpeed = params.rotationSpeed or 0.07
-    self.shape         = params.shape         or {
+    self.acceleration   = params.acceleration   or 0.05
+    self.deceleration   = params.deceleration   or 0.01
+    self.rotation       = params.rotation       or 5
+    self.rotation_speed = params.rotation_speed or 0.07
+    self.radius         = params.radius         or 10
+    self.shape          = params.shape          or {
         { x = 10,  y = 10  },
         { x = -10, y = 10  },
         { x = -10, y = -10 },
@@ -188,6 +189,30 @@ function SpaceObj:pointInPolygon(point, shape)
     end
 end
 
+function SpaceObj:polygonInPolygon(shape1, shape2)
+    local collisionDetected = false
+    if (self:checkSeparation(shape1.position, shape2.position, shape1.radius + shape2.radius)) then
+        -- first shape points in second shape?
+        for index, point in ipairs(shape1.shape) do
+            if self:pointInPolygon(point, shape2) then
+                collisionDetected = true
+                break;
+            end
+        end
+
+        if collisionDetected == false then
+            for index, point in ipairs(shape2.shape) do
+                if self:pointInPolygon(point, shape1) then
+                    collisionDetected = true
+                    break;
+                end
+            end
+        end
+    end
+
+    return collisionDetected
+end
+
 -- ==========================================
 -- SPACEOBJ GETTERS
 -- ==========================================
@@ -199,7 +224,7 @@ end
 function SpaceObj:getRotation()
     return {
         rotation = self.rotation,
-        speed    = self.rotationSpeed
+        speed    = self.rotation_speed
     }
 end
 
@@ -278,4 +303,8 @@ function SpaceObj:draw()
             last_point = rotated_point
         end
     end
+end
+
+function SpaceObj:explode()
+    -- All space objects explode. How is another matter.
 end

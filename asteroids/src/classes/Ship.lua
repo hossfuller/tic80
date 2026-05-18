@@ -15,7 +15,8 @@ function Ship:new(params)
         brake = params.brake or 0.35, -- 0..1, higher = faster stop per frame
         snap  = params.snap  or 0.02  -- below this speed, just snap to 0
     }
-    self.shape = params.shape or {
+    self.radius = params.radius or 10
+    self.shape  = params.shape or {
         { x = 8,  y = 0  },
         { x = -8, y = 6  },
         { x = -4, y = 0  },
@@ -60,10 +61,10 @@ end
 
 function Ship:input()
     if btn(BTN_P1_LEFT) then
-        self.rotation = self.rotation - self.rotationSpeed
+        self.rotation = self.rotation - self.rotation_speed
     end
     if btn(BTN_P1_RIGHT) then
-        self.rotation = self.rotation + self.rotationSpeed
+        self.rotation = self.rotation + self.rotation_speed
     end
     if btnp(BTN_P1_A) then
         self:fireLaserBlast()
