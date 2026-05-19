@@ -726,7 +726,10 @@ end
 function drawPlay()
     cls(BLACK)
 
-    game.play.player:draw()
+    -- If we're invulnerable, then blink until we're not.
+    if game.play.player:shouldDraw() then
+        game.play.player:draw()
+    end
     game.play.player:drawLaserBlasts()
 
     for index, asteroid in ipairs(game.play.asteroids) do
@@ -1592,7 +1595,7 @@ function Ship:fireLaserBlast()
     if #self.laser_blasts < self.laser_params.max_shots then
         -- Okay to fire
         table.insert(self.laser_blasts, self:spawnLaserBlast())
-        sfx(0, 40, 5, 0, 15, 1)
+        sfx(0, 40, 20, 0, 15, 1)
     end
 end
 
@@ -1670,7 +1673,19 @@ function Ship:drawLaserBlasts()
     end
 end
 
+-- This is for when the ship first starts out and is invulnerable.
+function Ship:shouldDraw()
+    if self.invulnerable <= 0 then
+        return true
+    end
+    -- blink: visible 6 frames, invisible 6 frames
+    return (math.floor(self.invulnerable / 6) % 2) == 0
+end
+
 function Ship:explode()
+
+    sfx(2, 10, 30, 3, 15)
+
     drawCenteredText("EXPLODED", EDGE_Y_BOTTOM / 2, RED, true, 3, false, YELLOW)
 end
 
@@ -1810,7 +1825,7 @@ function Asteroid:explode()
         end
     end
 
-    sfx(1, 1, 15, 1, 15)
+    sfx(1, 1, 50, 1, 15)
 
     return asteroid_fragments
 end

@@ -130,7 +130,10 @@ end
 function drawPlay()
     cls(BLACK)
 
-    game.play.player:draw()
+    -- If we're invulnerable, then blink until we're not.
+    if game.play.player:shouldDraw() then
+        game.play.player:draw()
+    end
     game.play.player:drawLaserBlasts()
 
     for index, asteroid in ipairs(game.play.asteroids) do

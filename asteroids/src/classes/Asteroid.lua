@@ -130,7 +130,7 @@ function Asteroid:explode()
         end
     end
 
-    sfx(1, 1, 15, 1, 15)
+    sfx(1, 1, 50, 1, 15)
 
     return asteroid_fragments
 end
