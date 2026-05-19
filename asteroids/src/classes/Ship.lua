@@ -11,6 +11,7 @@ function Ship:new(params)
     setmetatable(self, Ship)          -- make it a Ship instance
 
     -- Ship-specific properties
+    self.health   = params.health or 1000
     self.deadstop = {
         brake = params.brake or 0.35, -- 0..1, higher = faster stop per frame
         snap  = params.snap  or 0.02  -- below this speed, just snap to 0
@@ -47,9 +48,9 @@ end
 -- SHIP GETTERS
 -- ==========================================
 
--- function Ship:getLaserBlasts()
---     return self.laser_blasts
--- end
+function Ship:getHealth()
+    return self.health
+end
 
 function Ship:getNumOfLaserBlasts()
     return #self.laser_blasts
@@ -181,6 +182,13 @@ function Ship:checkLaserHit(asteroids)
     return asteroid_was_hit
 end
 
+function Ship:takesDamage(damage)
+    if damage == nil then
+        damage = 0
+    end
+    self.health = self.health - damage
+    return self:getHealth()
+end
 
 -- ==========================================
 -- SHIP DRAW
@@ -189,5 +197,11 @@ end
 function Ship:drawLaserBlasts()
     for index, laser in ipairs(self.laser_blasts) do
         spr(1, laser.position.x, laser.position.y, 0)
+    end
+end
+
+function Ship:explode()
+    if self.health < 1 then
+        drawCenteredText("EXPLODED", EDGE_Y_BOTTOM / 2, RED, true, 3, false, YELLOW)
     end
 end

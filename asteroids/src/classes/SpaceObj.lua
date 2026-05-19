@@ -32,6 +32,9 @@ function SpaceObj.new(params)
     }
     self.timer = params.timer or 0
 
+    -- For deflections: 1.0 = perfectly elastic, <1.0 loses speed
+    self.elasticity = params.elasticity or 0.95
+
     return self
 end
 
@@ -115,7 +118,23 @@ end
 
 -- ==========================================
 -- SPACEOBJ COLLISION DETECTION
+-- Had to use AI to resolve some bugs, and hooo-boy, it got wild.
 -- ==========================================
+
+function SpaceObj:getBoundingRadius()
+    local r2 = 0
+    for _, p in ipairs(self.shape) do
+        local d2 = p.x * p.x + p.y * p.y
+        if d2 > r2 then r2 = d2 end
+    end
+    return math.sqrt(r2)
+end
+
+function SpaceObj:collidesCircle(other)
+    local ra = self:getBoundingRadius()
+    local rb = other:getBoundingRadius()
+    return self:checkSeparation(self.position, other.position, ra + rb)
+end
 
 function SpaceObj:checkSeparation(point1, point2, separation)
     -- leaving as squares removes need to do a sqrt
@@ -124,6 +143,30 @@ function SpaceObj:checkSeparation(point1, point2, separation)
         ((point1.x - point2.x) * (point1.x - point2.x))
         + ((point1.y - point2.y) * (point1.y - point2.y))
     return (distanceSq <= separationSq)
+end
+
+function SpaceObj:separateFrom(other)
+    local ra = self:getBoundingRadius()
+    local rb = other:getBoundingRadius()
+
+    local dx = self.position.x - other.position.x
+    local dy = self.position.y - other.position.y
+    local d = math.sqrt(dx * dx + dy * dy)
+
+    if d < 1e-6 then
+        dx, dy, d = 1, 0, 1
+    end
+
+    local overlap = (ra + rb) - d
+    if overlap <= 0 then return end
+
+    local nx, ny     = dx / d, dy / d
+    local push       = overlap * 0.5 + 0.01 -- +epsilon helps prevent re-penetration
+
+    self.position.x  = self.position.x + nx * push
+    self.position.y  = self.position.y + ny * push
+    other.position.x = other.position.x - nx * push
+    other.position.y = other.position.y - ny * push
 end
 
 function SpaceObj:pointInPolygon(point, shape)
@@ -189,28 +232,98 @@ function SpaceObj:pointInPolygon(point, shape)
     end
 end
 
-function SpaceObj:polygonInPolygon(shape1, shape2)
-    local collisionDetected = false
-    if (self:checkSeparation(shape1.position, shape2.position, shape1.radius + shape2.radius)) then
-        -- first shape points in second shape?
-        for index, point in ipairs(shape1.shape) do
-            if self:pointInPolygon(point, shape2) then
-                collisionDetected = true
-                break;
-            end
-        end
+function SpaceObj:polygonInPolygon(a, b)
+    local ra = a:getBoundingRadius()
+    local rb = b:getBoundingRadius()
 
-        if collisionDetected == false then
-            for index, point in ipairs(shape2.shape) do
-                if self:pointInPolygon(point, shape1) then
-                    collisionDetected = true
-                    break;
-                end
-            end
-        end
+    if not self:checkSeparation(a.position, b.position, ra + rb) then
+        return false
     end
 
-    return collisionDetected
+    for _, lp in ipairs(a.shape) do
+        local rp = self:rotatePoint(lp, a.rotation)
+        local wp = { x = rp.x + a.position.x, y = rp.y + a.position.y }
+        if self:pointInPolygon(wp, b) then return true end
+    end
+
+    for _, lp in ipairs(b.shape) do
+        local rp = self:rotatePoint(lp, b.rotation)
+        local wp = { x = rp.x + b.position.x, y = rp.y + b.position.y }
+        if self:pointInPolygon(wp, a) then return true end
+    end
+
+    return false
+end
+
+function SpaceObj:checkCollision(colliding_obj)
+    return self:polygonInPolygon(self, colliding_obj)
+end
+
+function SpaceObj:deflect(other)
+    -- self.elasticity: 1.0 = perfectly elastic, <1.0 loses speed
+    local vx = self.velocity.speed * math.cos(self.velocity.direction)
+    local vy = self.velocity.speed * math.sin(self.velocity.direction)
+
+    -- If we don't know what we hit, just reverse.
+    if not other or not other.position then
+        vx, vy = -vx, -vy
+    else
+        -- Collision normal: from other -> self (center-to-center)
+        local nx = self.position.x - other.position.x
+        local ny = self.position.y - other.position.y
+        local nlen = math.sqrt(nx * nx + ny * ny)
+
+        -- If centers coincide, pick any normal
+        if nlen < 1e-6 then
+            nx, ny, nlen = 1, 0, 1
+        end
+
+        nx, ny = nx / nlen, ny / nlen
+
+        -- Reflect v about normal n:
+        -- v' = v - 2*(v·n)*n
+        local dot = vx * nx + vy * ny
+        vx = vx - 2 * dot * nx
+        vy = vy - 2 * dot * ny
+    end
+
+    -- Apply self.elasticity
+    vx = vx * self.elasticity
+    vy = vy * self.elasticity
+
+    -- Convert back to your polar velocity representation
+    local speed = math.sqrt(vx * vx + vy * vy)
+    local dir = math.atan(vy, vx)
+    dir = self:keepAngleInRange(dir)
+
+    -- Clamp speed if you want to keep within your configured limits
+    if self.velocity_max then speed = math.min(speed, self.velocity_max) end
+    if self.velocity_min then speed = math.max(speed, self.velocity_min) end
+
+    self.velocity.speed = speed
+    self.velocity.direction = dir
+
+    -- Small positional nudge along the new direction to reduce "sticking"
+    self.position.x = self.position.x + math.cos(dir) * 0.5
+    self.position.y = self.position.y + math.sin(dir) * 0.5
+end
+
+function SpaceObj:resolveCollision(other)
+    if not other then return false end
+
+    -- broad-phase (circle)
+    if not self:collidesCircle(other) then
+        return false
+    end
+
+    -- separate first to prevent sticking/spinning
+    self:separateFrom(other)
+
+    -- reflect both velocities using your existing deflect()
+    self:deflect(other)
+    other:deflect(self)
+
+    return true
 end
 
 -- ==========================================

@@ -43,10 +43,18 @@ function updatePlay()
         end
     end
 
-    -- Now check if any asteroids have hit the ship.
-    for index, asteroid in ipairs(game.play.asteroids) do
-        if game.play.player:polygonInPolygon(game.play.player, asteroid) then
-            changeState(STATE.GAMEOVER)
+    -- Now check if any asteroids have hit each other or the ship.
+    for i = 1, #game.play.asteroids - 1 do
+        local asteroid = game.play.asteroids[i]
+        for j = i + 1, #game.play.asteroids do
+            asteroid:resolveCollision(game.play.asteroids[j])
+        end
+    end
+
+    -- And now check if any asteroids have hit the ship.
+    for _, asteroid in ipairs(game.play.asteroids) do
+        if game.play.player:resolveCollision(asteroid) then
+            game.play.player:takesDamage(asteroid:getInducedDamage())
         end
     end
 end
@@ -61,8 +69,8 @@ function drawPlay()
         asteroid:draw()
     end
 
-    print("SCORE: " .. tostring(game.play.score), EDGE_X_LEFT, EDGE_Y_TOP, CYAN, true)
-
+    print("HEALTH: " .. tostring(game.play.player:getHealth()), EDGE_X_LEFT, EDGE_Y_TOP, CYAN, true)
+    print("SCORE: " .. tostring(game.play.score), EDGE_X_LEFT, EDGE_Y_TOP + Y_PADDING, CYAN, true)
 
     if DEBUG == true then
         local pos = game.play.player:getPosition()

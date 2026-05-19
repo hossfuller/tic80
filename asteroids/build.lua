@@ -220,18 +220,21 @@ game = {
                 -- Function to apply this setting
                 apply = function(value)
                     if value == 1 then -- Easy
+                        game.play.params.player.health            = 250
                         game.play.params.player.max_lasers        = 6
                         game.play.params.player.laser_lifetime    = 60
                         game.play.params.asteroids.num_population = 4
                         game.play.params.asteroids.velocity_max   = 0.3
                         game.play.params.asteroids.velocity_min   = 0.05
                     elseif value == 2 then -- Medium
+                        game.play.params.player.health            = 175
                         game.play.params.player.max_lasers        = 5
                         game.play.params.player.laser_lifetime    = 50
                         game.play.params.asteroids.num_population = 6
                         game.play.params.asteroids.velocity_max   = 0.5
                         game.play.params.asteroids.velocity_min   = 0.1
                     elseif value == 3 then -- Hard
+                        game.play.params.player.health            = 100
                         game.play.params.player.max_lasers        = 4
                         game.play.params.player.laser_lifetime    = 40
                         game.play.params.asteroids.num_population = 8
@@ -270,6 +273,8 @@ game = {
                 deadstop_snap  = 0.02,   -- below this speed, just snap to 0
                 max_lasers     = 4,
                 laser_lifetime = 60,
+                elasticity     = 0.5,
+                health         = 100,
             },
             asteroids = {
                 num_population = 5,
@@ -280,6 +285,7 @@ game = {
                 velocity_max   = 0.5,
                 velocity_min   = 0.1,
                 rotation_max   = 0.03,
+                elasticity     = 0.95,
             },
         },
         player    = {},
@@ -305,14 +311,14 @@ function changeState(newState)
     if newState == STATE.PLAY then
         -- Reset game state for new game
         game.play.player = Ship:new({
-            color       = BLUE_MED,
-            brake       = game.play.params.player.deadstop_brake,
-            snap        = game.play.params.player.deadstop_snap,
-            shots       = game.play.params.player.max_lasers,
-            lifetime    = game.play.params.player.laser_lifetime
+            color    = BLUE_MED,
+            health   = game.play.params.player.health,
+            brake    = game.play.params.player.deadstop_brake,
+            snap     = game.play.params.player.deadstop_snap,
+            shots    = game.play.params.player.max_lasers,
+            lifetime = game.play.params.player.laser_lifetime
         })
         game.play.score  = 0
-        -- Generate a bunch of asteroids to actually shoot.
 
     elseif newState == STATE.HIGHSCORES then
         loadHighScores()
@@ -349,6 +355,7 @@ function generateAsteroids()
             y              = pos_y,
             speed          = vel_speed,
             direction      = math.random() * math.pi * 2,
+            elasticity     = game.play.params.asteroids.elasticity,
             scale          = 1,
             rotation_speed = rot_speed,
             velocity_max   = game.play.params.asteroids.velocity_max,
@@ -613,10 +620,18 @@ function updatePlay()
         end
     end
 
-    -- Now check if any asteroids have hit the ship.
-    for index, asteroid in ipairs(game.play.asteroids) do
-        if game.play.player:polygonInPolygon(game.play.player, asteroid) then
-            changeState(STATE.GAMEOVER)
+    -- Now check if any asteroids have hit each other or the ship.
+    for i = 1, #game.play.asteroids - 1 do
+        local asteroid = game.play.asteroids[i]
+        for j = i + 1, #game.play.asteroids do
+            asteroid:resolveCollision(game.play.asteroids[j])
+        end
+    end
+
+    -- And now check if any asteroids have hit the ship.
+    for _, asteroid in ipairs(game.play.asteroids) do
+        if game.play.player:resolveCollision(asteroid) then
+            game.play.player:takesDamage(asteroid:getInducedDamage())
         end
     end
 end
@@ -631,8 +646,8 @@ function drawPlay()
         asteroid:draw()
     end
 
-    print("SCORE: " .. tostring(game.play.score), EDGE_X_LEFT, EDGE_Y_TOP, CYAN, true)
-
+    print("HEALTH: " .. tostring(game.play.player:getHealth()), EDGE_X_LEFT, EDGE_Y_TOP, CYAN, true)
+    print("SCORE: " .. tostring(game.play.score), EDGE_X_LEFT, EDGE_Y_TOP + Y_PADDING, CYAN, true)
 
     if DEBUG == true then
         local pos = game.play.player:getPosition()
@@ -929,6 +944,9 @@ function SpaceObj.new(params)
     }
     self.timer = params.timer or 0
 
+    -- For deflections: 1.0 = perfectly elastic, <1.0 loses speed
+    self.elasticity = params.elasticity or 0.95
+
     return self
 end
 
@@ -1012,7 +1030,23 @@ end
 
 -- ==========================================
 -- SPACEOBJ COLLISION DETECTION
+-- Had to use AI to resolve some bugs, and hooo-boy, it got wild.
 -- ==========================================
+
+function SpaceObj:getBoundingRadius()
+    local r2 = 0
+    for _, p in ipairs(self.shape) do
+        local d2 = p.x * p.x + p.y * p.y
+        if d2 > r2 then r2 = d2 end
+    end
+    return math.sqrt(r2)
+end
+
+function SpaceObj:collidesCircle(other)
+    local ra = self:getBoundingRadius()
+    local rb = other:getBoundingRadius()
+    return self:checkSeparation(self.position, other.position, ra + rb)
+end
 
 function SpaceObj:checkSeparation(point1, point2, separation)
     -- leaving as squares removes need to do a sqrt
@@ -1021,6 +1055,30 @@ function SpaceObj:checkSeparation(point1, point2, separation)
         ((point1.x - point2.x) * (point1.x - point2.x))
         + ((point1.y - point2.y) * (point1.y - point2.y))
     return (distanceSq <= separationSq)
+end
+
+function SpaceObj:separateFrom(other)
+    local ra = self:getBoundingRadius()
+    local rb = other:getBoundingRadius()
+
+    local dx = self.position.x - other.position.x
+    local dy = self.position.y - other.position.y
+    local d = math.sqrt(dx * dx + dy * dy)
+
+    if d < 1e-6 then
+        dx, dy, d = 1, 0, 1
+    end
+
+    local overlap = (ra + rb) - d
+    if overlap <= 0 then return end
+
+    local nx, ny     = dx / d, dy / d
+    local push       = overlap * 0.5 + 0.01 -- +epsilon helps prevent re-penetration
+
+    self.position.x  = self.position.x + nx * push
+    self.position.y  = self.position.y + ny * push
+    other.position.x = other.position.x - nx * push
+    other.position.y = other.position.y - ny * push
 end
 
 function SpaceObj:pointInPolygon(point, shape)
@@ -1086,28 +1144,98 @@ function SpaceObj:pointInPolygon(point, shape)
     end
 end
 
-function SpaceObj:polygonInPolygon(shape1, shape2)
-    local collisionDetected = false
-    if (self:checkSeparation(shape1.position, shape2.position, shape1.radius + shape2.radius)) then
-        -- first shape points in second shape?
-        for index, point in ipairs(shape1.shape) do
-            if self:pointInPolygon(point, shape2) then
-                collisionDetected = true
-                break;
-            end
-        end
+function SpaceObj:polygonInPolygon(a, b)
+    local ra = a:getBoundingRadius()
+    local rb = b:getBoundingRadius()
 
-        if collisionDetected == false then
-            for index, point in ipairs(shape2.shape) do
-                if self:pointInPolygon(point, shape1) then
-                    collisionDetected = true
-                    break;
-                end
-            end
-        end
+    if not self:checkSeparation(a.position, b.position, ra + rb) then
+        return false
     end
 
-    return collisionDetected
+    for _, lp in ipairs(a.shape) do
+        local rp = self:rotatePoint(lp, a.rotation)
+        local wp = { x = rp.x + a.position.x, y = rp.y + a.position.y }
+        if self:pointInPolygon(wp, b) then return true end
+    end
+
+    for _, lp in ipairs(b.shape) do
+        local rp = self:rotatePoint(lp, b.rotation)
+        local wp = { x = rp.x + b.position.x, y = rp.y + b.position.y }
+        if self:pointInPolygon(wp, a) then return true end
+    end
+
+    return false
+end
+
+function SpaceObj:checkCollision(colliding_obj)
+    return self:polygonInPolygon(self, colliding_obj)
+end
+
+function SpaceObj:deflect(other)
+    -- self.elasticity: 1.0 = perfectly elastic, <1.0 loses speed
+    local vx = self.velocity.speed * math.cos(self.velocity.direction)
+    local vy = self.velocity.speed * math.sin(self.velocity.direction)
+
+    -- If we don't know what we hit, just reverse.
+    if not other or not other.position then
+        vx, vy = -vx, -vy
+    else
+        -- Collision normal: from other -> self (center-to-center)
+        local nx = self.position.x - other.position.x
+        local ny = self.position.y - other.position.y
+        local nlen = math.sqrt(nx * nx + ny * ny)
+
+        -- If centers coincide, pick any normal
+        if nlen < 1e-6 then
+            nx, ny, nlen = 1, 0, 1
+        end
+
+        nx, ny = nx / nlen, ny / nlen
+
+        -- Reflect v about normal n:
+        -- v' = v - 2*(v·n)*n
+        local dot = vx * nx + vy * ny
+        vx = vx - 2 * dot * nx
+        vy = vy - 2 * dot * ny
+    end
+
+    -- Apply self.elasticity
+    vx = vx * self.elasticity
+    vy = vy * self.elasticity
+
+    -- Convert back to your polar velocity representation
+    local speed = math.sqrt(vx * vx + vy * vy)
+    local dir = math.atan(vy, vx)
+    dir = self:keepAngleInRange(dir)
+
+    -- Clamp speed if you want to keep within your configured limits
+    if self.velocity_max then speed = math.min(speed, self.velocity_max) end
+    if self.velocity_min then speed = math.max(speed, self.velocity_min) end
+
+    self.velocity.speed = speed
+    self.velocity.direction = dir
+
+    -- Small positional nudge along the new direction to reduce "sticking"
+    self.position.x = self.position.x + math.cos(dir) * 0.5
+    self.position.y = self.position.y + math.sin(dir) * 0.5
+end
+
+function SpaceObj:resolveCollision(other)
+    if not other then return false end
+
+    -- broad-phase (circle)
+    if not self:collidesCircle(other) then
+        return false
+    end
+
+    -- separate first to prevent sticking/spinning
+    self:separateFrom(other)
+
+    -- reflect both velocities using your existing deflect()
+    self:deflect(other)
+    other:deflect(self)
+
+    return true
 end
 
 -- ==========================================
@@ -1224,6 +1352,7 @@ function Ship:new(params)
     setmetatable(self, Ship)          -- make it a Ship instance
 
     -- Ship-specific properties
+    self.health   = params.health or 1000
     self.deadstop = {
         brake = params.brake or 0.35, -- 0..1, higher = faster stop per frame
         snap  = params.snap  or 0.02  -- below this speed, just snap to 0
@@ -1260,9 +1389,9 @@ end
 -- SHIP GETTERS
 -- ==========================================
 
--- function Ship:getLaserBlasts()
---     return self.laser_blasts
--- end
+function Ship:getHealth()
+    return self.health
+end
 
 function Ship:getNumOfLaserBlasts()
     return #self.laser_blasts
@@ -1394,6 +1523,13 @@ function Ship:checkLaserHit(asteroids)
     return asteroid_was_hit
 end
 
+function Ship:takesDamage(damage)
+    if damage == nil then
+        damage = 0
+    end
+    self.health = self.health - damage
+    return self:getHealth()
+end
 
 -- ==========================================
 -- SHIP DRAW
@@ -1402,6 +1538,12 @@ end
 function Ship:drawLaserBlasts()
     for index, laser in ipairs(self.laser_blasts) do
         spr(1, laser.position.x, laser.position.y, 0)
+    end
+end
+
+function Ship:explode()
+    if self.health < 1 then
+        drawCenteredText("EXPLODED", EDGE_Y_BOTTOM / 2, RED, true, 3, false, YELLOW)
     end
 end
 
@@ -1426,6 +1568,7 @@ function Asteroid:new(params)
     self.clumpiness   = params.clumpiness   or 0.35
     self.scale        = params.scale        or 1  -- set this first!
     self.num_vertices = params.num_vertices or 10
+    self.radius       = params.radius       or self.radius or 15
     self.radius_minus = params.radius_minus or 6
     self.radius_plus  = params.radius_plus  or 4
     self.rotation_max = params.rotation_max or 0.03
@@ -1443,6 +1586,10 @@ end
 -- ==========================================
 -- ASTEROID GETTERS
 -- ==========================================
+
+function Asteroid:getInducedDamage()
+    return self.radius * 10
+end
 
 function Asteroid:getPoints()
     return self.base_points * self.scale
@@ -1524,6 +1671,7 @@ function Asteroid:explode()
                 direction      = math.random() * math.pi * 2,
                 acceleration   = self.acceleration,
                 deceleration   = self.deceleration,
+                elasticity     = self.elasticity,
                 scale          = new_scale,
                 rotation_speed = (math.random() * (2 * self.rotation_max)) - self.rotation_max,
                 radius         = self.radius / new_scale,

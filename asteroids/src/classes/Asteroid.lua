@@ -15,6 +15,7 @@ function Asteroid:new(params)
     self.clumpiness   = params.clumpiness   or 0.35
     self.scale        = params.scale        or 1  -- set this first!
     self.num_vertices = params.num_vertices or 10
+    self.radius       = params.radius       or self.radius or 15
     self.radius_minus = params.radius_minus or 6
     self.radius_plus  = params.radius_plus  or 4
     self.rotation_max = params.rotation_max or 0.03
@@ -32,6 +33,10 @@ end
 -- ==========================================
 -- ASTEROID GETTERS
 -- ==========================================
+
+function Asteroid:getInducedDamage()
+    return self.radius * 10
+end
 
 function Asteroid:getPoints()
     return self.base_points * self.scale
@@ -113,6 +118,7 @@ function Asteroid:explode()
                 direction      = math.random() * math.pi * 2,
                 acceleration   = self.acceleration,
                 deceleration   = self.deceleration,
+                elasticity     = self.elasticity,
                 scale          = new_scale,
                 rotation_speed = (math.random() * (2 * self.rotation_max)) - self.rotation_max,
                 radius         = self.radius / new_scale,
