@@ -70,6 +70,13 @@ function updateOptions()
     for index, asteroid in ipairs(game.play.asteroids) do
         asteroid:move()
     end
+
+    for i = 1, #game.play.asteroids - 1 do
+        local asteroid = game.play.asteroids[i]
+        for j = i + 1, #game.play.asteroids do
+            asteroid:resolveCollision(game.play.asteroids[j])
+        end
+    end
 end
 
 function drawOptions()

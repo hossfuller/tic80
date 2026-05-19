@@ -127,7 +127,7 @@ function SpaceObj:getBoundingRadius()
         local d2 = p.x * p.x + p.y * p.y
         if d2 > r2 then r2 = d2 end
     end
-    return math.sqrt(r2)
+    return math.sqrt(r2) - 2
 end
 
 function SpaceObj:collidesCircle(other)

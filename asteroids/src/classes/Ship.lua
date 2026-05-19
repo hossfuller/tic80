@@ -11,7 +11,14 @@ function Ship:new(params)
     setmetatable(self, Ship)          -- make it a Ship instance
 
     -- Ship-specific properties
-    self.health   = params.health or 1000
+    self.max_health    = params.max_health or 1000
+    self.cur_health    = self.max_health
+    self.max_lives     = params.max_lives or 3
+    self.cur_lives     = self.max_lives
+    self.invulnerable  = 0
+    self.dead          = false
+    self.respawn_timer = 0
+
     self.deadstop = {
         brake = params.brake or 0.35, -- 0..1, higher = faster stop per frame
         snap  = params.snap  or 0.02  -- below this speed, just snap to 0
@@ -49,11 +56,19 @@ end
 -- ==========================================
 
 function Ship:getHealth()
-    return self.health
+    return self.cur_health
 end
 
-function Ship:getNumOfLaserBlasts()
+function Ship:getHealthFraction()
+    return self.cur_health / self.max_health
+end
+
+function Ship:getNumLaserBlasts()
     return #self.laser_blasts
+end
+
+function Ship:getNumLives()
+    return self.cur_lives
 end
 
 -- ==========================================
@@ -186,9 +201,29 @@ function Ship:takesDamage(damage)
     if damage == nil then
         damage = 0
     end
-    self.health = self.health - damage
+    self.cur_health = self.cur_health - damage
     return self:getHealth()
 end
+
+function Ship:kill()
+    if self.dead then
+        return
+    end
+    self.dead = true
+    self.respawn_timer = 60 -- 1 second delay (60 fps)
+end
+
+function Ship:respawn()
+    self.dead               = false
+    self.cur_health         = self.max_health
+    self.position.x         = EDGE_X_RIGHT / 2
+    self.position.y         = EDGE_Y_BOTTOM / 2
+    self.velocity.speed     = 0
+    self.velocity.direction = 0
+    self.rotation           = -math.pi / 2
+    self.invulnerable       = 120       -- 2 seconds invulnerable
+end
+
 
 -- ==========================================
 -- SHIP DRAW
@@ -201,7 +236,5 @@ function Ship:drawLaserBlasts()
 end
 
 function Ship:explode()
-    if self.health < 1 then
-        drawCenteredText("EXPLODED", EDGE_Y_BOTTOM / 2, RED, true, 3, false, YELLOW)
-    end
+    drawCenteredText("EXPLODED", EDGE_Y_BOTTOM / 2, RED, true, 3, false, YELLOW)
 end

@@ -31,21 +31,24 @@ game = {
                 -- Function to apply this setting
                 apply = function(value)
                     if value == 1 then -- Easy
-                        game.play.params.player.health            = 250
+                        game.play.params.player.max_lives         = 3
+                        game.play.params.player.max_health        = 250
                         game.play.params.player.max_lasers        = 6
                         game.play.params.player.laser_lifetime    = 60
                         game.play.params.asteroids.num_population = 4
                         game.play.params.asteroids.velocity_max   = 0.3
                         game.play.params.asteroids.velocity_min   = 0.05
                     elseif value == 2 then -- Medium
-                        game.play.params.player.health            = 175
+                        game.play.params.player.max_lives         = 2
+                        game.play.params.player.max_health        = 175
                         game.play.params.player.max_lasers        = 5
                         game.play.params.player.laser_lifetime    = 50
                         game.play.params.asteroids.num_population = 6
                         game.play.params.asteroids.velocity_max   = 0.5
                         game.play.params.asteroids.velocity_min   = 0.1
                     elseif value == 3 then -- Hard
-                        game.play.params.player.health            = 100
+                        game.play.params.player.max_lives         = 1
+                        game.play.params.player.max_health        = 100
                         game.play.params.player.max_lasers        = 4
                         game.play.params.player.laser_lifetime    = 40
                         game.play.params.asteroids.num_population = 8
@@ -80,12 +83,13 @@ game = {
         params = {
             player = {
                 deadstop_allow = true,
-                deadstop_break = 0.35, -- 0..1, higher = faster stop per frame
+                deadstop_break = 0.35,   -- 0..1, higher = faster stop per frame
                 deadstop_snap  = 0.02,   -- below this speed, just snap to 0
                 max_lasers     = 4,
                 laser_lifetime = 60,
                 elasticity     = 0.5,
-                health         = 100,
+                max_health     = 100,
+                max_lives      = 3,
             },
             asteroids = {
                 num_population = 5,
@@ -122,12 +126,13 @@ function changeState(newState)
     if newState == STATE.PLAY then
         -- Reset game state for new game
         game.play.player = Ship:new({
-            color    = BLUE_MED,
-            health   = game.play.params.player.health,
-            brake    = game.play.params.player.deadstop_brake,
-            snap     = game.play.params.player.deadstop_snap,
-            shots    = game.play.params.player.max_lasers,
-            lifetime = game.play.params.player.laser_lifetime
+            color      = BLUE_MED,
+            max_health = game.play.params.player.max_health,
+            max_lives  = game.play.params.player.max_lives,
+            brake      = game.play.params.player.deadstop_brake,
+            snap       = game.play.params.player.deadstop_snap,
+            shots      = game.play.params.player.max_lasers,
+            lifetime   = game.play.params.player.laser_lifetime
         })
         game.play.score  = 0
 

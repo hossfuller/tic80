@@ -35,6 +35,13 @@ function updateStart()
     for index, asteroid in ipairs(game.play.asteroids) do
         asteroid:move()
     end
+
+    for i = 1, #game.play.asteroids - 1 do
+        local asteroid = game.play.asteroids[i]
+        for j = i + 1, #game.play.asteroids do
+            asteroid:resolveCollision(game.play.asteroids[j])
+        end
+    end
 end
 
 function drawStart()
@@ -66,5 +73,5 @@ function drawStart()
         drawCenteredText(option, y, color, nil, nil, nil, GRAY_MED)
     end
 
-    drawCenteredText("Press 'START' (S) to select options", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, false, GRAY_MED)
+    drawCenteredText("Press Z to select options", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, false, GRAY_MED)
 end

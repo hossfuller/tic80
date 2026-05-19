@@ -220,21 +220,24 @@ game = {
                 -- Function to apply this setting
                 apply = function(value)
                     if value == 1 then -- Easy
-                        game.play.params.player.health            = 250
+                        game.play.params.player.max_lives         = 3
+                        game.play.params.player.max_health        = 250
                         game.play.params.player.max_lasers        = 6
                         game.play.params.player.laser_lifetime    = 60
                         game.play.params.asteroids.num_population = 4
                         game.play.params.asteroids.velocity_max   = 0.3
                         game.play.params.asteroids.velocity_min   = 0.05
                     elseif value == 2 then -- Medium
-                        game.play.params.player.health            = 175
+                        game.play.params.player.max_lives         = 2
+                        game.play.params.player.max_health        = 175
                         game.play.params.player.max_lasers        = 5
                         game.play.params.player.laser_lifetime    = 50
                         game.play.params.asteroids.num_population = 6
                         game.play.params.asteroids.velocity_max   = 0.5
                         game.play.params.asteroids.velocity_min   = 0.1
                     elseif value == 3 then -- Hard
-                        game.play.params.player.health            = 100
+                        game.play.params.player.max_lives         = 1
+                        game.play.params.player.max_health        = 100
                         game.play.params.player.max_lasers        = 4
                         game.play.params.player.laser_lifetime    = 40
                         game.play.params.asteroids.num_population = 8
@@ -269,12 +272,13 @@ game = {
         params = {
             player = {
                 deadstop_allow = true,
-                deadstop_break = 0.35, -- 0..1, higher = faster stop per frame
+                deadstop_break = 0.35,   -- 0..1, higher = faster stop per frame
                 deadstop_snap  = 0.02,   -- below this speed, just snap to 0
                 max_lasers     = 4,
                 laser_lifetime = 60,
                 elasticity     = 0.5,
-                health         = 100,
+                max_health     = 100,
+                max_lives      = 3,
             },
             asteroids = {
                 num_population = 5,
@@ -311,12 +315,13 @@ function changeState(newState)
     if newState == STATE.PLAY then
         -- Reset game state for new game
         game.play.player = Ship:new({
-            color    = BLUE_MED,
-            health   = game.play.params.player.health,
-            brake    = game.play.params.player.deadstop_brake,
-            snap     = game.play.params.player.deadstop_snap,
-            shots    = game.play.params.player.max_lasers,
-            lifetime = game.play.params.player.laser_lifetime
+            color      = BLUE_MED,
+            max_health = game.play.params.player.max_health,
+            max_lives  = game.play.params.player.max_lives,
+            brake      = game.play.params.player.deadstop_brake,
+            snap       = game.play.params.player.deadstop_snap,
+            shots      = game.play.params.player.max_lasers,
+            lifetime   = game.play.params.player.laser_lifetime
         })
         game.play.score  = 0
 
@@ -410,6 +415,13 @@ function updateStart()
     for index, asteroid in ipairs(game.play.asteroids) do
         asteroid:move()
     end
+
+    for i = 1, #game.play.asteroids - 1 do
+        local asteroid = game.play.asteroids[i]
+        for j = i + 1, #game.play.asteroids do
+            asteroid:resolveCollision(game.play.asteroids[j])
+        end
+    end
 end
 
 function drawStart()
@@ -441,7 +453,7 @@ function drawStart()
         drawCenteredText(option, y, color, nil, nil, nil, GRAY_MED)
     end
 
-    drawCenteredText("Press 'START' (S) to select options", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, false, GRAY_MED)
+    drawCenteredText("Press Z to select options", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, false, GRAY_MED)
 end
 
 
@@ -521,6 +533,13 @@ function updateOptions()
     for index, asteroid in ipairs(game.play.asteroids) do
         asteroid:move()
     end
+
+    for i = 1, #game.play.asteroids - 1 do
+        local asteroid = game.play.asteroids[i]
+        for j = i + 1, #game.play.asteroids do
+            asteroid:resolveCollision(game.play.asteroids[j])
+        end
+    end
 end
 
 function drawOptions()
@@ -588,18 +607,21 @@ function inputPlay()
 end
 
 function updatePlay()
-    game.play.player:move()
+    local player = game.play.player
+
+
+    player:move()
     if game.play.params.player.deadstop_allow == true and btn(BTN_P1_DOWN) then
         -- brake and snap can change as player takes damage?
-        game.play.player:deadStop(
+        player:deadStop(
             game.play.params.player.deadstop_break,
             game.play.params.player.deadstop_snap
         )
     end
 
     -- Move the laser blast and then check if it hit anything.
-    game.play.player:moveLaserBlasts()
-    hit_asteroid_index = game.play.player:checkLaserHit(game.play.asteroids)
+    player:moveLaserBlasts()
+    hit_asteroid_index = player:checkLaserHit(game.play.asteroids)
     for index, asteroid in ipairs(game.play.asteroids) do
         if hit_asteroid_index == index then
             game.play.score = game.play.score + asteroid:getPoints()
@@ -620,7 +642,7 @@ function updatePlay()
         end
     end
 
-    -- Now check if any asteroids have hit each other or the ship.
+    -- Now check if any asteroids have hit each other.
     for i = 1, #game.play.asteroids - 1 do
         local asteroid = game.play.asteroids[i]
         for j = i + 1, #game.play.asteroids do
@@ -628,12 +650,77 @@ function updatePlay()
         end
     end
 
-    -- And now check if any asteroids have hit the ship.
-    for _, asteroid in ipairs(game.play.asteroids) do
-        if game.play.player:resolveCollision(asteroid) then
-            game.play.player:takesDamage(asteroid:getInducedDamage())
+    -- if ship is dead, count down and respawn or gameover
+    if player.dead then
+        player.respawn_timer = player.respawn_timer - 1
+        if player.respawn_timer <= 0 then
+            player.cur_lives = player.cur_lives - 1
+            if player.cur_lives <= 0 then
+                changeState(STATE.GAMEOVER)
+                return
+            else
+                player:respawn()
+            end
+        end
+    else
+        -- normal collision/damage
+        for _, asteroid in ipairs(game.play.asteroids) do
+            if player.invulnerable <= 0 and player:resolveCollision(asteroid) then
+                player:takesDamage(asteroid:getInducedDamage())
+                if player:getHealth() <= 0 then
+                    player:kill()
+                    break
+                end
+            end
         end
     end
+
+    -- tick invulnerableerability
+    if player.invulnerable > 0 then
+        player.invulnerable = player.invulnerable - 1
+    end
+end
+
+function drawHealthBar()
+    local health_bar_length = 100
+    local health_bar_height = Y_PADDING
+    local health_percentage = game.play.player:getHealthFraction()
+
+    rectb(EDGE_X_LEFT, EDGE_Y_TOP, health_bar_length + 2, health_bar_height, WHITE)
+    rect(EDGE_X_LEFT + 1, EDGE_Y_TOP + 1, health_bar_length * health_percentage, health_bar_height - 2, GREEN_MED)
+
+    return health_bar_length, health_bar_height
+end
+
+function drawCurrentLives(used_length, used_height)
+    local num_lives = game.play.player:getNumLives()
+    local start_position = {
+        x = used_length + X_PADDING,
+        y = Y_PADDING / 2
+    }
+    for num = 1, num_lives do
+        local ship_life = Ship:new({
+            color = WHITE,
+            x     = start_position.x,
+            y     = start_position.y,
+            rotation = 0,
+            shape = {
+                { x = 0,  y = -4 },
+                { x = -2, y = 1 },
+                { x = 0,  y = 0 },
+                { x = 2,  y = 1 },
+                { x = 0,  y = -4 }
+            }
+        })
+        ship_life:draw()
+        start_position.x = start_position.x + X_PADDING
+    end
+end
+
+function drawScore(used_height)
+    local score_height = used_height + 2
+    local score_length = print("SCORE: " .. tostring(game.play.score), EDGE_X_LEFT, score_height, WHITE, true)
+    return score_length, score_height + Y_PADDING
 end
 
 function drawPlay()
@@ -646,11 +733,19 @@ function drawPlay()
         asteroid:draw()
     end
 
-    print("HEALTH: " .. tostring(game.play.player:getHealth()), EDGE_X_LEFT, EDGE_Y_TOP, CYAN, true)
-    print("SCORE: " .. tostring(game.play.score), EDGE_X_LEFT, EDGE_Y_TOP + Y_PADDING, CYAN, true)
+    if game.play.player.dead then
+        game.play.player:explode()
+    end
+
+    local health_length, health_height = drawHealthBar()
+    local lives_length,  lives_height  = drawCurrentLives(health_length, health_height)
+    local score_length,  score_height  = drawScore(health_height)
 
     if DEBUG == true then
-        local pos = game.play.player:getPosition()
+        print("HEALTH: " .. tostring(game.play.player:getHealth()), EDGE_X_LEFT, score_height + 2, CYAN, true)
+        print("LIVES: " .. tostring(game.play.player:getNumLives()), EDGE_X_LEFT, 2*score_height, CYAN, true)
+
+        local pos     = game.play.player:getPosition()
         local rot = game.play.player:getRotation()
 
         local pos_x   = string.format("%0.2f", pos.x)
@@ -660,10 +755,9 @@ function drawPlay()
 
         print("X: " .. pos_x .. "; Y: " .. pos_y, EDGE_X_LEFT, EDGE_Y_BOTTOM - 4 * Y_PADDING, GRAY_DARK)
         print("Radians: " .. radians .. "; Speed: " .. speed, EDGE_X_LEFT, EDGE_Y_BOTTOM - 3 * Y_PADDING, GRAY_DARK)
-        print("Num of Lasers: " .. tostring(game.play.player:getNumOfLaserBlasts()), EDGE_X_LEFT, EDGE_Y_BOTTOM - 2 * Y_PADDING, GRAY_DARK)
+        print("Num of Lasers: " .. tostring(game.play.player:getNumLaserBlasts()), EDGE_X_LEFT, EDGE_Y_BOTTOM - 2 * Y_PADDING, GRAY_DARK)
         print("Num of Asteroids: " .. tostring(#game.play.asteroids), EDGE_X_LEFT, EDGE_Y_BOTTOM - Y_PADDING, GRAY_DARK)
     end
-
 end
 
 
@@ -1039,7 +1133,7 @@ function SpaceObj:getBoundingRadius()
         local d2 = p.x * p.x + p.y * p.y
         if d2 > r2 then r2 = d2 end
     end
-    return math.sqrt(r2)
+    return math.sqrt(r2) - 2
 end
 
 function SpaceObj:collidesCircle(other)
@@ -1352,7 +1446,14 @@ function Ship:new(params)
     setmetatable(self, Ship)          -- make it a Ship instance
 
     -- Ship-specific properties
-    self.health   = params.health or 1000
+    self.max_health    = params.max_health or 1000
+    self.cur_health    = self.max_health
+    self.max_lives     = params.max_lives or 3
+    self.cur_lives     = self.max_lives
+    self.invulnerable  = 0
+    self.dead          = false
+    self.respawn_timer = 0
+
     self.deadstop = {
         brake = params.brake or 0.35, -- 0..1, higher = faster stop per frame
         snap  = params.snap  or 0.02  -- below this speed, just snap to 0
@@ -1390,11 +1491,19 @@ end
 -- ==========================================
 
 function Ship:getHealth()
-    return self.health
+    return self.cur_health
 end
 
-function Ship:getNumOfLaserBlasts()
+function Ship:getHealthFraction()
+    return self.cur_health / self.max_health
+end
+
+function Ship:getNumLaserBlasts()
     return #self.laser_blasts
+end
+
+function Ship:getNumLives()
+    return self.cur_lives
 end
 
 -- ==========================================
@@ -1527,9 +1636,29 @@ function Ship:takesDamage(damage)
     if damage == nil then
         damage = 0
     end
-    self.health = self.health - damage
+    self.cur_health = self.cur_health - damage
     return self:getHealth()
 end
+
+function Ship:kill()
+    if self.dead then
+        return
+    end
+    self.dead = true
+    self.respawn_timer = 60 -- 1 second delay (60 fps)
+end
+
+function Ship:respawn()
+    self.dead               = false
+    self.cur_health         = self.max_health
+    self.position.x         = EDGE_X_RIGHT / 2
+    self.position.y         = EDGE_Y_BOTTOM / 2
+    self.velocity.speed     = 0
+    self.velocity.direction = 0
+    self.rotation           = -math.pi / 2
+    self.invulnerable       = 120       -- 2 seconds invulnerable
+end
+
 
 -- ==========================================
 -- SHIP DRAW
@@ -1542,9 +1671,7 @@ function Ship:drawLaserBlasts()
 end
 
 function Ship:explode()
-    if self.health < 1 then
-        drawCenteredText("EXPLODED", EDGE_Y_BOTTOM / 2, RED, true, 3, false, YELLOW)
-    end
+    drawCenteredText("EXPLODED", EDGE_Y_BOTTOM / 2, RED, true, 3, false, YELLOW)
 end
 
 -- [/TQ-Bundler: src.classes.Ship]
