@@ -123,11 +123,15 @@ function Ship:thrust()
         direction = self.rotation
     }
     self.velocity = self:addVectors(self.velocity, acceleration)
+
+    -- self.thrustEffect:thrust(self)
+    sfx(3, 10, 10, 3, -8, 1)
 end
 
 function Ship:move()
     if btn(BTN_P1_UP) then
         self:thrust()
+        -- self.thrustEffect:move()
     end
 
     self.velocity.speed = self.velocity.speed - self.deceleration
@@ -245,7 +249,6 @@ function Ship:shouldDraw()
 end
 
 function Ship:explode()
-
     sfx(2, 10, 30, 3, 15)
 
     drawCenteredText("EXPLODED", EDGE_Y_BOTTOM / 2, RED, true, 3, false, YELLOW)

@@ -1044,6 +1044,25 @@ function SpaceObj.new(params)
     -- For deflections: 1.0 = perfectly elastic, <1.0 loses speed
     self.elasticity = params.elasticity or 0.95
 
+    -- Particle Effects
+    self.TYPES = {
+        EXPLOSION = "EXPLOSION",
+        LASER_HIT = "LASER_HIT",
+        THRUST    = "THRUST",
+    }
+    self.EXPLOSION_COLORS = { 6, 9, 14 }
+    self.SMOKE_COLORS     = { 3, 7, 10, 15 }
+
+    self.explosionParticles = {}
+    self.laserHitParticles  = {}
+    self.thrustParticles    = {}
+
+    self.max_lifetime  = 30
+    self.max_size      = 3
+    self.max_speed     = 2
+    self.num_particles = 60
+    self.type          = nil
+
     return self
 end
 
@@ -1336,6 +1355,181 @@ function SpaceObj:resolveCollision(other)
 end
 
 -- ==========================================
+-- SPACEOBJ PARTICLE EFFECTS
+-- ==========================================
+
+function SpaceObj:explosionEffect()
+    self.type          = self.TYPES.EXPLOSION
+    self.deceleration  = 0.015
+    self.max_lifetime  = 90
+    self.max_size      = 3
+    self.max_speed     = 2
+    self.num_particles = 500
+
+    local particle_velocity = {}
+    for particle = 1, self.num_particles do
+        particle_velocity = {
+            speed     = math.random() * self.max_size,
+            direction = math.random() * math.pi * 2
+        }
+        self:spawnParticle(
+            self.position,
+            particle_velocity,
+            self.max_lifetime,
+            self.EXPLOSION_COLORS,
+            self.max_size,
+            self.deceleration,
+            self.type
+        )
+    end
+end
+
+function SpaceObj:laserHitEffect(object)
+    self.type          = self.TYPES.LASER_HIT
+    self.deceleration  = 0.01
+    self.max_lifetime  = 30
+    self.max_size      = 3
+    self.max_speed     = 1
+    self.num_particles = 60
+
+    local particle_velocity = {}
+    for particle = 1, self.num_particles do
+        particle_velocity = {
+            speed     = math.random() * self.max_size,
+            direction = math.random() * math.pi * 2
+        }
+        self:spawnParticle(
+            self.position,
+            particle_velocity,
+            self.max_lifetime,
+            self.EXPLOSION_COLORS,
+            self.max_size,
+            self.deceleration,
+            self.type
+        )
+    end
+end
+
+function SpaceObj:thrustEffect()
+    -- Effect-specific overrides
+    self.type          = self.TYPES.THRUST
+    self.deceleration  = 0.01
+    self.max_lifetime  = 30
+    self.max_size      = 1
+    self.max_speed     = 2
+    self.num_particles = 30
+
+    local thrust_offset           = { x = -5, y = 0 }
+    local particle_velocity       = {}
+    local direction               = 0
+    local relative_spawn_position = self:rotatePoint(thrust_offset, self.rotation)
+    local spawn_position          = {
+        x = relative_spawn_position.x + self.position.x,
+        y = relative_spawn_position.y + self.position.y,
+    }
+
+    for particle = 1, self.num_particles do
+        direction = self.rotation + math.pi + (math.random() * math.pi / 6) - (math.pi / 12)
+        direction = self:keepAngleInRange(direction)
+        particle_velocity = {
+            speed     = math.random() * self.max_speed,
+            direction = direction
+        }
+        self:spawnParticle(
+            spawn_position,
+            particle_velocity,
+            self.max_lifetime,
+            self.SMOKE_COLORS,
+            self.max_size,
+            self.deceleration,
+            self.type
+        )
+    end
+end
+
+function SpaceObj:spawnParticleEffect(
+    position,
+    velocity,
+    max_lifetime,
+    colors,
+    max_size,
+    deceleration,
+    type
+)
+    local particle = {
+        position     = {
+            x = position.x,
+            y = position.y
+        },
+        velocity     = {
+            speed     = velocity.speed,
+            direction = velocity.direction
+        },
+        life_timer   = (max_lifetime / 2) + (math.random() * max_lifetime / 2),
+        colors       = colors,
+        size         = math.random(1, max_size),
+        deceleration = deceleration,
+        type         = type
+    }
+    if self.type == self.TYPES.EXPLOSION then
+        table.insert(self.explosionParticles, particle)
+    elseif self.type == self.TYPES.LASER_HIT then
+        table.insert(self.laserHitParticles, particle)
+    elseif self.type == self.TYPES.THRUST then
+        table.insert(self.thrustParticles, particle)
+    end
+end
+
+function SpaceObj:moveParticles(type)
+    local particles = self.explosionParticles
+    if type == self.TYPES.LASER_HIT then
+        particles = self.laserHitParticles
+    elseif self.type == self.TYPES.THRUST then
+        particles = self.thrustParticles
+    end
+
+    for index, particle in ipairs(particles) do
+        particle.life_timer = particle.life_timer - 1
+
+        if particle.life_timer < 0 then
+            table.remove(particles, index)
+        else
+            particle.position = self:movePointByVelocity(particle)
+        end
+
+        particle.velocity.speed =
+            particle.velocity.speed - particle.deceleration
+        if particle.velocity.speed < 0 then
+            particle.velocity.speed = 0
+        end
+    end -- for
+end
+
+function SpaceObj:drawParticles(type)
+    local particle_color = 0
+
+    local particles = self.explosionParticles
+    if type == self.TYPES.LASER_HIT then
+        particles = self.laserHitParticles
+    elseif self.type == self.TYPES.THRUST then
+        particles = self.thrustParticles
+    end
+
+    for index, particle in ipairs(particles) do
+        particle_color = particle.colors[math.random(1, #particle.colors)]
+
+        if particle.type == self.TYPES.EXPLOSION or particle.type == self.TYPES.LASER_HIT then
+            circ(particle.position.x, particle.position.y, particle.size, particle_color)
+        elseif particle.type == self.thrustParticles then
+            pix(particle.position.x, particle.position.y, particle_color)
+        else
+            rect(particle.position.x, particle.position.y, particle.size, particle.size, particle_color)
+        end
+    end
+end
+
+
+-- ==========================================
 -- SPACEOBJ GETTERS
 -- ==========================================
 
@@ -1397,13 +1591,21 @@ function SpaceObj:move()
     self.position = self:movePointByVelocity()
     self:wrapPosition() -- don't assign if wrapPosition returns nil
     self:updateTimer()
+
+    -- Move any particles on the board!
+    if self.explosionParticles ~= nil then
+        self:moveParticles(self.TYPES.EXPLOSION)
+    elseif self.laserHitParticles ~= nil then
+        self:moveParticles(self.TYPES.LASER_HIT)
+    elseif self.thrustParticles ~= nil then
+        self:moveParticles(self.TYPES.THRUST)
+    end
 end
 
 -- ==========================================
 -- SPACEOBJ DRAW
 -- ==========================================
 
--- Draw the SpaceObj.
 function SpaceObj:draw()
     local first_point = true
     local last_point = 0
@@ -1424,6 +1626,15 @@ function SpaceObj:draw()
             )
             last_point = rotated_point
         end
+    end
+
+    -- Draw any particles on the board!
+    if self.explosionParticles ~= nil then
+        self:drawParticles(self.TYPES.EXPLOSION)
+    elseif self.laserHitParticles ~= nil then
+        self:drawParticles(self.TYPES.LASER_HIT)
+    elseif self.thrustParticles ~= nil then
+        self:drawParticles(self.TYPES.THRUST)
     end
 end
 
@@ -1561,11 +1772,15 @@ function Ship:thrust()
         direction = self.rotation
     }
     self.velocity = self:addVectors(self.velocity, acceleration)
+
+    -- self.thrustEffect:thrust(self)
+    sfx(3, 10, 10, 3, -8, 1)
 end
 
 function Ship:move()
     if btn(BTN_P1_UP) then
         self:thrust()
+        -- self.thrustEffect:move()
     end
 
     self.velocity.speed = self.velocity.speed - self.deceleration
@@ -1683,7 +1898,6 @@ function Ship:shouldDraw()
 end
 
 function Ship:explode()
-
     sfx(2, 10, 30, 3, 15)
 
     drawCenteredText("EXPLODED", EDGE_Y_BOTTOM / 2, RED, true, 3, false, YELLOW)
