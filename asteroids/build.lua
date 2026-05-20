@@ -291,15 +291,16 @@ game = {
     play = {
         params = {
             player = {
-                regenerate     = false,
-                deadstop_allow = true,
-                deadstop_brake = 0.35,   -- 0..1, higher = faster stop per frame
-                deadstop_snap  = 0.02,   -- below this speed, just snap to 0
-                max_lasers     = 4,
-                laser_lifetime = 60,
-                elasticity     = 0.5,
-                max_health     = 100,
-                max_lives      = 3,
+                regenerate            = false,
+                deadstop_allow        = true,
+                deadstop_brake        = 0.35,                 -- 0..1, higher = faster stop per frame
+                deadstop_snap         = 0.02,                 -- below this speed, just snap to 0
+                max_lasers            = 4,
+                laser_lifetime        = 60,
+                elasticity            = 0.5,
+                max_health            = 100,
+                max_lives             = 3,
+                next_extra_life_score = PTS_FOR_EXTRA_LIFE,
             },
             asteroids = {
                 num_population = 5,
@@ -312,14 +313,21 @@ game = {
                 rotation_max   = 0.03,
                 elasticity     = 0.95,
             },
+            alien = {
+                min_level  = 3,
+                min_health = 3,
+                cur_health = 3,
+                speed_min  = 0.3,
+                speed_max  = 0.7,
+            }
         },
         player                = {},
         asteroids             = {},
+        alien                 = {},
         date                  = nil,
         diff                  = DIFFICULTY.MEDIUM,
         level                 = 1,
         score                 = 0,
-        next_extra_life_score = PTS_FOR_EXTRA_LIFE,
     },
 
     high_scores = {},
@@ -352,15 +360,22 @@ function changeState(newState)
             lifetime   = game.play.params.player.laser_lifetime
         })
 
-        game.play.score                 = 0
-        game.play.date                  = get_unix_timestamp()
-        game.play.level                 = 1
-        game.play.next_extra_life_score = PTS_FOR_EXTRA_LIFE
+        game.play.alien = nil
+
+        game.play.score                               = 0
+        game.play.date                                = get_unix_timestamp()
+        game.play.level                               = 1
+        game.play.params.player.next_extra_life_score = PTS_FOR_EXTRA_LIFE
+        game.play.params.alien.cur_health             = game.play.params.alien.min_health
 
         -- Ensure difficulty is never nil. This should already be maintained by
         -- the options apply function, but this protects saved scores if PLAY is
         -- entered before options are touched.
         game.play.diff   = game.play.diff or DIFFICULTY.MEDIUM
+
+        -- Generate alien if applicable
+        generateAlien()
+
     elseif newState == STATE.GAMEOVER then
         saveCurrentScore()
     elseif newState == STATE.HIGHSCORES then
@@ -369,6 +384,44 @@ function changeState(newState)
         buildLines()
         scroll = 0
     end
+end
+
+
+-- ==========================================
+-- ENEMY GENERATION
+-- ==========================================
+
+function generateAlien()
+    local params = game.play.params.alien
+
+    -- Only spawn alien if we've reached the minimum level
+    if game.play.level < params.min_level then
+        game.play.alien = nil
+        return
+    end
+
+    -- Random speed within configured range
+    local speed = params.speed_min + math.random() * (params.speed_max - params.speed_min)
+
+    -- Randomly choose to spawn from left or right
+    local spawn_x   = 0
+    local direction = 0  -- Moving right
+
+    if math.random(1, 2) == 1 then
+        spawn_x   = EDGE_X_RIGHT - 1
+        direction = math.pi -- Moving left
+    end
+
+    game.play.alien = Alien:new({
+        x          = spawn_x,
+        y          = math.random(20, EDGE_Y_BOTTOM - 20),
+        speed      = speed,
+        direction  = direction,
+        max_health = params.cur_health,  -- USE TRACKED HEALTH
+    })
+
+    -- Increment health for next spawn
+    params.cur_health = params.cur_health + 1
 end
 
 function generateAsteroids()
@@ -664,10 +717,10 @@ end
 
 function updatePlay()
     local player = game.play.player
+    local alien = game.play.alien
 
     player:move()
     if game.play.params.player.deadstop_allow == true and btn(BTN_P1_DOWN) then
-        -- brake and snap can change as player takes damage?
         player:deadStop(
             game.play.params.player.deadstop_brake,
             game.play.params.player.deadstop_snap
@@ -675,20 +728,42 @@ function updatePlay()
     end
 
     -- Regenerate health if it's been enabled.
-    if game.play.params.player.regenerate == true and player:everyNTicks(60) then
+    if game.play.params.player.regenerate == true and player:everyNTicks(90) then
         player:regenerateHealth()
+    end
+
+    -- Move the alien if it exists and is active
+    if alien and alien:isActive() then
+        alien:move()
+    elseif alien and alien.dead then
+        -- Still update particles for dead alien
+        alien:move()
     end
 
     -- Move the laser blast and then check if it hit anything.
     player:moveLaserBlasts()
+    
+    -- Check if laser hit the alien
+    if alien and alien:isActive() then
+        local alien_hit = player:checkLaserHitAlien(alien)
+        if alien_hit then
+            game.play.score = game.play.score + alien:getPoints()
+            while game.play.score >= game.play.params.player.next_extra_life_score do
+                player.cur_lives = player.cur_lives + 1
+                game.play.params.player.next_extra_life_score = game.play.params.player.next_extra_life_score + PTS_FOR_EXTRA_LIFE
+            end
+        end
+    end
+    
+    -- Check if laser hit asteroids
     hit_asteroid_index = player:checkLaserHit(game.play.asteroids)
     for index, asteroid in ipairs(game.play.asteroids) do
         if hit_asteroid_index == index then
             -- Increment score, and then check if the user earned an extra life.
             game.play.score = game.play.score + asteroid:getPoints()
-            while game.play.score >= game.play.next_extra_life_score do
+            while game.play.score >= game.play.params.player.next_extra_life_score do
                 player.cur_lives = player.cur_lives + 1
-                game.play.next_extra_life_score = game.play.next_extra_life_score + PTS_FOR_EXTRA_LIFE
+                game.play.params.player.next_extra_life_score = game.play.params.player.next_extra_life_score + PTS_FOR_EXTRA_LIFE
             end
 
             local fragments = asteroid:explode()
@@ -710,8 +785,9 @@ function updatePlay()
 
     -- Move up a level when all asteroids are gone. Then regenerate asteroids.
     if #game.play.asteroids == 0 then
-        game.play.level = game.play.level + 2
+        game.play.level = game.play.level + 1
         generateAsteroids()
+        generateAlien()  -- ADD THIS: Regenerate alien on new level
     end
 
     -- Now check if any asteroids have hit each other.
@@ -719,6 +795,15 @@ function updatePlay()
         local asteroid = game.play.asteroids[i]
         for j = i + 1, #game.play.asteroids do
             asteroid:resolveCollision(game.play.asteroids[j])
+        end
+    end
+
+    -- Check if alien collides with asteroids
+    if alien and alien:isActive() then
+        for _, asteroid in ipairs(game.play.asteroids) do
+            if alien:resolveCollision(asteroid) then
+                alien:sparkEffect()
+            end
         end
     end
 
@@ -735,7 +820,7 @@ function updatePlay()
             end
         end
     else
-        -- normal collision/damage
+        -- normal collision/damage with asteroids
         for _, asteroid in ipairs(game.play.asteroids) do
             if player.invulnerable <= 0 and player:resolveCollision(asteroid) then
                 player:takesDamage(asteroid:getInducedDamage())
@@ -745,21 +830,43 @@ function updatePlay()
                 end
             end
         end
+        
+        -- Check player collision with alien
+        if alien and alien:isActive() and player.invulnerable <= 0 then
+            if player:resolveCollision(alien) then
+                player:takesDamage(50)  -- Alien collision damage
+                if player:getHealth() <= 0 then
+                    player:kill()
+                end
+            end
+        end
     end
 
-    -- tick invulnerableerability
+    -- tick invulnerability
     if player.invulnerable > 0 then
         player.invulnerable = player.invulnerable - 1
     end
 end
 
-function drawHealthBar()
+function drawPlayerHealthBar()
     local health_bar_length = 100
     local health_bar_height = Y_PADDING
     local health_percentage = game.play.player:getHealthFraction()
 
     rectb(EDGE_X_LEFT, EDGE_Y_TOP, health_bar_length + 2, health_bar_height, WHITE)
     rect(EDGE_X_LEFT + 1, EDGE_Y_TOP + 1, health_bar_length * health_percentage, health_bar_height - 2, GREEN_MED)
+
+    return health_bar_length, health_bar_height
+end
+
+function drawAlienHealthBar()
+    local health_bar_length     = 100
+    local health_bar_height     = Y_PADDING
+    local health_percentage     = game.play.alien:getHealthFraction()
+    local right_justified_pos_x = EDGE_X_RIGHT - health_bar_length - 2
+
+    rectb(right_justified_pos_x, EDGE_Y_TOP, health_bar_length + 2, health_bar_height, WHITE)
+    rect(right_justified_pos_x + 1, EDGE_Y_TOP + 1, health_bar_length * health_percentage, health_bar_height - 2, RED)
 
     return health_bar_length, health_bar_height
 end
@@ -790,13 +897,13 @@ function drawCurrentLives(used_length, used_height)
 end
 
 function drawLevel(used_height)
-    local level_height = used_height
+    local level_height = used_height + 2
     local level_length = print("LEVEL: " .. string.format("%02d", game.play.level), EDGE_X_LEFT, level_height, WHITE, true)
     return level_length, level_height + Y_PADDING
 end
 
 function drawScore(used_height)
-    local score_height = used_height + 2
+    local score_height = used_height
     local score_length = print("SCORE: " .. tostring(game.play.score), EDGE_X_LEFT, score_height, WHITE, true)
     return score_length, score_height + Y_PADDING
 end
@@ -805,6 +912,7 @@ function drawPlay()
     cls(BLACK)
 
     local player = game.play.player
+    local alien = game.play.alien
 
     -- Draw ship body only if alive.
     if not player.dead and player:shouldDraw() then
@@ -820,18 +928,25 @@ function drawPlay()
     player:drawParticles(player.TYPES.SPARK)
     player:drawParticles(player.TYPES.THRUST)
 
+    -- Draw alien if it exists
+    if alien.active then
+        alien:draw()
+        drawAlienHealthBar()
+    end
+
     for index, asteroid in ipairs(game.play.asteroids) do
         asteroid:draw()
     end
 
-    local health_length, health_height = drawHealthBar()
+    local health_length, health_height = drawPlayerHealthBar()
     local lives_length,  lives_height  = drawCurrentLives(health_length, health_height)
-    local score_length, score_height   = drawScore(health_height)
-    local level_length, level_height   = drawLevel(score_height)
+    local level_length, level_height   = drawLevel(health_height)
+    local score_length, score_height   = drawScore(level_height)
 
     if DEBUG == true then
         print("HEALTH: " .. tostring(player:getHealth()), EDGE_X_LEFT, score_height + 2, CYAN, true)
         print("LIVES: " .. tostring(player:getNumLives()), EDGE_X_LEFT, 2*score_height, CYAN, true)
+        print("ALIEN HEALTH: " .. tostring(alien:getHealthFraction()), EDGE_X_LEFT, 3*score_height, CYAN, true)
 
         local pos     = player:getPosition()
         local rot = player:getRotation()
@@ -2143,6 +2258,36 @@ function Ship:checkLaserHit(asteroids)
     return asteroid_was_hit
 end
 
+function Ship:checkLaserHitAlien(alien)
+    if not alien or not alien:isActive() then
+        return false
+    end
+    
+    for laser_index, laser in ipairs(self.laser_blasts) do
+        local alien_r = alien:getBoundingRadius()
+        local separation_value = self:checkSeparation(
+            laser.position,
+            alien.position,
+            alien_r
+        )
+        if separation_value then
+            if self:pointInPolygon(laser.position, alien) then
+                local hit_position = {
+                    x = laser.position.x,
+                    y = laser.position.y
+                }
+                -- Remove laser blast and damage the alien
+                table.remove(self.laser_blasts, laser_index)
+                self:laserHitEffect(hit_position)
+                alien:takesDamage(1)
+                return true
+            end
+        end
+    end
+    return false
+end
+
+
 function Ship:regenerateHealth()
     if self.cur_health < self.max_health then
         self.cur_health = self.cur_health + 1
@@ -2215,6 +2360,167 @@ end
 
 
 -- [/TQ-Bundler: src.classes.Ship]
+
+-- [TQ-Bundler: src.classes.Alien]
+
+-- ==========================================
+-- ALIEN OBJECT
+-- ==========================================
+
+Alien = setmetatable({}, { __index = Ship })
+Alien.__index = Alien
+
+function Alien:new(params)
+    params = params or {}
+
+    -- Set alien-specific defaults before calling Ship:new
+    params.color      = params.color or RED
+    params.max_health = params.max_health or 1  -- Default to 1 if not specified
+    params.max_lives  = params.max_lives or 1
+
+    -- Spawn on left edge at random Y position
+    params.x = params.x or 0
+    params.y = params.y or math.random(20, EDGE_Y_BOTTOM - 20)
+
+    -- Set initial velocity (moving right)
+    params.speed     = params.speed or 0.5
+    params.direction = params.direction or 0  -- 0 radians = right
+
+    local self = Ship.new(self, params)
+    setmetatable(self, Alien)
+
+    -- Ensure cur_health matches max_health (Ship:new sets this, but be explicit)
+    self.cur_health = self.max_health
+
+    -- Alien-specific properties
+    self.base_points = params.base_points or 500
+    self.active      = true
+
+    -- Alien ship shape (different from player ship)
+    self.shape = params.shape or {
+        { x = 6,  y = 0  },
+        { x = 3,  y = -4 },
+        { x = -3, y = -4 },
+        { x = -6, y = 0  },
+        { x = -3, y = 4  },
+        { x = 3,  y = 4  },
+        { x = 6,  y = 0  }
+    }
+
+    -- Alien doesn't use lasers (for now)
+    self.laser_blasts = {}
+    self.laser_params = {
+        lifetime  = 0,
+        max_shots = 0,
+        speed     = 0,
+        offset    = { x = 0, y = 0 }
+    }
+
+    -- Point rotation in direction of travel
+    self.rotation = self.velocity.direction
+
+    return self
+end
+
+-- ==========================================
+-- ALIEN GETTERS
+-- ==========================================
+
+function Alien:getHealth()
+    if self.cur_health < 0 then
+        self.cur_health = 0
+    end
+    return self.cur_health
+end
+
+function Alien:getHealthFraction()
+    return self:getHealth() / self.max_health
+end
+
+function Alien:getPoints()
+    return self.base_points
+end
+
+function Alien:isActive()
+    return self.active and not self.dead
+end
+
+-- ==========================================
+-- ALIEN INPUT
+-- ==========================================
+
+-- Alien doesn't respond to player input
+function Alien:input()
+    -- No-op: alien moves autonomously
+end
+
+-- ==========================================
+-- ALIEN UPDATE
+-- ==========================================
+
+function Alien:move()
+    if self.dead then
+        -- Still animate particles when dead
+        self:moveParticles(self.TYPES.EXPLOSION)
+        self:moveParticles(self.TYPES.SPARK)
+        self:updateTimer()
+        return
+    end
+
+    -- Alien moves at constant velocity (no thrust needed)
+    -- Just update position and wrap
+    self.position = self:movePointByVelocity()
+    self:wrapPosition()
+    self:updateTimer()
+
+    -- Move any particles
+    self:moveParticles(self.TYPES.EXPLOSION)
+    self:moveParticles(self.TYPES.SPARK)
+end
+
+function Alien:takesDamage(damage)
+    if damage == nil then
+        damage = 1
+    end
+    self.cur_health = self.cur_health - damage
+    self:sparkEffect()
+    sfx(1, 60, 50, 1, 25)
+
+    if self:getHealth() <= 0 then
+        self:kill()
+    end
+
+    return self:getHealth()
+end
+
+function Alien:kill()
+    if self.dead then
+        return
+    end
+    self.dead = true
+    self.active = false
+    self:explode()
+end
+
+-- Alien doesn't respawn - it gets regenerated at level start
+function Alien:respawn()
+    -- No-op for alien
+end
+
+-- ==========================================
+-- ALIEN DRAW
+-- ==========================================
+
+function Alien:draw()
+    if not self.dead then
+        self:drawBody()
+    end
+
+    self:drawParticles(self.TYPES.EXPLOSION)
+    self:drawParticles(self.TYPES.SPARK)
+end
+
+-- [/TQ-Bundler: src.classes.Alien]
 
 -- [TQ-Bundler: src.classes.Asteroid]
 

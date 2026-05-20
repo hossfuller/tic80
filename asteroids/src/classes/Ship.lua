@@ -224,6 +224,36 @@ function Ship:checkLaserHit(asteroids)
     return asteroid_was_hit
 end
 
+function Ship:checkLaserHitAlien(alien)
+    if not alien or not alien:isActive() then
+        return false
+    end
+    
+    for laser_index, laser in ipairs(self.laser_blasts) do
+        local alien_r = alien:getBoundingRadius()
+        local separation_value = self:checkSeparation(
+            laser.position,
+            alien.position,
+            alien_r
+        )
+        if separation_value then
+            if self:pointInPolygon(laser.position, alien) then
+                local hit_position = {
+                    x = laser.position.x,
+                    y = laser.position.y
+                }
+                -- Remove laser blast and damage the alien
+                table.remove(self.laser_blasts, laser_index)
+                self:laserHitEffect(hit_position)
+                alien:takesDamage(1)
+                return true
+            end
+        end
+    end
+    return false
+end
+
+
 function Ship:regenerateHealth()
     if self.cur_health < self.max_health then
         self.cur_health = self.cur_health + 1

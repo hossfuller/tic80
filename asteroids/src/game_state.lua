@@ -102,15 +102,16 @@ game = {
     play = {
         params = {
             player = {
-                regenerate     = false,
-                deadstop_allow = true,
-                deadstop_brake = 0.35,   -- 0..1, higher = faster stop per frame
-                deadstop_snap  = 0.02,   -- below this speed, just snap to 0
-                max_lasers     = 4,
-                laser_lifetime = 60,
-                elasticity     = 0.5,
-                max_health     = 100,
-                max_lives      = 3,
+                regenerate            = false,
+                deadstop_allow        = true,
+                deadstop_brake        = 0.35,                 -- 0..1, higher = faster stop per frame
+                deadstop_snap         = 0.02,                 -- below this speed, just snap to 0
+                max_lasers            = 4,
+                laser_lifetime        = 60,
+                elasticity            = 0.5,
+                max_health            = 100,
+                max_lives             = 3,
+                next_extra_life_score = PTS_FOR_EXTRA_LIFE,
             },
             asteroids = {
                 num_population = 5,
@@ -123,14 +124,21 @@ game = {
                 rotation_max   = 0.03,
                 elasticity     = 0.95,
             },
+            alien = {
+                min_level  = 3,
+                min_health = 3,
+                cur_health = 3,
+                speed_min  = 0.3,
+                speed_max  = 0.7,
+            }
         },
         player                = {},
         asteroids             = {},
+        alien                 = {},
         date                  = nil,
         diff                  = DIFFICULTY.MEDIUM,
         level                 = 1,
         score                 = 0,
-        next_extra_life_score = PTS_FOR_EXTRA_LIFE,
     },
 
     high_scores = {},
@@ -163,15 +171,22 @@ function changeState(newState)
             lifetime   = game.play.params.player.laser_lifetime
         })
 
-        game.play.score                 = 0
-        game.play.date                  = get_unix_timestamp()
-        game.play.level                 = 1
-        game.play.next_extra_life_score = PTS_FOR_EXTRA_LIFE
+        game.play.alien = nil
+
+        game.play.score                               = 0
+        game.play.date                                = get_unix_timestamp()
+        game.play.level                               = 1
+        game.play.params.player.next_extra_life_score = PTS_FOR_EXTRA_LIFE
+        game.play.params.alien.cur_health             = game.play.params.alien.min_health
 
         -- Ensure difficulty is never nil. This should already be maintained by
         -- the options apply function, but this protects saved scores if PLAY is
         -- entered before options are touched.
         game.play.diff   = game.play.diff or DIFFICULTY.MEDIUM
+
+        -- Generate alien if applicable
+        generateAlien()
+
     elseif newState == STATE.GAMEOVER then
         saveCurrentScore()
     elseif newState == STATE.HIGHSCORES then
@@ -180,6 +195,44 @@ function changeState(newState)
         buildLines()
         scroll = 0
     end
+end
+
+
+-- ==========================================
+-- ENEMY GENERATION
+-- ==========================================
+
+function generateAlien()
+    local params = game.play.params.alien
+
+    -- Only spawn alien if we've reached the minimum level
+    if game.play.level < params.min_level then
+        game.play.alien = nil
+        return
+    end
+
+    -- Random speed within configured range
+    local speed = params.speed_min + math.random() * (params.speed_max - params.speed_min)
+
+    -- Randomly choose to spawn from left or right
+    local spawn_x   = 0
+    local direction = 0  -- Moving right
+
+    if math.random(1, 2) == 1 then
+        spawn_x   = EDGE_X_RIGHT - 1
+        direction = math.pi -- Moving left
+    end
+
+    game.play.alien = Alien:new({
+        x          = spawn_x,
+        y          = math.random(20, EDGE_Y_BOTTOM - 20),
+        speed      = speed,
+        direction  = direction,
+        max_health = params.cur_health,  -- USE TRACKED HEALTH
+    })
+
+    -- Increment health for next spawn
+    params.cur_health = params.cur_health + 1
 end
 
 function generateAsteroids()

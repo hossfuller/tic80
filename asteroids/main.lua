@@ -22,6 +22,7 @@ include "src.state_machine"
 
 include "src.classes.SpaceObj"
 include "src.classes.Ship"
+include "src.classes.Alien"
 include "src.classes.Asteroid"
 
 -- ==========================================
