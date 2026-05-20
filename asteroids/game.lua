@@ -62,7 +62,7 @@ local FIXED_CHAR_HEIGHT = 6
 local X_PADDING         = FIXED_CHAR_WIDTH + 2
 local Y_PADDING         = FIXED_CHAR_HEIGHT + 2
 
-local DEBUG = true
+local DEBUG = false
 
 -- [/TQ-Bundler: src.constants]
 
@@ -199,6 +199,13 @@ STATE = {
     HIGHSCORES = "HIGHSCORES",
 }
 
+DIFFICULTY = {
+    EASY   = 1,
+    MEDIUM = 2,
+    HARD   = 3,
+}
+PTS_FOR_EXTRA_LIFE = 100000
+
 game = {
     state = STATE.START,
     prevState = nil,
@@ -206,7 +213,7 @@ game = {
     -- Menu state
     menu = {
         selected = 1,
-        options = {"Start", "Options", "High Scores"},
+        options = { "Start", "Options", "High Scores" },
     },
 
     -- Options state
@@ -215,28 +222,35 @@ game = {
         items = {
             {
                 name = "Difficulty",
-                values = {"Easy", "Medium", "Hard"},
-                current = 2,
-                -- Function to apply this setting
+                values = { "Easy", "Medium", "Hard" },
+                current = DIFFICULTY.MEDIUM,
+
+                -- Function to apply this setting.
+                -- Difficulty values:
+                --   1 = Easy
+                --   2 = Medium
+                --   3 = Hard
                 apply = function(value)
-                    if value == 1 then -- Easy
-                        game.play.params.player.max_lives         = 3
+                    -- Store current difficulty for high scores.
+                    game.play.diff = value
+                    if value == DIFFICULTY.EASY then
+                        game.play.params.player.max_lives         = 4
                         game.play.params.player.max_health        = 250
                         game.play.params.player.max_lasers        = 6
                         game.play.params.player.laser_lifetime    = 60
                         game.play.params.asteroids.num_population = 4
                         game.play.params.asteroids.velocity_max   = 0.3
                         game.play.params.asteroids.velocity_min   = 0.05
-                    elseif value == 2 then -- Medium
-                        game.play.params.player.max_lives         = 2
+                    elseif value == DIFFICULTY.MEDIUM then
+                        game.play.params.player.max_lives         = 3
                         game.play.params.player.max_health        = 175
                         game.play.params.player.max_lasers        = 5
                         game.play.params.player.laser_lifetime    = 50
                         game.play.params.asteroids.num_population = 6
                         game.play.params.asteroids.velocity_max   = 0.5
                         game.play.params.asteroids.velocity_min   = 0.1
-                    elseif value == 3 then -- Hard
-                        game.play.params.player.max_lives         = 1
+                    elseif value == DIFFICULTY.HARD then
+                        game.play.params.player.max_lives         = 3
                         game.play.params.player.max_health        = 100
                         game.play.params.player.max_lasers        = 4
                         game.play.params.player.laser_lifetime    = 40
@@ -248,7 +262,7 @@ game = {
             },
             {
                 name = "Dead Stop",
-                values = {"On", "Off"},
+                values = { "On", "Off" },
                 current = 1,
                 apply = function(value)
                     game.play.params.player.deadstop_allow = (value == 1)
@@ -256,7 +270,7 @@ game = {
             },
             {
                 name = "Back",
-                values = nil,  -- No values means this is an action, not a setting
+                values = nil, -- No values means this is an action, not a setting.
                 current = 1,
                 apply = function()
                     changeState(STATE.START)
@@ -264,15 +278,13 @@ game = {
             },
         },
     },
-    -- For any forthcoming options, make all params below configurable.
-    -- Also, as ship takes damage, some parameters should change.
 
     -- Gameplay state
     play = {
         params = {
             player = {
                 deadstop_allow = true,
-                deadstop_break = 0.35,   -- 0..1, higher = faster stop per frame
+                deadstop_brake = 0.35,   -- 0..1, higher = faster stop per frame
                 deadstop_snap  = 0.02,   -- below this speed, just snap to 0
                 max_lasers     = 4,
                 laser_lifetime = 60,
@@ -292,9 +304,13 @@ game = {
                 elasticity     = 0.95,
             },
         },
-        player    = {},
-        asteroids = {},
-        score     = 0,
+        player                = {},
+        asteroids             = {},
+        date                  = nil,
+        diff                  = DIFFICULTY.MEDIUM,
+        level                 = 1,
+        score                 = 0,
+        next_extra_life_score = PTS_FOR_EXTRA_LIFE,
     },
 
     high_scores = {},
@@ -309,11 +325,14 @@ function changeState(newState)
     game.prevState = game.state
     game.state = newState
 
-    -- Generate a bunch of asteroids to dance about each state's screen.
-    generateAsteroids()
+    -- Generate asteroids for menu-like states, but preserve PLAY -> GAMEOVER
+    -- scene.
+    if newState ~= STATE.GAMEOVER then
+        generateAsteroids()
+    end
 
     if newState == STATE.PLAY then
-        -- Reset game state for new game
+        -- Reset game state for new game.
         game.play.player = Ship:new({
             color      = BLUE_MED,
             max_health = game.play.params.player.max_health,
@@ -323,8 +342,18 @@ function changeState(newState)
             shots      = game.play.params.player.max_lasers,
             lifetime   = game.play.params.player.laser_lifetime
         })
-        game.play.score  = 0
 
+        game.play.score                 = 0
+        game.play.date                  = get_unix_timestamp()
+        game.play.level                 = 1
+        game.play.next_extra_life_score = PTS_FOR_EXTRA_LIFE
+
+        -- Ensure difficulty is never nil. This should already be maintained by
+        -- the options apply function, but this protects saved scores if PLAY is
+        -- entered before options are touched.
+        game.play.diff   = game.play.diff or DIFFICULTY.MEDIUM
+    elseif newState == STATE.GAMEOVER then
+        saveCurrentScore()
     elseif newState == STATE.HIGHSCORES then
         loadHighScores()
         sortHighScores()
@@ -334,6 +363,7 @@ function changeState(newState)
 end
 
 function generateAsteroids()
+    local color = nil
     if game.state == STATE.PLAY then
         color = WHITE
     else
@@ -343,15 +373,29 @@ function generateAsteroids()
     -- Flush current asteroids table.
     game.play.asteroids = {}
 
-    for count = 1, game.play.params.asteroids.num_population do
-        local vel_speed = (math.random() * (game.play.params.asteroids.velocity_max - game.play.params.asteroids.velocity_min)) + game.play.params.asteroids.velocity_min
-        local rot_speed = (math.random() * (2 * game.play.params.asteroids.rotation_max)) - game.play.params.asteroids.rotation_max
+    local params = game.play.params
 
-        local pos_x = math.random(0, (EDGE_X_RIGHT - 1))
+    -- Increment the number of asteroids as we climb the level ladder.
+    local num_extra_asteroids = game.play.level - 1
+    params.asteroids.num_population = params.asteroids.num_population + num_extra_asteroids
+
+    for count = 1, params.asteroids.num_population do
+        local vel_speed = (
+            math.random() *
+            (params.asteroids.velocity_max - params.asteroids.velocity_min)
+        ) + params.asteroids.velocity_min
+
+        local rot_speed = (
+            math.random() *
+            (2 * params.asteroids.rotation_max)
+        ) - params.asteroids.rotation_max
+
+        local pos_x = math.random(0, EDGE_X_RIGHT - 1)
         local pos_y = 0
-        if math.random(1,2) == 1 then
+
+        if math.random(1, 2) == 1 then
             pos_x = 0
-            pos_y = math.random(0, (EDGE_Y_BOTTOM - 1))
+            pos_y = math.random(0, EDGE_Y_BOTTOM - 1)
         end
 
         local asteroid = Asteroid:new({
@@ -360,16 +404,17 @@ function generateAsteroids()
             y              = pos_y,
             speed          = vel_speed,
             direction      = math.random() * math.pi * 2,
-            elasticity     = game.play.params.asteroids.elasticity,
+            elasticity     = params.asteroids.elasticity,
             scale          = 1,
             rotation_speed = rot_speed,
-            velocity_max   = game.play.params.asteroids.velocity_max,
-            velocity_min   = game.play.params.asteroids.velocity_min,
-            radius         = game.play.params.asteroids.radius,
-            radius_minus   = game.play.params.asteroids.radius_minus,
-            radius_plus    = game.play.params.asteroids.radius_plus,
-            num_vertices   = game.play.params.asteroids.num_vertices,
+            velocity_max   = params.asteroids.velocity_max,
+            velocity_min   = params.asteroids.velocity_min,
+            radius         = params.asteroids.radius,
+            radius_minus   = params.asteroids.radius_minus,
+            radius_plus    = params.asteroids.radius_plus,
+            num_vertices   = params.asteroids.num_vertices,
         })
+
         table.insert(game.play.asteroids, asteroid)
     end
 end
@@ -603,18 +648,19 @@ function inputPlay()
         changeState(STATE.GAMEOVER)
     end
 
-    game.play.player:input()
+    if not game.play.player.dead then
+        game.play.player:input()
+    end
 end
 
 function updatePlay()
     local player = game.play.player
 
-
     player:move()
     if game.play.params.player.deadstop_allow == true and btn(BTN_P1_DOWN) then
         -- brake and snap can change as player takes damage?
         player:deadStop(
-            game.play.params.player.deadstop_break,
+            game.play.params.player.deadstop_brake,
             game.play.params.player.deadstop_snap
         )
     end
@@ -624,7 +670,13 @@ function updatePlay()
     hit_asteroid_index = player:checkLaserHit(game.play.asteroids)
     for index, asteroid in ipairs(game.play.asteroids) do
         if hit_asteroid_index == index then
+            -- Increment score, and then check if the user earned an extra life.
             game.play.score = game.play.score + asteroid:getPoints()
+            while game.play.score >= game.play.next_extra_life_score do
+                player.cur_lives = player.cur_lives + 1
+                game.play.next_extra_life_score = game.play.next_extra_life_score + PTS_FOR_EXTRA_LIFE
+            end
+
             local fragments = asteroid:explode()
 
             -- remove original asteroid from list of asteroids
@@ -642,6 +694,12 @@ function updatePlay()
         end
     end
 
+    -- Move up a level when all asteroids are gone. Then regenerate asteroids.
+    if #game.play.asteroids == 0 then
+        game.play.level = game.play.level + 2
+        generateAsteroids()
+    end
+
     -- Now check if any asteroids have hit each other.
     for i = 1, #game.play.asteroids - 1 do
         local asteroid = game.play.asteroids[i]
@@ -653,8 +711,8 @@ function updatePlay()
     -- if ship is dead, count down and respawn or gameover
     if player.dead then
         player.respawn_timer = player.respawn_timer - 1
+
         if player.respawn_timer <= 0 then
-            player.cur_lives = player.cur_lives - 1
             if player.cur_lives <= 0 then
                 changeState(STATE.GAMEOVER)
                 return
@@ -712,44 +770,56 @@ function drawCurrentLives(used_length, used_height)
                 { x = 0,  y = -4 }
             }
         })
-        ship_life:draw()
+        ship_life:drawBody()
         start_position.x = start_position.x + X_PADDING
     end
 end
 
-function drawScore(used_height)
+function drawLevel(used_height)
+    local level_height = used_height + 2
+    local level_length = print("LEVEL: " .. string.format("%02d", game.play.level), EDGE_X_LEFT, level_height, WHITE, true)
+    return level_length, level_height + Y_PADDING
+end
+
+function drawScore(used_length, used_height)
     local score_height = used_height + 2
-    local score_length = print("SCORE: " .. tostring(game.play.score), EDGE_X_LEFT, score_height, WHITE, true)
+    local score_length = print("SCORE: " .. tostring(game.play.score), used_length + X_PADDING, score_height, WHITE, true)
     return score_length, score_height + Y_PADDING
 end
 
 function drawPlay()
     cls(BLACK)
 
-    -- If we're invulnerable, then blink until we're not.
-    if game.play.player:shouldDraw() then
-        game.play.player:draw()
+    local player = game.play.player
+
+    -- Draw ship body only if alive.
+    if not player.dead and player:shouldDraw() then
+        player:drawBody()
     end
-    game.play.player:drawLaserBlasts()
+
+    -- Draw lasers and particle effects even if the ship explodes and isn't
+    -- drawn anymore.
+    player:drawLaserBlasts()
+    player:drawParticles(player.TYPES.EXPLOSION)
+    player:drawParticles(player.TYPES.LASER_HIT)
+    player:drawParticles(player.TYPES.SPARK)
+    player:drawParticles(player.TYPES.THRUST)
 
     for index, asteroid in ipairs(game.play.asteroids) do
         asteroid:draw()
     end
 
-    if game.play.player.dead then
-        game.play.player:explode()
-    end
-
     local health_length, health_height = drawHealthBar()
     local lives_length,  lives_height  = drawCurrentLives(health_length, health_height)
-    local score_length,  score_height  = drawScore(health_height)
+    local level_length, level_height   = drawLevel(health_height)
+    local score_length, score_height   = drawScore(level_length, health_height)
 
     if DEBUG == true then
-        print("HEALTH: " .. tostring(game.play.player:getHealth()), EDGE_X_LEFT, score_height + 2, CYAN, true)
-        print("LIVES: " .. tostring(game.play.player:getNumLives()), EDGE_X_LEFT, 2*score_height, CYAN, true)
+        print("HEALTH: " .. tostring(player:getHealth()), EDGE_X_LEFT, score_height + 2, CYAN, true)
+        print("LIVES: " .. tostring(player:getNumLives()), EDGE_X_LEFT, 2*score_height, CYAN, true)
 
-        local pos     = game.play.player:getPosition()
-        local rot = game.play.player:getRotation()
+        local pos     = player:getPosition()
+        local rot = player:getRotation()
 
         local pos_x   = string.format("%0.2f", pos.x)
         local pos_y   = string.format("%0.2f", pos.y)
@@ -758,7 +828,7 @@ function drawPlay()
 
         print("X: " .. pos_x .. "; Y: " .. pos_y, EDGE_X_LEFT, EDGE_Y_BOTTOM - 4 * Y_PADDING, GRAY_DARK)
         print("Radians: " .. radians .. "; Speed: " .. speed, EDGE_X_LEFT, EDGE_Y_BOTTOM - 3 * Y_PADDING, GRAY_DARK)
-        print("Num of Lasers: " .. tostring(game.play.player:getNumLaserBlasts()), EDGE_X_LEFT, EDGE_Y_BOTTOM - 2 * Y_PADDING, GRAY_DARK)
+        print("Num of Lasers: " .. tostring(player:getNumLaserBlasts()), EDGE_X_LEFT, EDGE_Y_BOTTOM - 2 * Y_PADDING, GRAY_DARK)
         print("Num of Asteroids: " .. tostring(#game.play.asteroids), EDGE_X_LEFT, EDGE_Y_BOTTOM - Y_PADDING, GRAY_DARK)
     end
 end
@@ -779,11 +849,34 @@ function inputGameover()
 end
 
 function updateGameover()
+    local player = game.play.player
 
+    if player and player.moveParticles then
+        player:moveParticles(player.TYPES.EXPLOSION)
+        player:moveParticles(player.TYPES.LASER_HIT)
+        player:moveParticles(player.TYPES.SPARK)
+        player:moveParticles(player.TYPES.THRUST)
+    end
+
+    for index, asteroid in ipairs(game.play.asteroids) do
+        asteroid:move()
+    end
 end
 
 function drawGameover()
-    drawPlay()
+    cls(BLACK)
+
+    for index, asteroid in ipairs(game.play.asteroids) do
+        asteroid:draw()
+    end
+
+    local player = game.play.player
+    if player then
+        player:drawParticles(player.TYPES.EXPLOSION)
+        player:drawParticles(player.TYPES.LASER_HIT)
+        player:drawParticles(player.TYPES.SPARK)
+        player:drawParticles(player.TYPES.THRUST)
+    end
 
     drawCenteredText("GAME OVER", EDGE_Y_TOP + Y_PADDING, ORANGE, nil, 3, nil, YELLOW)
     drawCenteredText("Press Z or X to see high scores", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, false, GRAY_MED)
@@ -802,8 +895,8 @@ end
 -- and the score. On top of that, we only want to save the top 10 scores. That
 -- restricts us to just 20 slots (10 chunks of 2 slots). Since our counter
 -- starts at 0, we set MAX_PMEM_CHUNKS equal to 9.
-local MAX_PMEM_CHUNKS     = 9
-local PMEM_CHUNK_ELEMENTS = 2
+local MAX_PMEM_CHUNKS     = 20
+local PMEM_CHUNK_ELEMENTS = 4
 
 -- We'll store our high scores in this table.
 local lines = {}
@@ -821,15 +914,17 @@ function loadHighScores()
         if date ~= 0 then
             game.high_scores[base] = {
                 date  = date,
-                score = pmem(base + 1),
+                diff  = pmem(base + 1),
+                level = pmem(base + 2),
+                score = pmem(base + 3),
             }
         end
     end
 end
 
 function sortHighScores()
-    -- Collect existing entries (0,2,4,...) into a dense list
     local list = {}
+
     for idx = 0, MAX_PMEM_CHUNKS do
         local base = idx * PMEM_CHUNK_ELEMENTS
         local d = game.high_scores[base]
@@ -838,68 +933,118 @@ function sortHighScores()
         end
     end
 
-    -- Sort by score...
     table.sort(list, function(a, b)
+        -- 1. Difficulty: Hard -> Medium -> Easy
+        if a.diff ~= b.diff then
+            return a.diff > b.diff
+        end
+
+        -- 2. Score: highest -> lowest
         if a.score ~= b.score then
             return a.score > b.score
         end
+
+        -- 3. Level: highest -> lowest
+        if a.level ~= b.level then
+            return a.level > b.level
+        end
+
+        -- Optional final tiebreaker: newest first
+        return a.date > b.date
     end)
 
-    -- Write back compacted into chunk keys 0,2,4,...
     game.high_scores = {}
-    for i = 1, #list do
+
+    for i = 1, math.min(#list, MAX_PMEM_CHUNKS + 1) do
         game.high_scores[(i - 1) * PMEM_CHUNK_ELEMENTS] = list[i]
     end
 end
 
 function saveCurrentScore()
-    -- Always start from what is currently saved
     loadHighScores()
 
-    -- Find next free chunk index in the CURRENT in-memory table
-    local n = 0
+    local list = {}
+
+    -- Pull saved scores into a list.
     for idx = 0, MAX_PMEM_CHUNKS do
-        if game.high_scores[idx * PMEM_CHUNK_ELEMENTS] then
-            n = n + 1
+        local base = idx * PMEM_CHUNK_ELEMENTS
+        local d = game.high_scores[base]
+
+        if d then
+            list[#list + 1] = d
         end
     end
-    local base = n * PMEM_CHUNK_ELEMENTS
-    if base > MAX_PMEM_CHUNKS * PMEM_CHUNK_ELEMENTS then
-        base = MAX_PMEM_CHUNKS * PMEM_CHUNK_ELEMENTS -- will be trimmed after sort
-    end
 
-    -- Add current result
-    game.high_scores[base] = {
+    -- Add current result.
+    list[#list + 1] = {
         date  = game.play.date,
+        diff  = game.play.diff,
+        level = game.play.level,
         score = game.play.score,
     }
 
-    -- Sort + compact keys to 0,4,8,...
+    -- Put list back into game.high_scores so sortHighScores() can sort it.
+    game.high_scores = {}
+
+    for i = 1, #list do
+        game.high_scores[(i - 1) * PMEM_CHUNK_ELEMENTS] = list[i]
+    end
+
     sortHighScores()
 
-    -- -- Save the data.
-    for i = 0, 255 do pmem(i, 0) end
+    -- Clear pmem.
+    for i = 0, 255 do
+        pmem(i, 0)
+    end
+
+    -- Save compacted/sorted high scores.
     for idx = 0, MAX_PMEM_CHUNKS do
-        local b = idx * PMEM_CHUNK_ELEMENTS
-        local d = game.high_scores[b]
+        local base = idx * PMEM_CHUNK_ELEMENTS
+        local d = game.high_scores[base]
+
         if d then
-            pmem(b + 0, d.date)
-            pmem(b + 1, d.score)
+            pmem(base + 0, d.date)
+            pmem(base + 1, d.diff)
+            pmem(base + 2, d.level)
+            pmem(base + 3, d.score)
         end
     end
 end
 
+function difficultyToString(diff)
+    if diff == 3 then
+        return "Hard"
+    elseif diff == 2 then
+        return "Medium"
+    elseif diff == 1 then
+        return "Easy"
+    end
+
+    return "?"
+end
 
 function buildLines()
-    -- Show only the saved/sorted entries (0,4,8,...,252)
     lines = {}
+
+    local score_count = 1
     for idx = 0, MAX_PMEM_CHUNKS do
         local k = idx * PMEM_CHUNK_ELEMENTS
         local d = game.high_scores[k]
+
         if d then
             local dt_obj = unix_to_greg_utc(d.date)
             local dt_str = convert_datetime_obj_to_string(dt_obj)
-            table.insert(lines, dt_str .. "      " .. d.score)
+            local diff_str = difficultyToString(d.diff)
+
+            table.insert(
+                lines,
+                string.format("%2d", score_count) .. ". " ..
+                dt_str ..
+                "  " .. string.format("%7d", d.score) ..
+                "  L" .. string.format("%02d", d.level) ..
+                "  " .. diff_str
+            )
+            score_count = score_count + 1
         end
     end
 end
@@ -949,8 +1094,8 @@ function drawHighScores()
         local line = lines[scroll + 1 + i] -- Lua arrays are 1-based
         if not line then break end
         local y = view_top + i * line_h
-        print(line, X_PADDING + 1, y + 1, BLACK) -- the shadow
-        print(line, X_PADDING, y, WHITE)
+        print(line, X_PADDING + 1, y + 1, GRAY_MED, true) -- the shadow
+        print(line, X_PADDING, y, WHITE, true)
     end
 
     -- Small scrollbar indicator
@@ -1043,6 +1188,28 @@ function SpaceObj.new(params)
 
     -- For deflections: 1.0 = perfectly elastic, <1.0 loses speed
     self.elasticity = params.elasticity or 0.95
+
+    -- Particle Effects
+    self.TYPES = {
+        EXPLOSION = "EXPLOSION",
+        LASER_HIT = "LASER_HIT",
+        SPARK     = "SPARK",
+        THRUST    = "THRUST",
+    }
+    self.EXPLOSION_COLORS = { YELLOW, ORANGE, RED }
+    self.SMOKE_COLORS     = { YELLOW, ORANGE, RED, GRAY_LITE, GRAY_MED, GRAY_DARK }
+    self.SPARK_COLORS     = { ORANGE }
+
+    self.explosionParticles = {}
+    self.laserHitParticles  = {}
+    self.sparkParticles     = {}
+    self.thrustParticles    = {}
+
+    self.max_lifetime  = 30
+    self.max_size      = 3
+    self.max_speed     = 2
+    self.num_particles = 60
+    self.type          = nil
 
     return self
 end
@@ -1336,6 +1503,221 @@ function SpaceObj:resolveCollision(other)
 end
 
 -- ==========================================
+-- SPACEOBJ PARTICLE EFFECTS
+-- ==========================================
+
+function SpaceObj:explosionEffect()
+    self.type          = self.TYPES.EXPLOSION
+    self.deceleration  = 0.015
+    self.max_lifetime  = 90
+    self.max_size      = 3
+    self.max_speed     = 2
+    self.num_particles = 100
+
+    local particle_velocity = {}
+    for particle = 1, self.num_particles do
+        particle_velocity = {
+            speed     = math.random() * self.max_speed,
+            direction = math.random() * math.pi * 2
+        }
+        self:spawnParticle(
+            self.position,
+            particle_velocity,
+            self.max_lifetime,
+            self.EXPLOSION_COLORS,
+            self.max_size,
+            self.deceleration,
+            self.type
+        )
+    end
+end
+
+function SpaceObj:laserHitEffect(position)
+    self.type          = self.TYPES.LASER_HIT
+    self.deceleration  = 0.01
+    self.max_lifetime  = 30
+    self.max_size      = 3
+    self.max_speed     = 1
+    self.num_particles = 60
+
+    -- Fallback in case no position is passed
+    position = position or self.position
+
+    for particle = 1, self.num_particles do
+        local particle_velocity = {
+            speed     = math.random() * self.max_speed,
+            direction = math.random() * math.pi * 2
+        }
+
+        self:spawnParticle(
+            position,
+            particle_velocity,
+            self.max_lifetime,
+            self.EXPLOSION_COLORS,
+            self.max_size,
+            self.deceleration,
+            self.type
+        )
+    end
+end
+
+function SpaceObj:sparkEffect(position)
+    self.type          = self.TYPES.SPARK
+    self.deceleration  = 0.01
+    self.max_lifetime  = 30
+    self.max_size      = 1
+    self.max_speed     = 2
+    self.num_particles = 30
+
+    -- Fallback in case no position is passed
+    position = position or self.position
+
+    for particle = 1, self.num_particles do
+        local particle_velocity = {
+            speed     = math.random() * self.max_speed,
+            direction = math.random() * math.pi * 2
+        }
+
+        self:spawnParticle(
+            position,
+            particle_velocity,
+            self.max_lifetime,
+            self.SPARK_COLORS,
+            self.max_size,
+            self.deceleration,
+            self.type
+        )
+    end
+end
+
+function SpaceObj:thrustEffect()
+    -- Effect-specific overrides
+    self.type          = self.TYPES.THRUST
+    self.deceleration  = 0.01
+    self.max_lifetime  = 30
+    self.max_size      = 1
+    self.max_speed     = 2
+    self.num_particles = 5
+
+    local thrust_offset           = { x = -5, y = 0 }
+    local particle_velocity       = {}
+    local direction               = 0
+    local relative_spawn_position = self:rotatePoint(thrust_offset, self.rotation)
+    local spawn_position          = {
+        x = relative_spawn_position.x + self.position.x,
+        y = relative_spawn_position.y + self.position.y,
+    }
+
+    for particle = 1, self.num_particles do
+        direction = self.rotation + math.pi + (math.random() * math.pi / 6) - (math.pi / 12)
+        direction = self:keepAngleInRange(direction)
+        particle_velocity = {
+            speed     = math.random() * self.max_speed,
+            direction = direction
+        }
+        self:spawnParticle(
+            spawn_position,
+            particle_velocity,
+            self.max_lifetime,
+            self.SMOKE_COLORS,
+            self.max_size,
+            self.deceleration,
+            self.type
+        )
+    end
+end
+
+function SpaceObj:spawnParticle(
+    position,
+    velocity,
+    max_lifetime,
+    colors,
+    max_size,
+    deceleration,
+    particle_type
+)
+    local particle = {
+        position     = {
+            x = position.x,
+            y = position.y
+        },
+        velocity     = {
+            speed     = velocity.speed,
+            direction = velocity.direction
+        },
+        life_timer   = (max_lifetime / 2) + (math.random() * max_lifetime / 2),
+        colors       = colors,
+        size         = math.random(1, max_size),
+        deceleration = deceleration,
+        type         = particle_type
+    }
+
+    if particle_type == self.TYPES.EXPLOSION then
+        table.insert(self.explosionParticles, particle)
+    elseif particle_type == self.TYPES.LASER_HIT then
+        table.insert(self.laserHitParticles, particle)
+    elseif particle_type == self.TYPES.SPARK then
+        table.insert(self.sparkParticles, particle)
+    elseif particle_type == self.TYPES.THRUST then
+        table.insert(self.thrustParticles, particle)
+    end
+end
+
+function SpaceObj:moveParticles(particle_type)
+    local particles = self.explosionParticles
+
+    if particle_type == self.TYPES.LASER_HIT then
+        particles = self.laserHitParticles
+    elseif particle_type == self.TYPES.SPARK then
+        particles = self.sparkParticles
+    elseif particle_type == self.TYPES.THRUST then
+        particles = self.thrustParticles
+    end
+
+    for index = #particles, 1, -1 do
+        local particle = particles[index]
+
+        particle.life_timer = particle.life_timer - 1
+
+        if particle.life_timer < 0 then
+            table.remove(particles, index)
+        else
+            particle.position = self:movePointByVelocity(particle)
+
+            particle.velocity.speed = particle.velocity.speed - particle.deceleration
+            if particle.velocity.speed < 0 then
+                particle.velocity.speed = 0
+            end
+        end
+    end
+end
+
+function SpaceObj:drawParticles(particle_type)
+    local particles = self.explosionParticles
+
+    if particle_type == self.TYPES.LASER_HIT then
+        particles = self.laserHitParticles
+    elseif particle_type == self.TYPES.SPARK then
+        particles = self.sparkParticles
+    elseif particle_type == self.TYPES.THRUST then
+        particles = self.thrustParticles
+    end
+
+    for index, particle in ipairs(particles) do
+        local particle_color = particle.colors[math.random(1, #particle.colors)]
+
+        if particle.type == self.TYPES.EXPLOSION or particle.type == self.TYPES.LASER_HIT then
+            circ(particle.position.x, particle.position.y, particle.size, particle_color)
+        elseif particle.type == self.TYPES.THRUST then
+            pix(particle.position.x, particle.position.y, particle_color)
+        else
+            rect(particle.position.x, particle.position.y, particle.size, particle.size, particle_color)
+        end
+    end
+end
+
+
+-- ==========================================
 -- SPACEOBJ GETTERS
 -- ==========================================
 
@@ -1397,17 +1779,23 @@ function SpaceObj:move()
     self.position = self:movePointByVelocity()
     self:wrapPosition() -- don't assign if wrapPosition returns nil
     self:updateTimer()
+
+    -- Move any particles on the board!
+    self:moveParticles(self.TYPES.EXPLOSION)
+    self:moveParticles(self.TYPES.LASER_HIT)
+    self:moveParticles(self.TYPES.SPARK)
+    self:moveParticles(self.TYPES.THRUST)
 end
 
 -- ==========================================
 -- SPACEOBJ DRAW
 -- ==========================================
 
--- Draw the SpaceObj.
-function SpaceObj:draw()
+function SpaceObj:drawBody()
     local first_point = true
     local last_point = 0
     local rotated_point = 0
+
     for index, point in ipairs(self.shape) do
         rotated_point = self:rotatePoint(point, self.rotation)
 
@@ -1425,6 +1813,15 @@ function SpaceObj:draw()
             last_point = rotated_point
         end
     end
+end
+
+function SpaceObj:draw()
+    self:drawBody()
+
+    self:drawParticles(self.TYPES.EXPLOSION)
+    self:drawParticles(self.TYPES.LASER_HIT)
+    self:drawParticles(self.TYPES.SPARK)
+    self:drawParticles(self.TYPES.THRUST)
 end
 
 function SpaceObj:explode()
@@ -1455,6 +1852,7 @@ function Ship:new(params)
     self.cur_lives     = self.max_lives
     self.invulnerable  = 0
     self.dead          = false
+    self.exploded      = false
     self.respawn_timer = 0
 
     self.deadstop = {
@@ -1494,11 +1892,14 @@ end
 -- ==========================================
 
 function Ship:getHealth()
+    if self.cur_health < 0 then
+        self.cur_health = 0
+    end
     return self.cur_health
 end
 
 function Ship:getHealthFraction()
-    return self.cur_health / self.max_health
+    return self:getHealth() / self.max_health
 end
 
 function Ship:getNumLaserBlasts()
@@ -1561,19 +1962,30 @@ function Ship:thrust()
         direction = self.rotation
     }
     self.velocity = self:addVectors(self.velocity, acceleration)
+
+    self:thrustEffect()
+    sfx(3, 10, 10, 3, -8, 1)
 end
 
 function Ship:move()
-    if btn(BTN_P1_UP) then
+    if not self.dead and btn(BTN_P1_UP) then
         self:thrust()
     end
 
-    self.velocity.speed = self.velocity.speed - self.deceleration
-    if self.velocity.speed < 0 then
-        self.velocity.speed = 0
-    end
+    if not self.dead then
+        self.velocity.speed = self.velocity.speed - self.deceleration
+        if self.velocity.speed < 0 then
+            self.velocity.speed = 0
+        end
 
-    SpaceObj.move(self)
+        SpaceObj.move(self)
+    else
+        -- Dead ship body does not move, but particles still animate.
+        self:moveParticles(self.TYPES.EXPLOSION)
+        self:moveParticles(self.TYPES.LASER_HIT)
+        self:moveParticles(self.TYPES.THRUST)
+        self:updateTimer()
+    end
 end
 
 function Ship:spawnLaserBlast()
@@ -1595,7 +2007,7 @@ function Ship:fireLaserBlast()
     if #self.laser_blasts < self.laser_params.max_shots then
         -- Okay to fire
         table.insert(self.laser_blasts, self:spawnLaserBlast())
-        sfx(0, 40, 5, 0, 15, 1)
+        sfx(0, 40, 20, 0, 15, 1)
     end
 end
 
@@ -1624,10 +2036,15 @@ function Ship:checkLaserHit(asteroids)
             )
             if separation_value then
                 if self:pointInPolygon(laser.position, asteroid) then
+                    local hit_position = {
+                        x = laser.position.x,
+                        y = laser.position.y
+                    }
                     -- Remove laser blast and mark the asteroid hit.
                     table.remove(self.laser_blasts, laser_index)
                     asteroid_was_hit = asteroid_index
-                    return asteroid_was_hit -- immediately break out of loop
+                    self:laserHitEffect(hit_position)
+                    return asteroid_was_hit
                 end
             end
         end
@@ -1640,6 +2057,7 @@ function Ship:takesDamage(damage)
         damage = 0
     end
     self.cur_health = self.cur_health - damage
+    self:sparkEffect()
     return self:getHealth()
 end
 
@@ -1648,18 +2066,21 @@ function Ship:kill()
         return
     end
     self.dead = true
-    self.respawn_timer = 60 -- 1 second delay (60 fps)
+    self.cur_lives = self.cur_lives - 1
+    self.respawn_timer = 90
+    self:explode()
 end
 
 function Ship:respawn()
     self.dead               = false
+    self.exploded           = false
     self.cur_health         = self.max_health
     self.position.x         = EDGE_X_RIGHT / 2
     self.position.y         = EDGE_Y_BOTTOM / 2
     self.velocity.speed     = 0
     self.velocity.direction = 0
     self.rotation           = -math.pi / 2
-    self.invulnerable       = 120       -- 2 seconds invulnerable
+    self.invulnerable       = 120 -- 2 seconds invulnerable
 end
 
 
@@ -1683,8 +2104,14 @@ function Ship:shouldDraw()
 end
 
 function Ship:explode()
-    drawCenteredText("EXPLODED", EDGE_Y_BOTTOM / 2, RED, true, 3, false, YELLOW)
+    if self.exploded then
+        return
+    end
+    self.exploded = true
+    self:explosionEffect()
+    sfx(2, 10, 30, 3, 15)
 end
+
 
 -- [/TQ-Bundler: src.classes.Ship]
 
@@ -1822,7 +2249,7 @@ function Asteroid:explode()
         end
     end
 
-    sfx(1, 1, 15, 1, 15)
+    sfx(1, 1, 50, 1, 15)
 
     return asteroid_fragments
 end

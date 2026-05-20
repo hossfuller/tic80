@@ -14,6 +14,7 @@ function updateGameover()
     if player and player.moveParticles then
         player:moveParticles(player.TYPES.EXPLOSION)
         player:moveParticles(player.TYPES.LASER_HIT)
+        player:moveParticles(player.TYPES.SPARK)
         player:moveParticles(player.TYPES.THRUST)
     end
 
@@ -33,6 +34,8 @@ function drawGameover()
     if player then
         player:drawParticles(player.TYPES.EXPLOSION)
         player:drawParticles(player.TYPES.LASER_HIT)
+        player:drawParticles(player.TYPES.SMOKE)
+        player:drawParticles(player.TYPES.SPARK)
         player:drawParticles(player.TYPES.THRUST)
     end
 

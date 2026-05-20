@@ -24,6 +24,11 @@ function updatePlay()
         )
     end
 
+    -- Regenerate health if it's been enabled.
+    if game.play.params.player.regenerate == true and player:everyNTicks(60) then
+        player:regenerateHealth()
+    end
+
     -- Move the laser blast and then check if it hit anything.
     player:moveLaserBlasts()
     hit_asteroid_index = player:checkLaserHit(game.play.asteroids)
@@ -135,14 +140,14 @@ function drawCurrentLives(used_length, used_height)
 end
 
 function drawLevel(used_height)
-    local level_height = used_height + 2
+    local level_height = used_height
     local level_length = print("LEVEL: " .. string.format("%02d", game.play.level), EDGE_X_LEFT, level_height, WHITE, true)
     return level_length, level_height + Y_PADDING
 end
 
-function drawScore(used_length, used_height)
+function drawScore(used_height)
     local score_height = used_height + 2
-    local score_length = print("SCORE: " .. tostring(game.play.score), used_length + X_PADDING, score_height, WHITE, true)
+    local score_length = print("SCORE: " .. tostring(game.play.score), EDGE_X_LEFT, score_height, WHITE, true)
     return score_length, score_height + Y_PADDING
 end
 
@@ -161,6 +166,8 @@ function drawPlay()
     player:drawLaserBlasts()
     player:drawParticles(player.TYPES.EXPLOSION)
     player:drawParticles(player.TYPES.LASER_HIT)
+    player:drawParticles(player.TYPES.SMOKE)
+    player:drawParticles(player.TYPES.SPARK)
     player:drawParticles(player.TYPES.THRUST)
 
     for index, asteroid in ipairs(game.play.asteroids) do
@@ -169,8 +176,8 @@ function drawPlay()
 
     local health_length, health_height = drawHealthBar()
     local lives_length,  lives_height  = drawCurrentLives(health_length, health_height)
-    local level_length, level_height   = drawLevel(health_height)
-    local score_length, score_height   = drawScore(level_length, health_height)
+    local score_length, score_height   = drawScore(health_height)
+    local level_length, level_height   = drawLevel(score_height)
 
     if DEBUG == true then
         print("HEALTH: " .. tostring(player:getHealth()), EDGE_X_LEFT, score_height + 2, CYAN, true)

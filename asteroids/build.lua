@@ -269,6 +269,14 @@ game = {
                 end,
             },
             {
+                name = "Regenerate Health",
+                values = { "On", "Off" },
+                current = 1,
+                apply = function(value)
+                    game.play.params.player.regenerate = (value == 1)
+                end,
+            },
+            {
                 name = "Back",
                 values = nil, -- No values means this is an action, not a setting.
                 current = 1,
@@ -283,6 +291,7 @@ game = {
     play = {
         params = {
             player = {
+                regenerate     = false,
                 deadstop_allow = true,
                 deadstop_brake = 0.35,   -- 0..1, higher = faster stop per frame
                 deadstop_snap  = 0.02,   -- below this speed, just snap to 0
@@ -665,6 +674,11 @@ function updatePlay()
         )
     end
 
+    -- Regenerate health if it's been enabled.
+    if game.play.params.player.regenerate == true and player:everyNTicks(60) then
+        player:regenerateHealth()
+    end
+
     -- Move the laser blast and then check if it hit anything.
     player:moveLaserBlasts()
     hit_asteroid_index = player:checkLaserHit(game.play.asteroids)
@@ -776,14 +790,14 @@ function drawCurrentLives(used_length, used_height)
 end
 
 function drawLevel(used_height)
-    local level_height = used_height + 2
+    local level_height = used_height
     local level_length = print("LEVEL: " .. string.format("%02d", game.play.level), EDGE_X_LEFT, level_height, WHITE, true)
     return level_length, level_height + Y_PADDING
 end
 
-function drawScore(used_length, used_height)
+function drawScore(used_height)
     local score_height = used_height + 2
-    local score_length = print("SCORE: " .. tostring(game.play.score), used_length + X_PADDING, score_height, WHITE, true)
+    local score_length = print("SCORE: " .. tostring(game.play.score), EDGE_X_LEFT, score_height, WHITE, true)
     return score_length, score_height + Y_PADDING
 end
 
@@ -802,6 +816,8 @@ function drawPlay()
     player:drawLaserBlasts()
     player:drawParticles(player.TYPES.EXPLOSION)
     player:drawParticles(player.TYPES.LASER_HIT)
+    player:drawParticles(player.TYPES.SMOKE)
+    player:drawParticles(player.TYPES.SPARK)
     player:drawParticles(player.TYPES.THRUST)
 
     for index, asteroid in ipairs(game.play.asteroids) do
@@ -810,8 +826,8 @@ function drawPlay()
 
     local health_length, health_height = drawHealthBar()
     local lives_length,  lives_height  = drawCurrentLives(health_length, health_height)
-    local level_length, level_height   = drawLevel(health_height)
-    local score_length, score_height   = drawScore(level_length, health_height)
+    local score_length, score_height   = drawScore(health_height)
+    local level_length, level_height   = drawLevel(score_height)
 
     if DEBUG == true then
         print("HEALTH: " .. tostring(player:getHealth()), EDGE_X_LEFT, score_height + 2, CYAN, true)
@@ -853,6 +869,7 @@ function updateGameover()
     if player and player.moveParticles then
         player:moveParticles(player.TYPES.EXPLOSION)
         player:moveParticles(player.TYPES.LASER_HIT)
+        player:moveParticles(player.TYPES.SPARK)
         player:moveParticles(player.TYPES.THRUST)
     end
 
@@ -872,6 +889,8 @@ function drawGameover()
     if player then
         player:drawParticles(player.TYPES.EXPLOSION)
         player:drawParticles(player.TYPES.LASER_HIT)
+        player:drawParticles(player.TYPES.SMOKE)
+        player:drawParticles(player.TYPES.SPARK)
         player:drawParticles(player.TYPES.THRUST)
     end
 
@@ -1188,22 +1207,29 @@ function SpaceObj.new(params)
 
     -- Particle Effects
     self.TYPES = {
-        EXPLOSION = "EXPLOSION",
-        LASER_HIT = "LASER_HIT",
-        THRUST    = "THRUST",
+        EXPLOSION  = "EXPLOSION",
+        LASER_HIT  = "LASER_HIT",
+        SPARK      = "SPARK",
+        SMOKE_LEAK = "SMOKE_LEAK",
+        THRUST     = "THRUST",
     }
-    self.EXPLOSION_COLORS   = { YELLOW, ORANGE, RED }
-    self.SMOKE_COLORS       = { YELLOW, ORANGE, RED, GRAY_LITE, GRAY_MED, GRAY_DARK }
+    self.EXPLOSION_COLORS  = { YELLOW, ORANGE, RED }
+    self.SMOKE_COLORS      = { YELLOW, ORANGE, RED, GRAY_LITE, GRAY_MED, GRAY_DARK }
+    self.SMOKE_LEAK_COLORS = { GRAY_LITE, GRAY_MED, GRAY_DARK }
+    self.SPARK_COLORS      = { ORANGE }
 
     self.explosionParticles = {}
     self.laserHitParticles  = {}
+    self.smokeParticles     = {}
+    self.sparkParticles     = {}
     self.thrustParticles    = {}
 
-    self.max_lifetime  = 30
-    self.max_size      = 3
-    self.max_speed     = 2
-    self.num_particles = 60
-    self.type          = nil
+    self.smoke_cooldown = 0
+    self.max_lifetime   = 30
+    self.max_size       = 3
+    self.max_speed      = 2
+    self.num_particles  = 60
+    self.type           = nil
 
     return self
 end
@@ -1555,6 +1581,90 @@ function SpaceObj:laserHitEffect(position)
     end
 end
 
+function SpaceObj:leakingSmoke(health_fraction)
+    -- Check cooldown - don't spawn if still cooling down
+    if self.smoke_cooldown > 0 then
+        self.smoke_cooldown = self.smoke_cooldown - 1
+        return
+    end
+
+    self.type         = self.TYPES.SMOKE
+    self.max_lifetime = 90
+    self.max_size     = 1
+
+    -- Scale particle count based on damage (more damage = more smoke)
+    local damage_severity = 1 - (health_fraction / 0.5)
+    self.num_particles = math.floor(1 + damage_severity)
+
+    -- Set cooldown based on health: more damage = shorter cooldown (more frequent smoke)
+    -- At 50% health: cooldown ~60 frames (1 second)
+    -- At 0% health: cooldown ~15 frames (0.25 seconds)
+    -- Smoke cooldown attributes can be tinkered like this:
+    --  1. Increase `attr_a` to make smoke less frequent at low damage.
+    --  2. Decrease `attr_b` to make the frequency diff between low and high
+    --     damage smaller.
+    --  3. Change self.max_lifetime to control how long each puff lingers.
+    local attr_a = 30
+    local attr_b = 75
+    self.smoke_cooldown = math.floor(attr_a - (damage_severity * attr_b))
+
+    -- Random offset from ship center for spawn position
+    local spawn_offset = {
+        x = (math.random() * 8) - 4,
+        y = (math.random() * 8) - 4
+    }
+    local rotated_offset = self:rotatePoint(spawn_offset, self.rotation)
+    local spawn_position = {
+        x = rotated_offset.x + self.position.x,
+        y = rotated_offset.y + self.position.y,
+    }
+
+    for particle = 1, self.num_particles do
+        local particle_velocity = {
+            speed     = 0,
+            direction = 0
+        }
+        self:spawnParticle(
+            spawn_position,
+            particle_velocity,
+            self.max_lifetime,
+            self.SMOKE_LEAK_COLORS,
+            self.max_size,
+            0,
+            self.type
+        )
+    end
+end
+
+function SpaceObj:sparkEffect(position)
+    self.type          = self.TYPES.SPARK
+    self.deceleration  = 0.01
+    self.max_lifetime  = 30
+    self.max_size      = 1
+    self.max_speed     = 2
+    self.num_particles = 30
+
+    -- Fallback in case no position is passed
+    position = position or self.position
+
+    for particle = 1, self.num_particles do
+        local particle_velocity = {
+            speed     = math.random() * self.max_speed,
+            direction = math.random() * math.pi * 2
+        }
+
+        self:spawnParticle(
+            position,
+            particle_velocity,
+            self.max_lifetime,
+            self.SPARK_COLORS,
+            self.max_size,
+            self.deceleration,
+            self.type
+        )
+    end
+end
+
 function SpaceObj:thrustEffect()
     -- Effect-specific overrides
     self.type          = self.TYPES.THRUST
@@ -1621,6 +1731,10 @@ function SpaceObj:spawnParticle(
         table.insert(self.explosionParticles, particle)
     elseif particle_type == self.TYPES.LASER_HIT then
         table.insert(self.laserHitParticles, particle)
+    elseif particle_type == self.TYPES.SMOKE then        
+        table.insert(self.smokeParticles, particle)      
+    elseif particle_type == self.TYPES.SPARK then
+        table.insert(self.sparkParticles, particle)
     elseif particle_type == self.TYPES.THRUST then
         table.insert(self.thrustParticles, particle)
     end
@@ -1631,6 +1745,10 @@ function SpaceObj:moveParticles(particle_type)
 
     if particle_type == self.TYPES.LASER_HIT then
         particles = self.laserHitParticles
+    elseif particle_type == self.TYPES.SMOKE then
+        particles = self.smokeParticles          
+    elseif particle_type == self.TYPES.SPARK then
+        particles = self.sparkParticles
     elseif particle_type == self.TYPES.THRUST then
         particles = self.thrustParticles
     end
@@ -1658,6 +1776,10 @@ function SpaceObj:drawParticles(particle_type)
 
     if particle_type == self.TYPES.LASER_HIT then
         particles = self.laserHitParticles
+    elseif particle_type == self.TYPES.SMOKE then
+        particles = self.smokeParticles          
+    elseif particle_type == self.TYPES.SPARK then
+        particles = self.sparkParticles
     elseif particle_type == self.TYPES.THRUST then
         particles = self.thrustParticles
     end
@@ -1669,6 +1791,8 @@ function SpaceObj:drawParticles(particle_type)
             circ(particle.position.x, particle.position.y, particle.size, particle_color)
         elseif particle.type == self.TYPES.THRUST then
             pix(particle.position.x, particle.position.y, particle_color)
+        elseif particle.type == self.TYPES.SMOKE then
+            circ(particle.position.x, particle.position.y, particle.size, particle_color)
         else
             rect(particle.position.x, particle.position.y, particle.size, particle.size, particle_color)
         end
@@ -1742,6 +1866,8 @@ function SpaceObj:move()
     -- Move any particles on the board!
     self:moveParticles(self.TYPES.EXPLOSION)
     self:moveParticles(self.TYPES.LASER_HIT)
+    self:moveParticles(self.TYPES.SMOKE)
+    self:moveParticles(self.TYPES.SPARK)
     self:moveParticles(self.TYPES.THRUST)
 end
 
@@ -1778,6 +1904,7 @@ function SpaceObj:draw()
 
     self:drawParticles(self.TYPES.EXPLOSION)
     self:drawParticles(self.TYPES.LASER_HIT)
+    self:drawParticles(self.TYPES.SPARK)
     self:drawParticles(self.TYPES.THRUST)
 end
 
@@ -1935,11 +2062,18 @@ function Ship:move()
             self.velocity.speed = 0
         end
 
+        -- Leak smoke when damaged
+        local health_frac = self:getHealthFraction()
+        if health_frac < 0.5 then
+            self:leakingSmoke(health_frac)
+        end
+
         SpaceObj.move(self)
     else
         -- Dead ship body does not move, but particles still animate.
         self:moveParticles(self.TYPES.EXPLOSION)
         self:moveParticles(self.TYPES.LASER_HIT)
+        self:moveParticles(self.TYPES.SMOKE)
         self:moveParticles(self.TYPES.THRUST)
         self:updateTimer()
     end
@@ -2009,11 +2143,21 @@ function Ship:checkLaserHit(asteroids)
     return asteroid_was_hit
 end
 
+function Ship:regenerateHealth()
+    if self.cur_health < self.max_health then
+        self.cur_health = self.cur_health + 1
+    end
+    return self.cur_health
+end
+
 function Ship:takesDamage(damage)
     if damage == nil then
         damage = 0
     end
     self.cur_health = self.cur_health - damage
+    self:sparkEffect()
+    sfx(1, 60, 50, 1, 25)
+
     return self:getHealth()
 end
 
@@ -2037,6 +2181,7 @@ function Ship:respawn()
     self.velocity.direction = 0
     self.rotation           = -math.pi / 2
     self.invulnerable       = 120 -- 2 seconds invulnerable
+    self.smoke_cooldown     = 0
 end
 
 

@@ -37,22 +37,29 @@ function SpaceObj.new(params)
 
     -- Particle Effects
     self.TYPES = {
-        EXPLOSION = "EXPLOSION",
-        LASER_HIT = "LASER_HIT",
-        THRUST    = "THRUST",
+        EXPLOSION  = "EXPLOSION",
+        LASER_HIT  = "LASER_HIT",
+        SPARK      = "SPARK",
+        SMOKE_LEAK = "SMOKE_LEAK",
+        THRUST     = "THRUST",
     }
-    self.EXPLOSION_COLORS   = { YELLOW, ORANGE, RED }
-    self.SMOKE_COLORS       = { YELLOW, ORANGE, RED, GRAY_LITE, GRAY_MED, GRAY_DARK }
+    self.EXPLOSION_COLORS  = { YELLOW, ORANGE, RED }
+    self.SMOKE_COLORS      = { YELLOW, ORANGE, RED, GRAY_LITE, GRAY_MED, GRAY_DARK }
+    self.SMOKE_LEAK_COLORS = { GRAY_LITE, GRAY_MED, GRAY_DARK }
+    self.SPARK_COLORS      = { ORANGE }
 
     self.explosionParticles = {}
     self.laserHitParticles  = {}
+    self.smokeParticles     = {}
+    self.sparkParticles     = {}
     self.thrustParticles    = {}
 
-    self.max_lifetime  = 30
-    self.max_size      = 3
-    self.max_speed     = 2
-    self.num_particles = 60
-    self.type          = nil
+    self.smoke_cooldown = 0
+    self.max_lifetime   = 30
+    self.max_size       = 3
+    self.max_speed      = 2
+    self.num_particles  = 60
+    self.type           = nil
 
     return self
 end
@@ -404,6 +411,90 @@ function SpaceObj:laserHitEffect(position)
     end
 end
 
+function SpaceObj:leakingSmoke(health_fraction)
+    -- Check cooldown - don't spawn if still cooling down
+    if self.smoke_cooldown > 0 then
+        self.smoke_cooldown = self.smoke_cooldown - 1
+        return
+    end
+
+    self.type         = self.TYPES.SMOKE
+    self.max_lifetime = 90
+    self.max_size     = 1
+
+    -- Scale particle count based on damage (more damage = more smoke)
+    local damage_severity = 1 - (health_fraction / 0.5)
+    self.num_particles = math.floor(1 + damage_severity)
+
+    -- Set cooldown based on health: more damage = shorter cooldown (more frequent smoke)
+    -- At 50% health: cooldown ~60 frames (1 second)
+    -- At 0% health: cooldown ~15 frames (0.25 seconds)
+    -- Smoke cooldown attributes can be tinkered like this:
+    --  1. Increase `attr_a` to make smoke less frequent at low damage.
+    --  2. Decrease `attr_b` to make the frequency diff between low and high
+    --     damage smaller.
+    --  3. Change self.max_lifetime to control how long each puff lingers.
+    local attr_a = 30
+    local attr_b = 75
+    self.smoke_cooldown = math.floor(attr_a - (damage_severity * attr_b))
+
+    -- Random offset from ship center for spawn position
+    local spawn_offset = {
+        x = (math.random() * 8) - 4,
+        y = (math.random() * 8) - 4
+    }
+    local rotated_offset = self:rotatePoint(spawn_offset, self.rotation)
+    local spawn_position = {
+        x = rotated_offset.x + self.position.x,
+        y = rotated_offset.y + self.position.y,
+    }
+
+    for particle = 1, self.num_particles do
+        local particle_velocity = {
+            speed     = 0,
+            direction = 0
+        }
+        self:spawnParticle(
+            spawn_position,
+            particle_velocity,
+            self.max_lifetime,
+            self.SMOKE_LEAK_COLORS,
+            self.max_size,
+            0,
+            self.type
+        )
+    end
+end
+
+function SpaceObj:sparkEffect(position)
+    self.type          = self.TYPES.SPARK
+    self.deceleration  = 0.01
+    self.max_lifetime  = 30
+    self.max_size      = 1
+    self.max_speed     = 2
+    self.num_particles = 30
+
+    -- Fallback in case no position is passed
+    position = position or self.position
+
+    for particle = 1, self.num_particles do
+        local particle_velocity = {
+            speed     = math.random() * self.max_speed,
+            direction = math.random() * math.pi * 2
+        }
+
+        self:spawnParticle(
+            position,
+            particle_velocity,
+            self.max_lifetime,
+            self.SPARK_COLORS,
+            self.max_size,
+            self.deceleration,
+            self.type
+        )
+    end
+end
+
 function SpaceObj:thrustEffect()
     -- Effect-specific overrides
     self.type          = self.TYPES.THRUST
@@ -470,6 +561,10 @@ function SpaceObj:spawnParticle(
         table.insert(self.explosionParticles, particle)
     elseif particle_type == self.TYPES.LASER_HIT then
         table.insert(self.laserHitParticles, particle)
+    elseif particle_type == self.TYPES.SMOKE then        
+        table.insert(self.smokeParticles, particle)      
+    elseif particle_type == self.TYPES.SPARK then
+        table.insert(self.sparkParticles, particle)
     elseif particle_type == self.TYPES.THRUST then
         table.insert(self.thrustParticles, particle)
     end
@@ -480,6 +575,10 @@ function SpaceObj:moveParticles(particle_type)
 
     if particle_type == self.TYPES.LASER_HIT then
         particles = self.laserHitParticles
+    elseif particle_type == self.TYPES.SMOKE then
+        particles = self.smokeParticles          
+    elseif particle_type == self.TYPES.SPARK then
+        particles = self.sparkParticles
     elseif particle_type == self.TYPES.THRUST then
         particles = self.thrustParticles
     end
@@ -507,6 +606,10 @@ function SpaceObj:drawParticles(particle_type)
 
     if particle_type == self.TYPES.LASER_HIT then
         particles = self.laserHitParticles
+    elseif particle_type == self.TYPES.SMOKE then
+        particles = self.smokeParticles          
+    elseif particle_type == self.TYPES.SPARK then
+        particles = self.sparkParticles
     elseif particle_type == self.TYPES.THRUST then
         particles = self.thrustParticles
     end
@@ -518,6 +621,8 @@ function SpaceObj:drawParticles(particle_type)
             circ(particle.position.x, particle.position.y, particle.size, particle_color)
         elseif particle.type == self.TYPES.THRUST then
             pix(particle.position.x, particle.position.y, particle_color)
+        elseif particle.type == self.TYPES.SMOKE then
+            circ(particle.position.x, particle.position.y, particle.size, particle_color)
         else
             rect(particle.position.x, particle.position.y, particle.size, particle.size, particle_color)
         end
@@ -591,6 +696,8 @@ function SpaceObj:move()
     -- Move any particles on the board!
     self:moveParticles(self.TYPES.EXPLOSION)
     self:moveParticles(self.TYPES.LASER_HIT)
+    self:moveParticles(self.TYPES.SMOKE)
+    self:moveParticles(self.TYPES.SPARK)
     self:moveParticles(self.TYPES.THRUST)
 end
 
@@ -627,6 +734,7 @@ function SpaceObj:draw()
 
     self:drawParticles(self.TYPES.EXPLOSION)
     self:drawParticles(self.TYPES.LASER_HIT)
+    self:drawParticles(self.TYPES.SPARK)
     self:drawParticles(self.TYPES.THRUST)
 end
 

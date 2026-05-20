@@ -80,6 +80,14 @@ game = {
                 end,
             },
             {
+                name = "Regenerate Health",
+                values = { "On", "Off" },
+                current = 1,
+                apply = function(value)
+                    game.play.params.player.regenerate = (value == 1)
+                end,
+            },
+            {
                 name = "Back",
                 values = nil, -- No values means this is an action, not a setting.
                 current = 1,
@@ -94,6 +102,7 @@ game = {
     play = {
         params = {
             player = {
+                regenerate     = false,
                 deadstop_allow = true,
                 deadstop_brake = 0.35,   -- 0..1, higher = faster stop per frame
                 deadstop_snap  = 0.02,   -- below this speed, just snap to 0

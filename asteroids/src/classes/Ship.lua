@@ -143,11 +143,18 @@ function Ship:move()
             self.velocity.speed = 0
         end
 
+        -- Leak smoke when damaged
+        local health_frac = self:getHealthFraction()
+        if health_frac < 0.5 then
+            self:leakingSmoke(health_frac)
+        end
+
         SpaceObj.move(self)
     else
         -- Dead ship body does not move, but particles still animate.
         self:moveParticles(self.TYPES.EXPLOSION)
         self:moveParticles(self.TYPES.LASER_HIT)
+        self:moveParticles(self.TYPES.SMOKE)
         self:moveParticles(self.TYPES.THRUST)
         self:updateTimer()
     end
@@ -217,11 +224,21 @@ function Ship:checkLaserHit(asteroids)
     return asteroid_was_hit
 end
 
+function Ship:regenerateHealth()
+    if self.cur_health < self.max_health then
+        self.cur_health = self.cur_health + 1
+    end
+    return self.cur_health
+end
+
 function Ship:takesDamage(damage)
     if damage == nil then
         damage = 0
     end
     self.cur_health = self.cur_health - damage
+    self:sparkEffect()
+    sfx(1, 60, 50, 1, 25)
+
     return self:getHealth()
 end
 
@@ -245,6 +262,7 @@ function Ship:respawn()
     self.velocity.direction = 0
     self.rotation           = -math.pi / 2
     self.invulnerable       = 120 -- 2 seconds invulnerable
+    self.smoke_cooldown     = 0
 end
 
 
