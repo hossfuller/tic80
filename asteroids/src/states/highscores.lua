@@ -149,7 +149,7 @@ function buildLines()
 
             table.insert(
                 lines,
-                tostring(score_count) .. ". " ..
+                string.format("%2d", score_count) .. ". " ..
                 dt_str ..
                 "  " .. string.format("%7d", d.score) ..
                 "  L" .. string.format("%02d", d.level) ..

@@ -62,7 +62,7 @@ local FIXED_CHAR_HEIGHT = 6
 local X_PADDING         = FIXED_CHAR_WIDTH + 2
 local Y_PADDING         = FIXED_CHAR_HEIGHT + 2
 
-local DEBUG = true
+local DEBUG = false
 
 -- [/TQ-Bundler: src.constants]
 
@@ -204,6 +204,7 @@ DIFFICULTY = {
     MEDIUM = 2,
     HARD   = 3,
 }
+PTS_FOR_EXTRA_LIFE = 100000
 
 game = {
     state = STATE.START,
@@ -233,7 +234,7 @@ game = {
                     -- Store current difficulty for high scores.
                     game.play.diff = value
                     if value == DIFFICULTY.EASY then
-                        game.play.params.player.max_lives         = 3
+                        game.play.params.player.max_lives         = 4
                         game.play.params.player.max_health        = 250
                         game.play.params.player.max_lasers        = 6
                         game.play.params.player.laser_lifetime    = 60
@@ -241,7 +242,7 @@ game = {
                         game.play.params.asteroids.velocity_max   = 0.3
                         game.play.params.asteroids.velocity_min   = 0.05
                     elseif value == DIFFICULTY.MEDIUM then
-                        game.play.params.player.max_lives         = 2
+                        game.play.params.player.max_lives         = 3
                         game.play.params.player.max_health        = 175
                         game.play.params.player.max_lasers        = 5
                         game.play.params.player.laser_lifetime    = 50
@@ -249,7 +250,7 @@ game = {
                         game.play.params.asteroids.velocity_max   = 0.5
                         game.play.params.asteroids.velocity_min   = 0.1
                     elseif value == DIFFICULTY.HARD then
-                        game.play.params.player.max_lives         = 1
+                        game.play.params.player.max_lives         = 3
                         game.play.params.player.max_health        = 100
                         game.play.params.player.max_lasers        = 4
                         game.play.params.player.laser_lifetime    = 40
@@ -303,12 +304,13 @@ game = {
                 elasticity     = 0.95,
             },
         },
-        player    = {},
-        asteroids = {},
-        date      = nil,
-        diff      = DIFFICULTY.MEDIUM,
-        level     = 1,
-        score     = 0,
+        player                = {},
+        asteroids             = {},
+        date                  = nil,
+        diff                  = DIFFICULTY.MEDIUM,
+        level                 = 1,
+        score                 = 0,
+        next_extra_life_score = PTS_FOR_EXTRA_LIFE,
     },
 
     high_scores = {},
@@ -341,9 +343,10 @@ function changeState(newState)
             lifetime   = game.play.params.player.laser_lifetime
         })
 
-        game.play.score  = 0
-        game.play.date   = get_unix_timestamp()
-        game.play.level  = 1
+        game.play.score                 = 0
+        game.play.date                  = get_unix_timestamp()
+        game.play.level                 = 1
+        game.play.next_extra_life_score = PTS_FOR_EXTRA_LIFE
 
         -- Ensure difficulty is never nil. This should already be maintained by
         -- the options apply function, but this protects saved scores if PLAY is
@@ -371,6 +374,11 @@ function generateAsteroids()
     game.play.asteroids = {}
 
     local params = game.play.params
+
+    -- Increment the number of asteroids as we climb the level ladder.
+    local num_extra_asteroids = game.play.level - 1
+    params.asteroids.num_population = params.asteroids.num_population + num_extra_asteroids
+
     for count = 1, params.asteroids.num_population do
         local vel_speed = (
             math.random() *
@@ -648,7 +656,6 @@ end
 function updatePlay()
     local player = game.play.player
 
-
     player:move()
     if game.play.params.player.deadstop_allow == true and btn(BTN_P1_DOWN) then
         -- brake and snap can change as player takes damage?
@@ -663,7 +670,13 @@ function updatePlay()
     hit_asteroid_index = player:checkLaserHit(game.play.asteroids)
     for index, asteroid in ipairs(game.play.asteroids) do
         if hit_asteroid_index == index then
+            -- Increment score, and then check if the user earned an extra life.
             game.play.score = game.play.score + asteroid:getPoints()
+            while game.play.score >= game.play.next_extra_life_score do
+                player.cur_lives = player.cur_lives + 1
+                game.play.next_extra_life_score = game.play.next_extra_life_score + PTS_FOR_EXTRA_LIFE
+            end
+
             local fragments = asteroid:explode()
 
             -- remove original asteroid from list of asteroids
@@ -679,6 +692,12 @@ function updatePlay()
         else
             asteroid:move()
         end
+    end
+
+    -- Move up a level when all asteroids are gone. Then regenerate asteroids.
+    if #game.play.asteroids == 0 then
+        game.play.level = game.play.level + 2
+        generateAsteroids()
     end
 
     -- Now check if any asteroids have hit each other.
@@ -756,9 +775,15 @@ function drawCurrentLives(used_length, used_height)
     end
 end
 
-function drawScore(used_height)
+function drawLevel(used_height)
+    local level_height = used_height + 2
+    local level_length = print("LEVEL: " .. string.format("%02d", game.play.level), EDGE_X_LEFT, level_height, WHITE, true)
+    return level_length, level_height + Y_PADDING
+end
+
+function drawScore(used_length, used_height)
     local score_height = used_height + 2
-    local score_length = print("SCORE: " .. tostring(game.play.score), EDGE_X_LEFT, score_height, WHITE, true)
+    local score_length = print("SCORE: " .. tostring(game.play.score), used_length + X_PADDING, score_height, WHITE, true)
     return score_length, score_height + Y_PADDING
 end
 
@@ -785,7 +810,8 @@ function drawPlay()
 
     local health_length, health_height = drawHealthBar()
     local lives_length,  lives_height  = drawCurrentLives(health_length, health_height)
-    local score_length,  score_height  = drawScore(health_height)
+    local level_length, level_height   = drawLevel(health_height)
+    local score_length, score_height   = drawScore(level_length, health_height)
 
     if DEBUG == true then
         print("HEALTH: " .. tostring(player:getHealth()), EDGE_X_LEFT, score_height + 2, CYAN, true)
@@ -1009,7 +1035,7 @@ function buildLines()
 
             table.insert(
                 lines,
-                tostring(score_count) .. ". " ..
+                string.format("%2d", score_count) .. ". " ..
                 dt_str ..
                 "  " .. string.format("%7d", d.score) ..
                 "  L" .. string.format("%02d", d.level) ..

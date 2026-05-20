@@ -15,6 +15,7 @@ DIFFICULTY = {
     MEDIUM = 2,
     HARD   = 3,
 }
+PTS_FOR_EXTRA_LIFE = 100000
 
 game = {
     state = STATE.START,
@@ -44,7 +45,7 @@ game = {
                     -- Store current difficulty for high scores.
                     game.play.diff = value
                     if value == DIFFICULTY.EASY then
-                        game.play.params.player.max_lives         = 3
+                        game.play.params.player.max_lives         = 4
                         game.play.params.player.max_health        = 250
                         game.play.params.player.max_lasers        = 6
                         game.play.params.player.laser_lifetime    = 60
@@ -52,7 +53,7 @@ game = {
                         game.play.params.asteroids.velocity_max   = 0.3
                         game.play.params.asteroids.velocity_min   = 0.05
                     elseif value == DIFFICULTY.MEDIUM then
-                        game.play.params.player.max_lives         = 2
+                        game.play.params.player.max_lives         = 3
                         game.play.params.player.max_health        = 175
                         game.play.params.player.max_lasers        = 5
                         game.play.params.player.laser_lifetime    = 50
@@ -60,7 +61,7 @@ game = {
                         game.play.params.asteroids.velocity_max   = 0.5
                         game.play.params.asteroids.velocity_min   = 0.1
                     elseif value == DIFFICULTY.HARD then
-                        game.play.params.player.max_lives         = 1
+                        game.play.params.player.max_lives         = 3
                         game.play.params.player.max_health        = 100
                         game.play.params.player.max_lasers        = 4
                         game.play.params.player.laser_lifetime    = 40
@@ -114,12 +115,13 @@ game = {
                 elasticity     = 0.95,
             },
         },
-        player    = {},
-        asteroids = {},
-        date      = nil,
-        diff      = DIFFICULTY.MEDIUM,
-        level     = 1,
-        score     = 0,
+        player                = {},
+        asteroids             = {},
+        date                  = nil,
+        diff                  = DIFFICULTY.MEDIUM,
+        level                 = 1,
+        score                 = 0,
+        next_extra_life_score = PTS_FOR_EXTRA_LIFE,
     },
 
     high_scores = {},
@@ -152,9 +154,10 @@ function changeState(newState)
             lifetime   = game.play.params.player.laser_lifetime
         })
 
-        game.play.score  = 0
-        game.play.date   = get_unix_timestamp()
-        game.play.level  = 1
+        game.play.score                 = 0
+        game.play.date                  = get_unix_timestamp()
+        game.play.level                 = 1
+        game.play.next_extra_life_score = PTS_FOR_EXTRA_LIFE
 
         -- Ensure difficulty is never nil. This should already be maintained by
         -- the options apply function, but this protects saved scores if PLAY is
@@ -182,6 +185,11 @@ function generateAsteroids()
     game.play.asteroids = {}
 
     local params = game.play.params
+
+    -- Increment the number of asteroids as we climb the level ladder.
+    local num_extra_asteroids = game.play.level - 1
+    params.asteroids.num_population = params.asteroids.num_population + num_extra_asteroids
+
     for count = 1, params.asteroids.num_population do
         local vel_speed = (
             math.random() *

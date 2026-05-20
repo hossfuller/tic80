@@ -44,4 +44,4 @@ local FIXED_CHAR_HEIGHT = 6
 local X_PADDING         = FIXED_CHAR_WIDTH + 2
 local Y_PADDING         = FIXED_CHAR_HEIGHT + 2
 
-local DEBUG = true
+local DEBUG = false
