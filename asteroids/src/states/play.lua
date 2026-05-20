@@ -20,7 +20,7 @@ function updatePlay()
     if game.play.params.player.deadstop_allow == true and btn(BTN_P1_DOWN) then
         -- brake and snap can change as player takes damage?
         player:deadStop(
-            game.play.params.player.deadstop_break,
+            game.play.params.player.deadstop_brake,
             game.play.params.player.deadstop_snap
         )
     end
@@ -59,8 +59,8 @@ function updatePlay()
     -- if ship is dead, count down and respawn or gameover
     if player.dead then
         player.respawn_timer = player.respawn_timer - 1
+
         if player.respawn_timer <= 0 then
-            player.cur_lives = player.cur_lives - 1
             if player.cur_lives <= 0 then
                 changeState(STATE.GAMEOVER)
                 return
@@ -118,7 +118,7 @@ function drawCurrentLives(used_length, used_height)
                 { x = 0,  y = -4 }
             }
         })
-        ship_life:draw()
+        ship_life:drawBody()
         start_position.x = start_position.x + X_PADDING
     end
 end

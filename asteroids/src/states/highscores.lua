@@ -6,8 +6,8 @@
 -- and the score. On top of that, we only want to save the top 10 scores. That
 -- restricts us to just 20 slots (10 chunks of 2 slots). Since our counter
 -- starts at 0, we set MAX_PMEM_CHUNKS equal to 9.
-local MAX_PMEM_CHUNKS     = 9
-local PMEM_CHUNK_ELEMENTS = 2
+local MAX_PMEM_CHUNKS     = 20
+local PMEM_CHUNK_ELEMENTS = 4
 
 -- We'll store our high scores in this table.
 local lines = {}
@@ -25,15 +25,17 @@ function loadHighScores()
         if date ~= 0 then
             game.high_scores[base] = {
                 date  = date,
-                score = pmem(base + 1),
+                diff  = pmem(base + 1),
+                level = pmem(base + 2),
+                score = pmem(base + 3),
             }
         end
     end
 end
 
 function sortHighScores()
-    -- Collect existing entries (0,2,4,...) into a dense list
     local list = {}
+
     for idx = 0, MAX_PMEM_CHUNKS do
         local base = idx * PMEM_CHUNK_ELEMENTS
         local d = game.high_scores[base]
@@ -42,68 +44,118 @@ function sortHighScores()
         end
     end
 
-    -- Sort by score...
     table.sort(list, function(a, b)
+        -- 1. Difficulty: Hard -> Medium -> Easy
+        if a.diff ~= b.diff then
+            return a.diff > b.diff
+        end
+
+        -- 2. Score: highest -> lowest
         if a.score ~= b.score then
             return a.score > b.score
         end
+
+        -- 3. Level: highest -> lowest
+        if a.level ~= b.level then
+            return a.level > b.level
+        end
+
+        -- Optional final tiebreaker: newest first
+        return a.date > b.date
     end)
 
-    -- Write back compacted into chunk keys 0,2,4,...
     game.high_scores = {}
-    for i = 1, #list do
+
+    for i = 1, math.min(#list, MAX_PMEM_CHUNKS + 1) do
         game.high_scores[(i - 1) * PMEM_CHUNK_ELEMENTS] = list[i]
     end
 end
 
 function saveCurrentScore()
-    -- Always start from what is currently saved
     loadHighScores()
 
-    -- Find next free chunk index in the CURRENT in-memory table
-    local n = 0
+    local list = {}
+
+    -- Pull saved scores into a list.
     for idx = 0, MAX_PMEM_CHUNKS do
-        if game.high_scores[idx * PMEM_CHUNK_ELEMENTS] then
-            n = n + 1
+        local base = idx * PMEM_CHUNK_ELEMENTS
+        local d = game.high_scores[base]
+
+        if d then
+            list[#list + 1] = d
         end
     end
-    local base = n * PMEM_CHUNK_ELEMENTS
-    if base > MAX_PMEM_CHUNKS * PMEM_CHUNK_ELEMENTS then
-        base = MAX_PMEM_CHUNKS * PMEM_CHUNK_ELEMENTS -- will be trimmed after sort
-    end
 
-    -- Add current result
-    game.high_scores[base] = {
+    -- Add current result.
+    list[#list + 1] = {
         date  = game.play.date,
+        diff  = game.play.diff,
+        level = game.play.level,
         score = game.play.score,
     }
 
-    -- Sort + compact keys to 0,4,8,...
+    -- Put list back into game.high_scores so sortHighScores() can sort it.
+    game.high_scores = {}
+
+    for i = 1, #list do
+        game.high_scores[(i - 1) * PMEM_CHUNK_ELEMENTS] = list[i]
+    end
+
     sortHighScores()
 
-    -- -- Save the data.
-    for i = 0, 255 do pmem(i, 0) end
+    -- Clear pmem.
+    for i = 0, 255 do
+        pmem(i, 0)
+    end
+
+    -- Save compacted/sorted high scores.
     for idx = 0, MAX_PMEM_CHUNKS do
-        local b = idx * PMEM_CHUNK_ELEMENTS
-        local d = game.high_scores[b]
+        local base = idx * PMEM_CHUNK_ELEMENTS
+        local d = game.high_scores[base]
+
         if d then
-            pmem(b + 0, d.date)
-            pmem(b + 1, d.score)
+            pmem(base + 0, d.date)
+            pmem(base + 1, d.diff)
+            pmem(base + 2, d.level)
+            pmem(base + 3, d.score)
         end
     end
 end
 
+function difficultyToString(diff)
+    if diff == 3 then
+        return "Hard"
+    elseif diff == 2 then
+        return "Medium"
+    elseif diff == 1 then
+        return "Easy"
+    end
+
+    return "?"
+end
 
 function buildLines()
-    -- Show only the saved/sorted entries (0,4,8,...,252)
     lines = {}
+
+    local score_count = 1
     for idx = 0, MAX_PMEM_CHUNKS do
         local k = idx * PMEM_CHUNK_ELEMENTS
         local d = game.high_scores[k]
+
         if d then
             local dt_obj = unix_to_greg_utc(d.date)
             local dt_str = convert_datetime_obj_to_string(dt_obj)
-            table.insert(lines, dt_str .. "      " .. d.score)
+            local diff_str = difficultyToString(d.diff)
+
+            table.insert(
+                lines,
+                tostring(score_count) .. ". " ..
+                dt_str ..
+                "  " .. string.format("%7d", d.score) ..
+                "  L" .. string.format("%02d", d.level) ..
+                "  " .. diff_str
+            )
+            score_count = score_count + 1
         end
     end
 end
@@ -153,8 +205,8 @@ function drawHighScores()
         local line = lines[scroll + 1 + i] -- Lua arrays are 1-based
         if not line then break end
         local y = view_top + i * line_h
-        print(line, X_PADDING + 1, y + 1, BLACK) -- the shadow
-        print(line, X_PADDING, y, WHITE)
+        print(line, X_PADDING + 1, y + 1, GRAY_MED, true) -- the shadow
+        print(line, X_PADDING, y, WHITE, true)
     end
 
     -- Small scrollbar indicator

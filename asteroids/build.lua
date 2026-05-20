@@ -199,6 +199,12 @@ STATE = {
     HIGHSCORES = "HIGHSCORES",
 }
 
+DIFFICULTY = {
+    EASY   = 1,
+    MEDIUM = 2,
+    HARD   = 3,
+}
+
 game = {
     state = STATE.START,
     prevState = nil,
@@ -206,7 +212,7 @@ game = {
     -- Menu state
     menu = {
         selected = 1,
-        options = {"Start", "Options", "High Scores"},
+        options = { "Start", "Options", "High Scores" },
     },
 
     -- Options state
@@ -215,11 +221,18 @@ game = {
         items = {
             {
                 name = "Difficulty",
-                values = {"Easy", "Medium", "Hard"},
-                current = 2,
-                -- Function to apply this setting
+                values = { "Easy", "Medium", "Hard" },
+                current = DIFFICULTY.MEDIUM,
+
+                -- Function to apply this setting.
+                -- Difficulty values:
+                --   1 = Easy
+                --   2 = Medium
+                --   3 = Hard
                 apply = function(value)
-                    if value == 1 then -- Easy
+                    -- Store current difficulty for high scores.
+                    game.play.diff = value
+                    if value == DIFFICULTY.EASY then
                         game.play.params.player.max_lives         = 3
                         game.play.params.player.max_health        = 250
                         game.play.params.player.max_lasers        = 6
@@ -227,7 +240,7 @@ game = {
                         game.play.params.asteroids.num_population = 4
                         game.play.params.asteroids.velocity_max   = 0.3
                         game.play.params.asteroids.velocity_min   = 0.05
-                    elseif value == 2 then -- Medium
+                    elseif value == DIFFICULTY.MEDIUM then
                         game.play.params.player.max_lives         = 2
                         game.play.params.player.max_health        = 175
                         game.play.params.player.max_lasers        = 5
@@ -235,7 +248,7 @@ game = {
                         game.play.params.asteroids.num_population = 6
                         game.play.params.asteroids.velocity_max   = 0.5
                         game.play.params.asteroids.velocity_min   = 0.1
-                    elseif value == 3 then -- Hard
+                    elseif value == DIFFICULTY.HARD then
                         game.play.params.player.max_lives         = 1
                         game.play.params.player.max_health        = 100
                         game.play.params.player.max_lasers        = 4
@@ -248,7 +261,7 @@ game = {
             },
             {
                 name = "Dead Stop",
-                values = {"On", "Off"},
+                values = { "On", "Off" },
                 current = 1,
                 apply = function(value)
                     game.play.params.player.deadstop_allow = (value == 1)
@@ -256,7 +269,7 @@ game = {
             },
             {
                 name = "Back",
-                values = nil,  -- No values means this is an action, not a setting
+                values = nil, -- No values means this is an action, not a setting.
                 current = 1,
                 apply = function()
                     changeState(STATE.START)
@@ -264,15 +277,13 @@ game = {
             },
         },
     },
-    -- For any forthcoming options, make all params below configurable.
-    -- Also, as ship takes damage, some parameters should change.
 
     -- Gameplay state
     play = {
         params = {
             player = {
                 deadstop_allow = true,
-                deadstop_break = 0.35,   -- 0..1, higher = faster stop per frame
+                deadstop_brake = 0.35,   -- 0..1, higher = faster stop per frame
                 deadstop_snap  = 0.02,   -- below this speed, just snap to 0
                 max_lasers     = 4,
                 laser_lifetime = 60,
@@ -294,6 +305,9 @@ game = {
         },
         player    = {},
         asteroids = {},
+        date      = nil,
+        diff      = DIFFICULTY.MEDIUM,
+        level     = 1,
         score     = 0,
     },
 
@@ -316,7 +330,7 @@ function changeState(newState)
     end
 
     if newState == STATE.PLAY then
-        -- Reset game state for new game
+        -- Reset game state for new game.
         game.play.player = Ship:new({
             color      = BLUE_MED,
             max_health = game.play.params.player.max_health,
@@ -326,8 +340,17 @@ function changeState(newState)
             shots      = game.play.params.player.max_lasers,
             lifetime   = game.play.params.player.laser_lifetime
         })
-        game.play.score  = 0
 
+        game.play.score  = 0
+        game.play.date   = get_unix_timestamp()
+        game.play.level  = 1
+
+        -- Ensure difficulty is never nil. This should already be maintained by
+        -- the options apply function, but this protects saved scores if PLAY is
+        -- entered before options are touched.
+        game.play.diff   = game.play.diff or DIFFICULTY.MEDIUM
+    elseif newState == STATE.GAMEOVER then
+        saveCurrentScore()
     elseif newState == STATE.HIGHSCORES then
         loadHighScores()
         sortHighScores()
@@ -337,6 +360,7 @@ function changeState(newState)
 end
 
 function generateAsteroids()
+    local color = nil
     if game.state == STATE.PLAY then
         color = WHITE
     else
@@ -346,15 +370,24 @@ function generateAsteroids()
     -- Flush current asteroids table.
     game.play.asteroids = {}
 
-    for count = 1, game.play.params.asteroids.num_population do
-        local vel_speed = (math.random() * (game.play.params.asteroids.velocity_max - game.play.params.asteroids.velocity_min)) + game.play.params.asteroids.velocity_min
-        local rot_speed = (math.random() * (2 * game.play.params.asteroids.rotation_max)) - game.play.params.asteroids.rotation_max
+    local params = game.play.params
+    for count = 1, params.asteroids.num_population do
+        local vel_speed = (
+            math.random() *
+            (params.asteroids.velocity_max - params.asteroids.velocity_min)
+        ) + params.asteroids.velocity_min
 
-        local pos_x = math.random(0, (EDGE_X_RIGHT - 1))
+        local rot_speed = (
+            math.random() *
+            (2 * params.asteroids.rotation_max)
+        ) - params.asteroids.rotation_max
+
+        local pos_x = math.random(0, EDGE_X_RIGHT - 1)
         local pos_y = 0
-        if math.random(1,2) == 1 then
+
+        if math.random(1, 2) == 1 then
             pos_x = 0
-            pos_y = math.random(0, (EDGE_Y_BOTTOM - 1))
+            pos_y = math.random(0, EDGE_Y_BOTTOM - 1)
         end
 
         local asteroid = Asteroid:new({
@@ -363,16 +396,17 @@ function generateAsteroids()
             y              = pos_y,
             speed          = vel_speed,
             direction      = math.random() * math.pi * 2,
-            elasticity     = game.play.params.asteroids.elasticity,
+            elasticity     = params.asteroids.elasticity,
             scale          = 1,
             rotation_speed = rot_speed,
-            velocity_max   = game.play.params.asteroids.velocity_max,
-            velocity_min   = game.play.params.asteroids.velocity_min,
-            radius         = game.play.params.asteroids.radius,
-            radius_minus   = game.play.params.asteroids.radius_minus,
-            radius_plus    = game.play.params.asteroids.radius_plus,
-            num_vertices   = game.play.params.asteroids.num_vertices,
+            velocity_max   = params.asteroids.velocity_max,
+            velocity_min   = params.asteroids.velocity_min,
+            radius         = params.asteroids.radius,
+            radius_minus   = params.asteroids.radius_minus,
+            radius_plus    = params.asteroids.radius_plus,
+            num_vertices   = params.asteroids.num_vertices,
         })
+
         table.insert(game.play.asteroids, asteroid)
     end
 end
@@ -619,7 +653,7 @@ function updatePlay()
     if game.play.params.player.deadstop_allow == true and btn(BTN_P1_DOWN) then
         -- brake and snap can change as player takes damage?
         player:deadStop(
-            game.play.params.player.deadstop_break,
+            game.play.params.player.deadstop_brake,
             game.play.params.player.deadstop_snap
         )
     end
@@ -658,8 +692,8 @@ function updatePlay()
     -- if ship is dead, count down and respawn or gameover
     if player.dead then
         player.respawn_timer = player.respawn_timer - 1
+
         if player.respawn_timer <= 0 then
-            player.cur_lives = player.cur_lives - 1
             if player.cur_lives <= 0 then
                 changeState(STATE.GAMEOVER)
                 return
@@ -717,7 +751,7 @@ function drawCurrentLives(used_length, used_height)
                 { x = 0,  y = -4 }
             }
         })
-        ship_life:draw()
+        ship_life:drawBody()
         start_position.x = start_position.x + X_PADDING
     end
 end
@@ -832,8 +866,8 @@ end
 -- and the score. On top of that, we only want to save the top 10 scores. That
 -- restricts us to just 20 slots (10 chunks of 2 slots). Since our counter
 -- starts at 0, we set MAX_PMEM_CHUNKS equal to 9.
-local MAX_PMEM_CHUNKS     = 9
-local PMEM_CHUNK_ELEMENTS = 2
+local MAX_PMEM_CHUNKS     = 20
+local PMEM_CHUNK_ELEMENTS = 4
 
 -- We'll store our high scores in this table.
 local lines = {}
@@ -851,15 +885,17 @@ function loadHighScores()
         if date ~= 0 then
             game.high_scores[base] = {
                 date  = date,
-                score = pmem(base + 1),
+                diff  = pmem(base + 1),
+                level = pmem(base + 2),
+                score = pmem(base + 3),
             }
         end
     end
 end
 
 function sortHighScores()
-    -- Collect existing entries (0,2,4,...) into a dense list
     local list = {}
+
     for idx = 0, MAX_PMEM_CHUNKS do
         local base = idx * PMEM_CHUNK_ELEMENTS
         local d = game.high_scores[base]
@@ -868,68 +904,118 @@ function sortHighScores()
         end
     end
 
-    -- Sort by score...
     table.sort(list, function(a, b)
+        -- 1. Difficulty: Hard -> Medium -> Easy
+        if a.diff ~= b.diff then
+            return a.diff > b.diff
+        end
+
+        -- 2. Score: highest -> lowest
         if a.score ~= b.score then
             return a.score > b.score
         end
+
+        -- 3. Level: highest -> lowest
+        if a.level ~= b.level then
+            return a.level > b.level
+        end
+
+        -- Optional final tiebreaker: newest first
+        return a.date > b.date
     end)
 
-    -- Write back compacted into chunk keys 0,2,4,...
     game.high_scores = {}
-    for i = 1, #list do
+
+    for i = 1, math.min(#list, MAX_PMEM_CHUNKS + 1) do
         game.high_scores[(i - 1) * PMEM_CHUNK_ELEMENTS] = list[i]
     end
 end
 
 function saveCurrentScore()
-    -- Always start from what is currently saved
     loadHighScores()
 
-    -- Find next free chunk index in the CURRENT in-memory table
-    local n = 0
+    local list = {}
+
+    -- Pull saved scores into a list.
     for idx = 0, MAX_PMEM_CHUNKS do
-        if game.high_scores[idx * PMEM_CHUNK_ELEMENTS] then
-            n = n + 1
+        local base = idx * PMEM_CHUNK_ELEMENTS
+        local d = game.high_scores[base]
+
+        if d then
+            list[#list + 1] = d
         end
     end
-    local base = n * PMEM_CHUNK_ELEMENTS
-    if base > MAX_PMEM_CHUNKS * PMEM_CHUNK_ELEMENTS then
-        base = MAX_PMEM_CHUNKS * PMEM_CHUNK_ELEMENTS -- will be trimmed after sort
-    end
 
-    -- Add current result
-    game.high_scores[base] = {
+    -- Add current result.
+    list[#list + 1] = {
         date  = game.play.date,
+        diff  = game.play.diff,
+        level = game.play.level,
         score = game.play.score,
     }
 
-    -- Sort + compact keys to 0,4,8,...
+    -- Put list back into game.high_scores so sortHighScores() can sort it.
+    game.high_scores = {}
+
+    for i = 1, #list do
+        game.high_scores[(i - 1) * PMEM_CHUNK_ELEMENTS] = list[i]
+    end
+
     sortHighScores()
 
-    -- -- Save the data.
-    for i = 0, 255 do pmem(i, 0) end
+    -- Clear pmem.
+    for i = 0, 255 do
+        pmem(i, 0)
+    end
+
+    -- Save compacted/sorted high scores.
     for idx = 0, MAX_PMEM_CHUNKS do
-        local b = idx * PMEM_CHUNK_ELEMENTS
-        local d = game.high_scores[b]
+        local base = idx * PMEM_CHUNK_ELEMENTS
+        local d = game.high_scores[base]
+
         if d then
-            pmem(b + 0, d.date)
-            pmem(b + 1, d.score)
+            pmem(base + 0, d.date)
+            pmem(base + 1, d.diff)
+            pmem(base + 2, d.level)
+            pmem(base + 3, d.score)
         end
     end
 end
 
+function difficultyToString(diff)
+    if diff == 3 then
+        return "Hard"
+    elseif diff == 2 then
+        return "Medium"
+    elseif diff == 1 then
+        return "Easy"
+    end
+
+    return "?"
+end
 
 function buildLines()
-    -- Show only the saved/sorted entries (0,4,8,...,252)
     lines = {}
+
+    local score_count = 1
     for idx = 0, MAX_PMEM_CHUNKS do
         local k = idx * PMEM_CHUNK_ELEMENTS
         local d = game.high_scores[k]
+
         if d then
             local dt_obj = unix_to_greg_utc(d.date)
             local dt_str = convert_datetime_obj_to_string(dt_obj)
-            table.insert(lines, dt_str .. "      " .. d.score)
+            local diff_str = difficultyToString(d.diff)
+
+            table.insert(
+                lines,
+                tostring(score_count) .. ". " ..
+                dt_str ..
+                "  " .. string.format("%7d", d.score) ..
+                "  L" .. string.format("%02d", d.level) ..
+                "  " .. diff_str
+            )
+            score_count = score_count + 1
         end
     end
 end
@@ -979,8 +1065,8 @@ function drawHighScores()
         local line = lines[scroll + 1 + i] -- Lua arrays are 1-based
         if not line then break end
         local y = view_top + i * line_h
-        print(line, X_PADDING + 1, y + 1, BLACK) -- the shadow
-        print(line, X_PADDING, y, WHITE)
+        print(line, X_PADDING + 1, y + 1, GRAY_MED, true) -- the shadow
+        print(line, X_PADDING, y, WHITE, true)
     end
 
     -- Small scrollbar indicator
@@ -1737,11 +1823,14 @@ end
 -- ==========================================
 
 function Ship:getHealth()
+    if self.cur_health < 0 then
+        self.cur_health = 0
+    end
     return self.cur_health
 end
 
 function Ship:getHealthFraction()
-    return self.cur_health / self.max_health
+    return self:getHealth() / self.max_health
 end
 
 function Ship:getNumLaserBlasts()
@@ -1907,7 +1996,8 @@ function Ship:kill()
         return
     end
     self.dead = true
-    self.respawn_timer = 90 -- give particles time to animate
+    self.cur_lives = self.cur_lives - 1
+    self.respawn_timer = 90
     self:explode()
 end
 

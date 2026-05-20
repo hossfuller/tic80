@@ -57,11 +57,14 @@ end
 -- ==========================================
 
 function Ship:getHealth()
+    if self.cur_health < 0 then
+        self.cur_health = 0
+    end
     return self.cur_health
 end
 
 function Ship:getHealthFraction()
-    return self.cur_health / self.max_health
+    return self:getHealth() / self.max_health
 end
 
 function Ship:getNumLaserBlasts()
@@ -227,7 +230,8 @@ function Ship:kill()
         return
     end
     self.dead = true
-    self.respawn_timer = 90 -- give particles time to animate
+    self.cur_lives = self.cur_lives - 1
+    self.respawn_timer = 90
     self:explode()
 end
 
