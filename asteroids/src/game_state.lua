@@ -120,8 +120,11 @@ function changeState(newState)
     game.prevState = game.state
     game.state = newState
 
-    -- Generate a bunch of asteroids to dance about each state's screen.
-    generateAsteroids()
+    -- Generate asteroids for menu-like states, but preserve PLAY -> GAMEOVER
+    -- scene.
+    if newState ~= STATE.GAMEOVER then
+        generateAsteroids()
+    end
 
     if newState == STATE.PLAY then
         -- Reset game state for new game

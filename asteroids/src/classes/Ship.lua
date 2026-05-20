@@ -17,6 +17,7 @@ function Ship:new(params)
     self.cur_lives     = self.max_lives
     self.invulnerable  = 0
     self.dead          = false
+    self.exploded      = false
     self.respawn_timer = 0
 
     self.deadstop = {
@@ -124,22 +125,29 @@ function Ship:thrust()
     }
     self.velocity = self:addVectors(self.velocity, acceleration)
 
-    -- self.thrustEffect:thrust(self)
+    self:thrustEffect()
     sfx(3, 10, 10, 3, -8, 1)
 end
 
 function Ship:move()
-    if btn(BTN_P1_UP) then
+    if not self.dead and btn(BTN_P1_UP) then
         self:thrust()
-        -- self.thrustEffect:move()
     end
 
-    self.velocity.speed = self.velocity.speed - self.deceleration
-    if self.velocity.speed < 0 then
-        self.velocity.speed = 0
-    end
+    if not self.dead then
+        self.velocity.speed = self.velocity.speed - self.deceleration
+        if self.velocity.speed < 0 then
+            self.velocity.speed = 0
+        end
 
-    SpaceObj.move(self)
+        SpaceObj.move(self)
+    else
+        -- Dead ship body does not move, but particles still animate.
+        self:moveParticles(self.TYPES.EXPLOSION)
+        self:moveParticles(self.TYPES.LASER_HIT)
+        self:moveParticles(self.TYPES.THRUST)
+        self:updateTimer()
+    end
 end
 
 function Ship:spawnLaserBlast()
@@ -190,10 +198,15 @@ function Ship:checkLaserHit(asteroids)
             )
             if separation_value then
                 if self:pointInPolygon(laser.position, asteroid) then
+                    local hit_position = {
+                        x = laser.position.x,
+                        y = laser.position.y
+                    }
                     -- Remove laser blast and mark the asteroid hit.
                     table.remove(self.laser_blasts, laser_index)
                     asteroid_was_hit = asteroid_index
-                    return asteroid_was_hit -- immediately break out of loop
+                    self:laserHitEffect(hit_position)
+                    return asteroid_was_hit
                 end
             end
         end
@@ -214,18 +227,20 @@ function Ship:kill()
         return
     end
     self.dead = true
-    self.respawn_timer = 60 -- 1 second delay (60 fps)
+    self.respawn_timer = 90 -- give particles time to animate
+    self:explode()
 end
 
 function Ship:respawn()
     self.dead               = false
+    self.exploded           = false
     self.cur_health         = self.max_health
     self.position.x         = EDGE_X_RIGHT / 2
     self.position.y         = EDGE_Y_BOTTOM / 2
     self.velocity.speed     = 0
     self.velocity.direction = 0
     self.rotation           = -math.pi / 2
-    self.invulnerable       = 120       -- 2 seconds invulnerable
+    self.invulnerable       = 120 -- 2 seconds invulnerable
 end
 
 
@@ -249,7 +264,10 @@ function Ship:shouldDraw()
 end
 
 function Ship:explode()
+    if self.exploded then
+        return
+    end
+    self.exploded = true
+    self:explosionEffect()
     sfx(2, 10, 30, 3, 15)
-
-    drawCenteredText("EXPLODED", EDGE_Y_BOTTOM / 2, RED, true, 3, false, YELLOW)
 end

@@ -309,8 +309,11 @@ function changeState(newState)
     game.prevState = game.state
     game.state = newState
 
-    -- Generate a bunch of asteroids to dance about each state's screen.
-    generateAsteroids()
+    -- Generate asteroids for menu-like states, but preserve PLAY -> GAMEOVER
+    -- scene.
+    if newState ~= STATE.GAMEOVER then
+        generateAsteroids()
+    end
 
     if newState == STATE.PLAY then
         -- Reset game state for new game
@@ -603,7 +606,9 @@ function inputPlay()
         changeState(STATE.GAMEOVER)
     end
 
-    game.play.player:input()
+    if not game.play.player.dead then
+        game.play.player:input()
+    end
 end
 
 function updatePlay()
@@ -726,18 +731,22 @@ end
 function drawPlay()
     cls(BLACK)
 
-    -- If we're invulnerable, then blink until we're not.
-    if game.play.player:shouldDraw() then
-        game.play.player:draw()
+    local player = game.play.player
+
+    -- Draw ship body only if alive.
+    if not player.dead and player:shouldDraw() then
+        player:drawBody()
     end
-    game.play.player:drawLaserBlasts()
+
+    -- Draw lasers and particle effects even if the ship explodes and isn't
+    -- drawn anymore.
+    player:drawLaserBlasts()
+    player:drawParticles(player.TYPES.EXPLOSION)
+    player:drawParticles(player.TYPES.LASER_HIT)
+    player:drawParticles(player.TYPES.THRUST)
 
     for index, asteroid in ipairs(game.play.asteroids) do
         asteroid:draw()
-    end
-
-    if game.play.player.dead then
-        game.play.player:explode()
     end
 
     local health_length, health_height = drawHealthBar()
@@ -745,11 +754,11 @@ function drawPlay()
     local score_length,  score_height  = drawScore(health_height)
 
     if DEBUG == true then
-        print("HEALTH: " .. tostring(game.play.player:getHealth()), EDGE_X_LEFT, score_height + 2, CYAN, true)
-        print("LIVES: " .. tostring(game.play.player:getNumLives()), EDGE_X_LEFT, 2*score_height, CYAN, true)
+        print("HEALTH: " .. tostring(player:getHealth()), EDGE_X_LEFT, score_height + 2, CYAN, true)
+        print("LIVES: " .. tostring(player:getNumLives()), EDGE_X_LEFT, 2*score_height, CYAN, true)
 
-        local pos     = game.play.player:getPosition()
-        local rot = game.play.player:getRotation()
+        local pos     = player:getPosition()
+        local rot = player:getRotation()
 
         local pos_x   = string.format("%0.2f", pos.x)
         local pos_y   = string.format("%0.2f", pos.y)
@@ -758,7 +767,7 @@ function drawPlay()
 
         print("X: " .. pos_x .. "; Y: " .. pos_y, EDGE_X_LEFT, EDGE_Y_BOTTOM - 4 * Y_PADDING, GRAY_DARK)
         print("Radians: " .. radians .. "; Speed: " .. speed, EDGE_X_LEFT, EDGE_Y_BOTTOM - 3 * Y_PADDING, GRAY_DARK)
-        print("Num of Lasers: " .. tostring(game.play.player:getNumLaserBlasts()), EDGE_X_LEFT, EDGE_Y_BOTTOM - 2 * Y_PADDING, GRAY_DARK)
+        print("Num of Lasers: " .. tostring(player:getNumLaserBlasts()), EDGE_X_LEFT, EDGE_Y_BOTTOM - 2 * Y_PADDING, GRAY_DARK)
         print("Num of Asteroids: " .. tostring(#game.play.asteroids), EDGE_X_LEFT, EDGE_Y_BOTTOM - Y_PADDING, GRAY_DARK)
     end
 end
@@ -779,11 +788,32 @@ function inputGameover()
 end
 
 function updateGameover()
+    local player = game.play.player
 
+    if player and player.moveParticles then
+        player:moveParticles(player.TYPES.EXPLOSION)
+        player:moveParticles(player.TYPES.LASER_HIT)
+        player:moveParticles(player.TYPES.THRUST)
+    end
+
+    for index, asteroid in ipairs(game.play.asteroids) do
+        asteroid:move()
+    end
 end
 
 function drawGameover()
-    drawPlay()
+    cls(BLACK)
+
+    for index, asteroid in ipairs(game.play.asteroids) do
+        asteroid:draw()
+    end
+
+    local player = game.play.player
+    if player then
+        player:drawParticles(player.TYPES.EXPLOSION)
+        player:drawParticles(player.TYPES.LASER_HIT)
+        player:drawParticles(player.TYPES.THRUST)
+    end
 
     drawCenteredText("GAME OVER", EDGE_Y_TOP + Y_PADDING, ORANGE, nil, 3, nil, YELLOW)
     drawCenteredText("Press Z or X to see high scores", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, false, GRAY_MED)
@@ -1050,8 +1080,8 @@ function SpaceObj.new(params)
         LASER_HIT = "LASER_HIT",
         THRUST    = "THRUST",
     }
-    self.EXPLOSION_COLORS = { 6, 9, 14 }
-    self.SMOKE_COLORS     = { 3, 7, 10, 15 }
+    self.EXPLOSION_COLORS   = { YELLOW, ORANGE, RED }
+    self.SMOKE_COLORS       = { YELLOW, ORANGE, RED, GRAY_LITE, GRAY_MED, GRAY_DARK }
 
     self.explosionParticles = {}
     self.laserHitParticles  = {}
@@ -1364,12 +1394,12 @@ function SpaceObj:explosionEffect()
     self.max_lifetime  = 90
     self.max_size      = 3
     self.max_speed     = 2
-    self.num_particles = 500
+    self.num_particles = 100
 
     local particle_velocity = {}
     for particle = 1, self.num_particles do
         particle_velocity = {
-            speed     = math.random() * self.max_size,
+            speed     = math.random() * self.max_speed,
             direction = math.random() * math.pi * 2
         }
         self:spawnParticle(
@@ -1384,7 +1414,7 @@ function SpaceObj:explosionEffect()
     end
 end
 
-function SpaceObj:laserHitEffect(object)
+function SpaceObj:laserHitEffect(position)
     self.type          = self.TYPES.LASER_HIT
     self.deceleration  = 0.01
     self.max_lifetime  = 30
@@ -1392,14 +1422,17 @@ function SpaceObj:laserHitEffect(object)
     self.max_speed     = 1
     self.num_particles = 60
 
-    local particle_velocity = {}
+    -- Fallback in case no position is passed
+    position = position or self.position
+
     for particle = 1, self.num_particles do
-        particle_velocity = {
-            speed     = math.random() * self.max_size,
+        local particle_velocity = {
+            speed     = math.random() * self.max_speed,
             direction = math.random() * math.pi * 2
         }
+
         self:spawnParticle(
-            self.position,
+            position,
             particle_velocity,
             self.max_lifetime,
             self.EXPLOSION_COLORS,
@@ -1417,7 +1450,7 @@ function SpaceObj:thrustEffect()
     self.max_lifetime  = 30
     self.max_size      = 1
     self.max_speed     = 2
-    self.num_particles = 30
+    self.num_particles = 5
 
     local thrust_offset           = { x = -5, y = 0 }
     local particle_velocity       = {}
@@ -1447,14 +1480,14 @@ function SpaceObj:thrustEffect()
     end
 end
 
-function SpaceObj:spawnParticleEffect(
+function SpaceObj:spawnParticle(
     position,
     velocity,
     max_lifetime,
     colors,
     max_size,
     deceleration,
-    type
+    particle_type
 )
     local particle = {
         position     = {
@@ -1469,58 +1502,60 @@ function SpaceObj:spawnParticleEffect(
         colors       = colors,
         size         = math.random(1, max_size),
         deceleration = deceleration,
-        type         = type
+        type         = particle_type
     }
-    if self.type == self.TYPES.EXPLOSION then
+
+    if particle_type == self.TYPES.EXPLOSION then
         table.insert(self.explosionParticles, particle)
-    elseif self.type == self.TYPES.LASER_HIT then
+    elseif particle_type == self.TYPES.LASER_HIT then
         table.insert(self.laserHitParticles, particle)
-    elseif self.type == self.TYPES.THRUST then
+    elseif particle_type == self.TYPES.THRUST then
         table.insert(self.thrustParticles, particle)
     end
 end
 
-function SpaceObj:moveParticles(type)
+function SpaceObj:moveParticles(particle_type)
     local particles = self.explosionParticles
-    if type == self.TYPES.LASER_HIT then
+
+    if particle_type == self.TYPES.LASER_HIT then
         particles = self.laserHitParticles
-    elseif self.type == self.TYPES.THRUST then
+    elseif particle_type == self.TYPES.THRUST then
         particles = self.thrustParticles
     end
 
-    for index, particle in ipairs(particles) do
+    for index = #particles, 1, -1 do
+        local particle = particles[index]
+
         particle.life_timer = particle.life_timer - 1
 
         if particle.life_timer < 0 then
             table.remove(particles, index)
         else
             particle.position = self:movePointByVelocity(particle)
-        end
 
-        particle.velocity.speed =
-            particle.velocity.speed - particle.deceleration
-        if particle.velocity.speed < 0 then
-            particle.velocity.speed = 0
+            particle.velocity.speed = particle.velocity.speed - particle.deceleration
+            if particle.velocity.speed < 0 then
+                particle.velocity.speed = 0
+            end
         end
-    end -- for
+    end
 end
 
-function SpaceObj:drawParticles(type)
-    local particle_color = 0
-
+function SpaceObj:drawParticles(particle_type)
     local particles = self.explosionParticles
-    if type == self.TYPES.LASER_HIT then
+
+    if particle_type == self.TYPES.LASER_HIT then
         particles = self.laserHitParticles
-    elseif self.type == self.TYPES.THRUST then
+    elseif particle_type == self.TYPES.THRUST then
         particles = self.thrustParticles
     end
 
     for index, particle in ipairs(particles) do
-        particle_color = particle.colors[math.random(1, #particle.colors)]
+        local particle_color = particle.colors[math.random(1, #particle.colors)]
 
         if particle.type == self.TYPES.EXPLOSION or particle.type == self.TYPES.LASER_HIT then
             circ(particle.position.x, particle.position.y, particle.size, particle_color)
-        elseif particle.type == self.thrustParticles then
+        elseif particle.type == self.TYPES.THRUST then
             pix(particle.position.x, particle.position.y, particle_color)
         else
             rect(particle.position.x, particle.position.y, particle.size, particle.size, particle_color)
@@ -1593,23 +1628,20 @@ function SpaceObj:move()
     self:updateTimer()
 
     -- Move any particles on the board!
-    if self.explosionParticles ~= nil then
-        self:moveParticles(self.TYPES.EXPLOSION)
-    elseif self.laserHitParticles ~= nil then
-        self:moveParticles(self.TYPES.LASER_HIT)
-    elseif self.thrustParticles ~= nil then
-        self:moveParticles(self.TYPES.THRUST)
-    end
+    self:moveParticles(self.TYPES.EXPLOSION)
+    self:moveParticles(self.TYPES.LASER_HIT)
+    self:moveParticles(self.TYPES.THRUST)
 end
 
 -- ==========================================
 -- SPACEOBJ DRAW
 -- ==========================================
 
-function SpaceObj:draw()
+function SpaceObj:drawBody()
     local first_point = true
     local last_point = 0
     local rotated_point = 0
+
     for index, point in ipairs(self.shape) do
         rotated_point = self:rotatePoint(point, self.rotation)
 
@@ -1627,15 +1659,14 @@ function SpaceObj:draw()
             last_point = rotated_point
         end
     end
+end
 
-    -- Draw any particles on the board!
-    if self.explosionParticles ~= nil then
-        self:drawParticles(self.TYPES.EXPLOSION)
-    elseif self.laserHitParticles ~= nil then
-        self:drawParticles(self.TYPES.LASER_HIT)
-    elseif self.thrustParticles ~= nil then
-        self:drawParticles(self.TYPES.THRUST)
-    end
+function SpaceObj:draw()
+    self:drawBody()
+
+    self:drawParticles(self.TYPES.EXPLOSION)
+    self:drawParticles(self.TYPES.LASER_HIT)
+    self:drawParticles(self.TYPES.THRUST)
 end
 
 function SpaceObj:explode()
@@ -1666,6 +1697,7 @@ function Ship:new(params)
     self.cur_lives     = self.max_lives
     self.invulnerable  = 0
     self.dead          = false
+    self.exploded      = false
     self.respawn_timer = 0
 
     self.deadstop = {
@@ -1773,22 +1805,29 @@ function Ship:thrust()
     }
     self.velocity = self:addVectors(self.velocity, acceleration)
 
-    -- self.thrustEffect:thrust(self)
+    self:thrustEffect()
     sfx(3, 10, 10, 3, -8, 1)
 end
 
 function Ship:move()
-    if btn(BTN_P1_UP) then
+    if not self.dead and btn(BTN_P1_UP) then
         self:thrust()
-        -- self.thrustEffect:move()
     end
 
-    self.velocity.speed = self.velocity.speed - self.deceleration
-    if self.velocity.speed < 0 then
-        self.velocity.speed = 0
-    end
+    if not self.dead then
+        self.velocity.speed = self.velocity.speed - self.deceleration
+        if self.velocity.speed < 0 then
+            self.velocity.speed = 0
+        end
 
-    SpaceObj.move(self)
+        SpaceObj.move(self)
+    else
+        -- Dead ship body does not move, but particles still animate.
+        self:moveParticles(self.TYPES.EXPLOSION)
+        self:moveParticles(self.TYPES.LASER_HIT)
+        self:moveParticles(self.TYPES.THRUST)
+        self:updateTimer()
+    end
 end
 
 function Ship:spawnLaserBlast()
@@ -1839,10 +1878,15 @@ function Ship:checkLaserHit(asteroids)
             )
             if separation_value then
                 if self:pointInPolygon(laser.position, asteroid) then
+                    local hit_position = {
+                        x = laser.position.x,
+                        y = laser.position.y
+                    }
                     -- Remove laser blast and mark the asteroid hit.
                     table.remove(self.laser_blasts, laser_index)
                     asteroid_was_hit = asteroid_index
-                    return asteroid_was_hit -- immediately break out of loop
+                    self:laserHitEffect(hit_position)
+                    return asteroid_was_hit
                 end
             end
         end
@@ -1863,18 +1907,20 @@ function Ship:kill()
         return
     end
     self.dead = true
-    self.respawn_timer = 60 -- 1 second delay (60 fps)
+    self.respawn_timer = 90 -- give particles time to animate
+    self:explode()
 end
 
 function Ship:respawn()
     self.dead               = false
+    self.exploded           = false
     self.cur_health         = self.max_health
     self.position.x         = EDGE_X_RIGHT / 2
     self.position.y         = EDGE_Y_BOTTOM / 2
     self.velocity.speed     = 0
     self.velocity.direction = 0
     self.rotation           = -math.pi / 2
-    self.invulnerable       = 120       -- 2 seconds invulnerable
+    self.invulnerable       = 120 -- 2 seconds invulnerable
 end
 
 
@@ -1898,10 +1944,14 @@ function Ship:shouldDraw()
 end
 
 function Ship:explode()
+    if self.exploded then
+        return
+    end
+    self.exploded = true
+    self:explosionEffect()
     sfx(2, 10, 30, 3, 15)
-
-    drawCenteredText("EXPLODED", EDGE_Y_BOTTOM / 2, RED, true, 3, false, YELLOW)
 end
+
 
 -- [/TQ-Bundler: src.classes.Ship]
 

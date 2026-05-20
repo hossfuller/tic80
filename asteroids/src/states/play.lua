@@ -7,7 +7,9 @@ function inputPlay()
         changeState(STATE.GAMEOVER)
     end
 
-    game.play.player:input()
+    if not game.play.player.dead then
+        game.play.player:input()
+    end
 end
 
 function updatePlay()
@@ -130,18 +132,22 @@ end
 function drawPlay()
     cls(BLACK)
 
-    -- If we're invulnerable, then blink until we're not.
-    if game.play.player:shouldDraw() then
-        game.play.player:draw()
+    local player = game.play.player
+
+    -- Draw ship body only if alive.
+    if not player.dead and player:shouldDraw() then
+        player:drawBody()
     end
-    game.play.player:drawLaserBlasts()
+
+    -- Draw lasers and particle effects even if the ship explodes and isn't
+    -- drawn anymore.
+    player:drawLaserBlasts()
+    player:drawParticles(player.TYPES.EXPLOSION)
+    player:drawParticles(player.TYPES.LASER_HIT)
+    player:drawParticles(player.TYPES.THRUST)
 
     for index, asteroid in ipairs(game.play.asteroids) do
         asteroid:draw()
-    end
-
-    if game.play.player.dead then
-        game.play.player:explode()
     end
 
     local health_length, health_height = drawHealthBar()
@@ -149,11 +155,11 @@ function drawPlay()
     local score_length,  score_height  = drawScore(health_height)
 
     if DEBUG == true then
-        print("HEALTH: " .. tostring(game.play.player:getHealth()), EDGE_X_LEFT, score_height + 2, CYAN, true)
-        print("LIVES: " .. tostring(game.play.player:getNumLives()), EDGE_X_LEFT, 2*score_height, CYAN, true)
+        print("HEALTH: " .. tostring(player:getHealth()), EDGE_X_LEFT, score_height + 2, CYAN, true)
+        print("LIVES: " .. tostring(player:getNumLives()), EDGE_X_LEFT, 2*score_height, CYAN, true)
 
-        local pos     = game.play.player:getPosition()
-        local rot = game.play.player:getRotation()
+        local pos     = player:getPosition()
+        local rot = player:getRotation()
 
         local pos_x   = string.format("%0.2f", pos.x)
         local pos_y   = string.format("%0.2f", pos.y)
@@ -162,7 +168,7 @@ function drawPlay()
 
         print("X: " .. pos_x .. "; Y: " .. pos_y, EDGE_X_LEFT, EDGE_Y_BOTTOM - 4 * Y_PADDING, GRAY_DARK)
         print("Radians: " .. radians .. "; Speed: " .. speed, EDGE_X_LEFT, EDGE_Y_BOTTOM - 3 * Y_PADDING, GRAY_DARK)
-        print("Num of Lasers: " .. tostring(game.play.player:getNumLaserBlasts()), EDGE_X_LEFT, EDGE_Y_BOTTOM - 2 * Y_PADDING, GRAY_DARK)
+        print("Num of Lasers: " .. tostring(player:getNumLaserBlasts()), EDGE_X_LEFT, EDGE_Y_BOTTOM - 2 * Y_PADDING, GRAY_DARK)
         print("Num of Asteroids: " .. tostring(#game.play.asteroids), EDGE_X_LEFT, EDGE_Y_BOTTOM - Y_PADDING, GRAY_DARK)
     end
 end
