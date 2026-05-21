@@ -1,6 +1,6 @@
-# Space Explorer
+# Kepler-9999
 
-Travel the universe, doing space things at various space destinations.
+Travel the fictional Kepler-9999 system, doing space things at various space destinations.
 
 ## Features/Ideas
 

@@ -1,10 +1,9 @@
--- title:   Space Explorer!!
+-- title:   Space Rider!!
 -- author:  Hoss Fuller
--- desc:    Explore space!
 -- version: rev0.1
 -- script:  lua
 -- input:   mouse
--- saveid:  space_explorer_bang_bang
+-- saveid:  space_rider_bang_bang
 
 -- ==========================================
 -- INCLUDES

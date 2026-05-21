@@ -19,7 +19,7 @@ local game = {
     -- Menu state
     menu = {
         selected = 1,
-        options = {"New Game", "Options", "High Scores"},
+        options = {"Start", "Options", "High Scores"},
     },
 
     -- Options state
@@ -35,12 +35,12 @@ local game = {
     -- High scores
     hiscores = {},
 
+    -- Game Parameters
+    params = {},
+
     -- Gameplay state
     play = {
-        score = 0,
-        -- Add your game-specific state here
-        playerX = EDGE_X_RIGHT / 2,
-        playerY = EDGE_Y_BOTTOM / 2,
+        player = {},
     },
 }
 

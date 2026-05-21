@@ -1,0 +1,899 @@
+--
+-- Bundle file
+-- Code changes will be overwritten
+--
+
+-- title:   Space Rider!!
+-- author:  Hoss Fuller
+-- version: rev0.1
+-- script:  lua
+-- input:   mouse
+-- saveid:  space_rider_bang_bang
+
+-- ==========================================
+-- INCLUDES
+-- ==========================================
+
+-- [TQ-Bundler: src.constants]
+
+-- ==========================================
+-- CONSTANTS
+-- ==========================================
+
+-- Colors
+local BLACK      = 0
+local PURPLE     = 1
+local RED        = 2
+local ORANGE     = 3
+local YELLOW     = 4
+local GREEN_LITE = 5
+local GREEN_MED  = 6
+local GREEN_DARK = 7
+local BLUE_DARK  = 8
+local BLUE_MED   = 9
+local BLUE_LITE  = 10
+local CYAN       = 11
+local WHITE      = 12
+local GRAY_LITE  = 13
+local GRAY_MED   = 14
+local GRAY_DARK  = 15
+
+-- Button mappings
+local BTN_P1_UP     = 0
+local BTN_P1_DOWN   = 1
+local BTN_P1_LEFT   = 2
+local BTN_P1_RIGHT  = 3
+local BTN_P1_A      = 4         -- Primary action / Select
+local BTN_P1_B      = 5         -- Secondary action / Back / Pause
+local BTN_P1_X      = 6
+local BTN_P1_Y      = 7
+local BTN_P1_SELECT = BTN_P1_X
+local BTN_P1_START  = BTN_P1_Y
+
+-- Screen dimensions
+local EDGE_X_LEFT   = 0
+local EDGE_X_RIGHT  = 240
+local EDGE_Y_TOP    = 0
+local EDGE_Y_BOTTOM = 136
+
+-- Character dimensions (these scale linearly)
+local FIXED_CHAR_WIDTH  = 6
+local FIXED_CHAR_HEIGHT = 6
+local X_PADDING         = FIXED_CHAR_WIDTH + 2
+local Y_PADDING         = FIXED_CHAR_HEIGHT + 2
+
+local DEBUG             = false
+
+
+-- [/TQ-Bundler: src.constants]
+
+-- [TQ-Bundler: src.game_state]
+
+-- ==========================================
+-- GAME STATE
+-- ==========================================
+
+local STATE = {
+    START      = "START",
+    OPTIONS    = "OPTIONS",
+    HIGHSCORES = "HIGHSCORES",
+    READY      = "READY",
+    PLAY       = "PLAY",
+    PAUSE      = "PAUSE",
+    GAMEOVER   = "GAMEOVER",
+}
+
+local game = {
+    state = STATE.START,
+    prevState = nil,
+
+    -- Menu state
+    menu = {
+        selected = 1,
+        options = {"Start", "Options", "High Scores"},
+    },
+
+    -- Options state
+    options = {
+        selected = 1,
+        items = {
+            -- {name = "Sound", values = {"On", "Off"}, current = 1},
+            -- {name = "Difficulty", values = {"Easy", "Normal", "Hard"}, current = 2},
+            {name = "Back", values = {""}, current = 1},
+        },
+    },
+
+    -- High scores
+    hiscores = {},
+
+    -- Game Parameters
+    params = {},
+
+    -- Gameplay state
+    play = {
+        player = {},
+    },
+}
+
+
+-- ==========================================
+-- STATE CHANGE
+-- ==========================================
+
+local function changeState(newState)
+    game.prevState = game.state
+    game.state = newState
+
+    -- State entry logic
+    if newState == STATE.READY then
+        -- Reset game state for new game
+        game.play.score = 0
+        game.play.playerX = EDGE_X_RIGHT / 2
+        game.play.playerY = EDGE_Y_BOTTOM / 2
+    end
+end
+
+
+
+-- [/TQ-Bundler: src.game_state]
+
+-- [TQ-Bundler: src.helpers]
+
+-- ==========================================
+-- HELPERS
+-- ==========================================
+
+-- ==========================================
+-- TIME HELPERS
+-- ==========================================
+
+-- mdays_common = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
+
+-- function get_unix_timestamp()
+--     return math.tointeger(tstamp())
+-- end
+
+-- function convert_datetime_obj_to_string(datetime_obj)
+--     return string.format(
+--         "%04d-%02d-%02d",
+--         datetime_obj.year,
+--         datetime_obj.month,
+--         datetime_obj.day
+--     )
+-- end
+
+-- function is_greg_leap(y)
+--     return (y % 4 == 0) and ((y % 100 ~= 0) or (y % 400 == 0))
+-- end
+
+-- function greg_days_in_month(y, m)
+--     if m == 2 and is_greg_leap(y) then return 29 end
+--     return mdays_common[m]
+-- end
+
+-- -- Unix seconds -> Gregorian UTC date/time (year,month,day,hour,min,sec)
+-- function unix_to_greg_utc(ts)
+--     local sec_per_day = 86400
+--     local days        = math.floor(ts / sec_per_day)
+--     local sod         = ts - days * sec_per_day
+--     if sod < 0 then
+--         sod = sod + sec_per_day
+--         days = days - 1
+--     end
+
+--     local hour = math.floor(sod / 3600); sod = sod - hour * 3600
+--     local min  = math.floor(sod / 60)
+--     local sec  = sod - min * 60
+
+--     local y    = 1970
+--     if days >= 0 then
+--         while true do
+--             local diy = is_greg_leap(y) and 366 or 365
+--             if days >= diy then
+--                 days = days - diy
+--                 y = y + 1
+--             else
+--                 break
+--             end
+--         end
+--     else
+--         while days < 0 do
+--             y = y - 1
+--             local diy = is_greg_leap(y) and 366 or 365
+--             days = days + diy
+--         end
+--     end
+
+--     local m = 1
+--     while true do
+--         local dim = greg_days_in_month(y, m)
+--         if days >= dim then
+--             days = days - dim
+--             m = m + 1
+--         else
+--             break
+--         end
+--     end
+
+--     local d = days + 1
+
+--     return {
+--         year  = y,
+--         month = m,
+--         day   = d,
+--         hour  = hour,
+--         min   = min,
+--         sec   = sec
+--     }
+-- end
+
+-- ==========================================
+-- DRAWING HELPERS
+-- ==========================================
+
+function drawCenteredText(text, y, color, fixed, scale, smallfont, shadow_color)
+    if fixed == nil then
+        fixed = false
+    end
+    if scale == nil then
+        scale = 1
+    end
+    if smallfont == nil then
+        smallfont = false
+    end
+    if shadow_color == nil then
+        shadow_color = -1
+    end
+    local width = print(text, 0, -50, color, fixed, scale, smallfont)
+
+    if shadow_color >= 0 then
+        print(text, (EDGE_X_RIGHT - width) / 2 + 1, y + 1, shadow_color, fixed, scale, smallfont)
+    end
+    print(text, (EDGE_X_RIGHT - width) / 2, y, color, fixed, scale, smallfont)
+end
+
+function drawOverlayBox(text)
+    local boxW = 120
+    local boxH = 40
+    local boxX = (EDGE_X_RIGHT - boxW) / 2
+    local boxY = (EDGE_Y_BOTTOM - boxH) / 2
+
+    -- Draw box background
+    rect(boxX, boxY, boxW, boxH, 0)
+    rectb(boxX, boxY, boxW, boxH, 12)
+
+    -- Draw text
+    drawCenteredText(text, boxY + 16, 12)
+end
+
+
+-- [/TQ-Bundler: src.helpers]
+
+-- [TQ-Bundler: src.states.start]
+
+-- ==========================================
+-- STATE: START (Main Menu)
+-- ==========================================
+
+function inputStart()
+    -- Menu navigation
+    if btnp(BTN_P1_UP) then
+        game.menu.selected = game.menu.selected - 1
+        if game.menu.selected < 1 then
+            game.menu.selected = #game.menu.options
+        end
+    end
+
+    if btnp(BTN_P1_DOWN) or btnp(BTN_P1_SELECT) then
+        game.menu.selected = game.menu.selected + 1
+        if game.menu.selected > #game.menu.options then
+            game.menu.selected = 1
+        end
+    end
+
+    -- Menu selection
+    if btnp(BTN_P1_A) or btnp(BTN_P1_START) then
+        local selected = game.menu.selected
+        if selected == 1 then
+            changeState(STATE.PLAY)
+        elseif selected == 2 then
+            changeState(STATE.OPTIONS)
+        elseif selected == 3 then
+            changeState(STATE.HIGHSCORES)
+        end
+    end
+end
+
+function updateStart()
+
+end
+
+function drawStart()
+    cls(BLACK)
+
+    drawCenteredText("SPACE RIDER!!", EDGE_Y_TOP + Y_PADDING, ORANGE, nil, 3, nil, YELLOW)
+
+    -- Menu options
+    local start_y = 60
+    local spacing = 2 * X_PADDING
+
+    for i, option in ipairs(game.menu.options) do
+        local y = start_y + (i - 1) * spacing
+        local color = (i == game.menu.selected) and YELLOW or WHITE
+
+        -- Draw selector
+        if i == game.menu.selected then
+            local textWidth = print(option, 0, -10)
+            local x = (EDGE_X_RIGHT - textWidth) / 2
+            print(">", x - 10 + 1, y + 1, GRAY_MED) -- the shadow
+            print(">", x - 10, y, WHITE)
+        end
+
+        -- drawCenteredText(option, y, color)
+        drawCenteredText(option, y, color, nil, nil, nil, GRAY_MED)
+    end
+
+    drawCenteredText("Press Z to select options", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, false, GRAY_MED)
+end
+
+
+-- [/TQ-Bundler: src.states.start]
+
+-- [TQ-Bundler: src.states.options]
+
+-- ==========================================
+-- STATE: OPTIONS
+-- ==========================================
+
+function applyAllOptions()
+    for _, item in ipairs(game.options.items) do
+        if item.apply and item.values then
+            item.apply(item.current)
+        end
+    end
+end
+
+function inputOptions()
+    -- Navigate up/down through menu items
+    if btnp(BTN_P1_UP) then
+        game.options.selected = game.options.selected - 1
+        if game.options.selected < 1 then
+            game.options.selected = #game.options.items
+        end
+    end
+
+    if btnp(BTN_P1_DOWN) then
+        game.options.selected = game.options.selected + 1
+        if game.options.selected > #game.options.items then
+            game.options.selected = 1
+        end
+    end
+
+    local item = game.options.items[game.options.selected]
+
+    -- If item has values, left/right cycles through them
+    if item.values then
+        if btnp(BTN_P1_LEFT) then
+            item.current = item.current - 1
+            if item.current < 1 then
+                item.current = #item.values
+            end
+            if item.apply then
+                item.apply(item.current)
+            end
+        end
+
+        if btnp(BTN_P1_RIGHT) then
+            item.current = item.current + 1
+            if item.current > #item.values then
+                item.current = 1
+            end
+            if item.apply then
+                item.apply(item.current)
+            end
+        end
+    end
+
+    -- A button activates items (for "Back" or items without values)
+    if btnp(BTN_P1_A) then
+        if item.values == nil and item.apply then
+            -- Action item like "Back"
+            item.apply()
+        end
+    end
+
+    -- B button always goes back
+    if btnp(BTN_P1_B) then
+        changeState(STATE.START)
+    end
+end
+
+function updateOptions()
+
+end
+
+function drawOptions()
+    cls(BLACK)
+
+    -- Title
+    drawCenteredText("OPTIONS", EDGE_Y_TOP + Y_PADDING, ORANGE, nil, 3, nil, YELLOW)
+
+    -- Menu items
+    local start_y = 50
+    local spacing = 2 * Y_PADDING
+
+    for i, item in ipairs(game.options.items) do
+        local y = start_y + (i - 1) * spacing
+        local is_selected = (i == game.options.selected)
+        local name_color = is_selected and YELLOW or WHITE
+
+        -- Draw selector arrow
+        if is_selected then
+            print(">", X_PADDING + 1, y + 1, BLACK)
+            print(">", X_PADDING, y, WHITE)
+        end
+
+        -- Draw item name
+        local name_x = X_PADDING + 12
+        print(item.name, name_x + 1, y + 1, BLACK)
+        print(item.name, name_x, y, name_color)
+
+        -- Draw value (if it has one)
+        if item.values then
+            local value_text = "< " .. item.values[item.current] .. " >"
+            local value_x = EDGE_X_RIGHT - X_PADDING - print(value_text, 0, -50)
+            local value_color = is_selected and CYAN or GRAY_LITE
+
+            print(value_text, value_x + 1, y + 1, BLACK)
+            print(value_text, value_x, y, value_color)
+        end
+    end
+
+    -- Instructions
+    local inst_y = EDGE_Y_BOTTOM - 2 * Y_PADDING
+    drawCenteredText("UP/DOWN: Select  LEFT/RIGHT: Change", inst_y, WHITE, false, 1, true, GRAY_MED)
+    drawCenteredText("Z: Confirm  X: Back", inst_y + Y_PADDING, WHITE, false, 1, true, GRAY_MED)
+end
+
+
+-- [/TQ-Bundler: src.states.options]
+
+-- [TQ-Bundler: src.states.highscores]
+
+-- ==========================================
+-- STATE: HIGH SCORES
+-- ==========================================
+
+-- Persistent memory has 255 slots.
+local MAX_HIGH_SCORES     = 19
+local PMEM_CHUNK_ELEMENTS = 4
+
+-- We'll store our high scores in this table.
+local lines = {}
+
+-- ==========================================
+-- HIGH SCORE HELPERS
+-- ==========================================
+
+-- function loadHighScores()
+--     game.high_scores = {}
+
+--     for idx = 0, MAX_HIGH_SCORES do
+--         local base = idx * PMEM_CHUNK_ELEMENTS
+--         local date = pmem(base + 0)
+--         if date ~= 0 then
+--             game.high_scores[base] = {
+--                 date  = date,
+--                 diff  = pmem(base + 1),
+--                 level = pmem(base + 2),
+--                 score = pmem(base + 3),
+--             }
+--         end
+--     end
+-- end
+
+-- function sortHighScores()
+--     local list = {}
+
+--     for _, d in pairs(game.high_scores) do
+--         if d and d.score and d.score > 0 then
+--             list[#list + 1] = d
+--         end
+--     end
+
+--     table.sort(list, function(a, b)
+--         if a.score ~= b.score then
+--             return a.score > b.score
+--         end
+
+--         if a.diff ~= b.diff then
+--             return a.diff > b.diff
+--         end
+
+--         if a.level ~= b.level then
+--             return a.level > b.level
+--         end
+
+--         return a.date > b.date
+--     end)
+
+--     game.high_scores = {}
+
+--     for i = 1, math.min(#list, MAX_HIGH_SCORES + 1) do
+--         game.high_scores[(i - 1) * PMEM_CHUNK_ELEMENTS] = list[i]
+--     end
+-- end
+
+-- function saveCurrentScore()
+--     loadHighScores()
+
+--     local list = {}
+
+--     -- Pull saved scores into a list.
+--     for idx = 0, MAX_HIGH_SCORES do
+--         local base = idx * PMEM_CHUNK_ELEMENTS
+--         local d = game.high_scores[base]
+
+--         if d then
+--             list[#list + 1] = d
+--         end
+--     end
+
+--     -- Add current result.
+--     list[#list + 1] = {
+--         date  = game.play.date,
+--         diff  = game.play.diff,
+--         level = game.play.level,
+--         score = game.play.score,
+--     }
+
+--     -- Put list back into game.high_scores so sortHighScores() can sort it.
+--     game.high_scores = {}
+
+--     for i = 1, #list do
+--         game.high_scores[(i - 1) * PMEM_CHUNK_ELEMENTS] = list[i]
+--     end
+
+--     sortHighScores()
+
+--     -- Clear pmem.
+--     for i = 0, 255 do
+--         pmem(i, 0)
+--     end
+
+--     -- Save compacted/sorted high scores.
+--     for idx = 0, MAX_HIGH_SCORES do
+--         local base = idx * PMEM_CHUNK_ELEMENTS
+--         local d = game.high_scores[base]
+
+--         if d then
+--             pmem(base + 0, d.date)
+--             pmem(base + 1, d.diff)
+--             pmem(base + 2, d.level)
+--             pmem(base + 3, d.score)
+--         end
+--     end
+-- end
+
+-- function difficultyToString(diff)
+--     if diff == 3 then
+--         return "Hard"
+--     elseif diff == 2 then
+--         return "Medium"
+--     elseif diff == 1 then
+--         return "Easy"
+--     end
+
+--     return "?"
+-- end
+
+-- function buildLines()
+--     lines = {}
+
+--     local score_count = 1
+--     for idx = 0, MAX_HIGH_SCORES do
+--         local k = idx * PMEM_CHUNK_ELEMENTS
+--         local d = game.high_scores[k]
+
+--         if d then
+--             local dt_obj = unix_to_greg_utc(d.date)
+--             local dt_str = convert_datetime_obj_to_string(dt_obj)
+--             local diff_str = difficultyToString(d.diff)
+
+--             table.insert(
+--                 lines,
+--                 string.format("%2d", score_count) .. ". " ..
+--                 dt_str ..
+--                 "  " .. string.format("%7d", d.score) ..
+--                 "  L" .. string.format("%02d", d.level) ..
+--                 "  " .. diff_str
+--             )
+--             score_count = score_count + 1
+--         end
+--     end
+-- end
+
+-- ==========================================
+-- MAIN HIGH SCORE FUNCTIONS
+-- ==========================================
+
+function inputHighScores()
+    if btnp(BTN_P1_A) or btnp(BTN_P1_B) then
+        changeState(STATE.START)
+    end
+end
+
+function updateHighScores()
+
+end
+
+function drawHighScores()
+    cls(BLACK)
+
+    -- -- LAYOUT
+    -- local header_y = EDGE_Y_TOP + Y_PADDING
+    -- local line_h = FIXED_CHAR_HEIGHT + 1
+    -- local view_top = header_y + FIXED_CHAR_HEIGHT + 2 * Y_PADDING
+    -- local view_bottom = EDGE_Y_BOTTOM - 2 * Y_PADDING
+    -- local visible_lines = math.max(1, math.floor((view_bottom - view_top) / line_h))
+
+    -- -- INPUT
+    -- local max_scroll = math.max(0, #lines - visible_lines)
+
+    -- -- keyboard (hold+repeat)
+    -- if btnp(BTN_P1_UP, 15, 3) then
+    --     scroll = scroll - 1
+    -- end
+    -- if btnp(BTN_P1_DOWN, 15, 3) then
+    --     scroll = scroll + 1
+    -- end
+
+    -- -- clamp
+    -- scroll = math.max(0, math.min(max_scroll, scroll))
+
+    drawCenteredText("HIGH SCORES", EDGE_Y_TOP + Y_PADDING, ORANGE, nil, 3, nil, YELLOW)
+
+    -- -- draw visible slice
+    -- for i = 0, visible_lines - 1 do
+    --     local line = lines[scroll + 1 + i] -- Lua arrays are 1-based
+    --     if not line then break end
+    --     local y = view_top + i * line_h
+    --     print(line, X_PADDING + 1, y + 1, GRAY_MED, true) -- the shadow
+    --     print(line, X_PADDING, y, WHITE, true)
+    -- end
+
+    -- -- Small scrollbar indicator
+    -- if max_scroll > 0 then
+    --     local bar_x = EDGE_X_RIGHT - 4
+    --     rect(bar_x, view_top, 2, view_bottom - view_top, GRAY_DARK)
+    --     local thumb_h = math.max(4, math.floor((view_bottom - view_top) * (visible_lines / #lines)))
+    --     local thumb_y = view_top + math.floor((view_bottom - view_top - thumb_h) * (scroll / max_scroll))
+    --     rect(bar_x, thumb_y, 2, thumb_h, GREEN_LITE)
+    -- end
+
+    -- Instructions
+    drawCenteredText("Press Z or X to return to start screen", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
+end
+
+
+-- [/TQ-Bundler: src.states.highscores]
+
+-- [TQ-Bundler: src.states.ready]
+
+-- ==========================================
+-- STATE: READY
+-- ==========================================
+
+function inputReady()
+
+end
+
+function updateReady()
+    if btnPressed(BTN_P1_START) then
+        changeState(STATE.PLAY)
+    end
+
+    if btnPressed(BTN_P1_B) then
+        changeState(STATE.START)
+    end
+end
+
+function drawReady()
+    -- Draw the game state (paused/initial state)
+    drawGame()
+
+    -- Draw overlay
+    drawOverlayBox("READY?")
+
+    -- Instructions
+    drawCenteredText("Press 'START' (S) to Begin", EDGE_Y_BOTTOM / 2 + 30, 12)
+    -- drawCenteredText("Press 'START' (S) to Begin", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, false, GRAY_MED)
+end
+
+
+-- [/TQ-Bundler: src.states.ready]
+
+-- [TQ-Bundler: src.states.play]
+
+-- ==========================================
+-- STATE: PLAY
+-- ==========================================
+
+function inputPlay()
+    if btnp(BTN_P1_SELECT) and btnp(BTN_P1_START) then
+        changeState(STATE.GAMEOVER)
+    end
+
+    if btnp(BTN_P1_START) then
+        changeState(STATE.PAUSE)
+    end
+
+    -- Push all button monitoring off on the player class.
+    -- if not game.play.player.dead then
+    --     game.play.player:input()
+    -- end
+end
+
+function updatePlay()
+
+end
+
+function drawUserHud()
+
+end
+
+
+function drawGame()
+    cls(BLACK)
+
+    -- ================================
+    -- YOUR GAME RENDERING HERE
+    -- ================================
+
+    drawUserHud()
+end
+
+function drawPlay()
+    drawGame()
+
+    if DEBUG == true then
+        print("HEALTH: " .. tostring(player:getHealth()), EDGE_X_LEFT, score_height + 2, CYAN, true)
+        print("LIVES: " .. tostring(player:getNumLives()), EDGE_X_LEFT, 2 * score_height, CYAN, true)
+        print("ALIEN HEALTH: " .. tostring(alien:getHealthFraction()), EDGE_X_LEFT, 3 * score_height, CYAN, true)
+
+        local pos     = player:getPosition()
+        local rot     = player:getRotation()
+
+        local pos_x   = string.format("%0.2f", pos.x)
+        local pos_y   = string.format("%0.2f", pos.y)
+        local radians = string.format("%0.2f", rot.rotation)
+        local speed   = string.format("%0.2f", rot.speed)
+
+        print("X: " .. pos_x .. "; Y: " .. pos_y, EDGE_X_LEFT, EDGE_Y_BOTTOM - 4 * Y_PADDING, GRAY_DARK)
+        print("Radians: " .. radians .. "; Speed: " .. speed, EDGE_X_LEFT, EDGE_Y_BOTTOM - 3 * Y_PADDING, GRAY_DARK)
+        print("Num of Lasers: " .. tostring(player:getNumLaserBlasts()), EDGE_X_LEFT, EDGE_Y_BOTTOM - 2 * Y_PADDING,
+            GRAY_DARK)
+        print("Num of Asteroids: " .. tostring(#game.play.asteroids), EDGE_X_LEFT, EDGE_Y_BOTTOM - Y_PADDING, GRAY_DARK)
+    end
+end
+
+
+-- [/TQ-Bundler: src.states.play]
+
+-- [TQ-Bundler: src.states.pause]
+
+-- ==========================================
+-- STATE: PAUSE
+-- ==========================================
+
+function inputPause()
+    if btnPressed(BTN_P1_START) then
+        changeState(STATE.PLAY)
+    end
+end
+
+function updatePause()
+
+end
+
+function drawPause()
+    -- Draw the game state (frozen)
+    drawGame()
+
+    -- Draw overlay
+    drawOverlayBox("PAUSED")
+
+    -- Instructions
+    drawCenteredText("Press 'START' (S) to Resume", EDGE_Y_BOTTOM / 2 + 30, 12)
+    -- drawCenteredText("Press 'START' (S) to Resume", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, false, GRAY_MED)
+end
+
+
+-- [/TQ-Bundler: src.states.pause]
+
+-- [TQ-Bundler: src.states.gameover]
+
+-- ==========================================
+-- STATE: GAMEOVER
+-- ==========================================
+
+function updateGameover()
+    if btnPressed(BTN_P1_A) or btnPressed(BTN_P1_B) then
+        changeState(STATE.START)
+    end
+end
+
+function drawGameover()
+    drawGame()
+
+    drawCenteredText("GAME OVER", EDGE_Y_TOP + Y_PADDING, ORANGE, nil, 3, nil, YELLOW)
+    drawCenteredText("Press Z or X to see high scores", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, false, GRAY_MED)
+end
+
+
+-- [/TQ-Bundler: src.states.gameover]
+
+-- [TQ-Bundler: src.state_machine]
+
+-- ==========================================
+-- STATE MACHINE
+-- ==========================================
+
+local states = {
+    [STATE.START] = {
+        input  = inputStart,
+        update = updateStart,
+        draw = drawStart,
+    },
+    [STATE.OPTIONS] = {
+        input  = inputOptions,
+        update = updateOptions,
+        draw = drawOptions,
+    },
+    [STATE.HIGHSCORES] = {
+        input  = inputHighScores,
+        update = updateHighScores,
+        draw   = drawHighScores,
+    },
+    [STATE.READY] = {
+        input  = inputReady,
+        update = updateReady,
+        draw = drawReady,
+    },
+    [STATE.PLAY] = {
+        input  = inputPlay,
+        update = updatePlay,
+        draw = drawPlay,
+    },
+    [STATE.PAUSE] = {
+        input  = inputPause,
+        update = updatePause,
+        draw = drawPause,
+    },
+    [STATE.GAMEOVER] = {
+        input  = inputGameover,
+        update = updateGameover,
+        draw = drawGameover,
+    },
+}
+
+
+-- [/TQ-Bundler: src.state_machine]
+
+-- ==========================================
+-- MAIN TIC FUNCTION
+-- ==========================================
+
+function BOOT()
+    applyAllOptions()
+    changeState(STATE.START)
+end
+
+function TIC()
+    local currentState = states[game.state]
+    if currentState then
+        currentState.input()
+        currentState.update()
+        currentState.draw()
+    end
+end
