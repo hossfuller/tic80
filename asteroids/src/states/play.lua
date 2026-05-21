@@ -39,7 +39,7 @@ function updatePlay()
 
     -- Move the laser blast and then check if it hit anything.
     player:moveLaserBlasts()
-    
+
     -- Check if laser hit the alien
     if alien and alien:isActive() then
         local alien_hit = player:checkLaserHitAlien(alien)
@@ -51,7 +51,7 @@ function updatePlay()
             end
         end
     end
-    
+
     -- Check if laser hit asteroids
     hit_asteroid_index = player:checkLaserHit(game.play.asteroids)
     for index, asteroid in ipairs(game.play.asteroids) do
@@ -127,7 +127,7 @@ function updatePlay()
                 end
             end
         end
-        
+
         -- Check player collision with alien
         if alien and alien:isActive() and player.invulnerable <= 0 then
             if player:resolveCollision(alien) then
@@ -226,7 +226,7 @@ function drawPlay()
     player:drawParticles(player.TYPES.THRUST)
 
     -- Draw alien if it exists
-    if alien.active then
+    if alien and alien.active then
         alien:draw()
         drawAlienHealthBar()
     end

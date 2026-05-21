@@ -742,7 +742,7 @@ function updatePlay()
 
     -- Move the laser blast and then check if it hit anything.
     player:moveLaserBlasts()
-    
+
     -- Check if laser hit the alien
     if alien and alien:isActive() then
         local alien_hit = player:checkLaserHitAlien(alien)
@@ -754,7 +754,7 @@ function updatePlay()
             end
         end
     end
-    
+
     -- Check if laser hit asteroids
     hit_asteroid_index = player:checkLaserHit(game.play.asteroids)
     for index, asteroid in ipairs(game.play.asteroids) do
@@ -830,7 +830,7 @@ function updatePlay()
                 end
             end
         end
-        
+
         -- Check player collision with alien
         if alien and alien:isActive() and player.invulnerable <= 0 then
             if player:resolveCollision(alien) then
@@ -929,7 +929,7 @@ function drawPlay()
     player:drawParticles(player.TYPES.THRUST)
 
     -- Draw alien if it exists
-    if alien.active then
+    if alien and alien.active then
         alien:draw()
         drawAlienHealthBar()
     end
@@ -1025,8 +1025,8 @@ end
 -- Persistent memory has 255 slots. We want to save two pieces of data: the date
 -- and the score. On top of that, we only want to save the top 10 scores. That
 -- restricts us to just 20 slots (10 chunks of 2 slots). Since our counter
--- starts at 0, we set MAX_PMEM_CHUNKS equal to 9.
-local MAX_PMEM_CHUNKS     = 20
+-- starts at 0, we set MAX_HIGH_SCORES equal to 9.
+local MAX_HIGH_SCORES     = 19
 local PMEM_CHUNK_ELEMENTS = 4
 
 -- We'll store our high scores in this table.
@@ -1039,7 +1039,7 @@ local lines = {}
 function loadHighScores()
     game.high_scores = {}
 
-    for idx = 0, MAX_PMEM_CHUNKS do
+    for idx = 0, MAX_HIGH_SCORES do
         local base = idx * PMEM_CHUNK_ELEMENTS
         local date = pmem(base + 0)
         if date ~= 0 then
@@ -1056,37 +1056,31 @@ end
 function sortHighScores()
     local list = {}
 
-    for idx = 0, MAX_PMEM_CHUNKS do
-        local base = idx * PMEM_CHUNK_ELEMENTS
-        local d = game.high_scores[base]
-        if d then
+    for _, d in pairs(game.high_scores) do
+        if d and d.score and d.score > 0 then
             list[#list + 1] = d
         end
     end
 
     table.sort(list, function(a, b)
-        -- 1. Difficulty: Hard -> Medium -> Easy
-        if a.diff ~= b.diff then
-            return a.diff > b.diff
-        end
-
-        -- 2. Score: highest -> lowest
         if a.score ~= b.score then
             return a.score > b.score
         end
 
-        -- 3. Level: highest -> lowest
+        if a.diff ~= b.diff then
+            return a.diff > b.diff
+        end
+
         if a.level ~= b.level then
             return a.level > b.level
         end
 
-        -- Optional final tiebreaker: newest first
         return a.date > b.date
     end)
 
     game.high_scores = {}
 
-    for i = 1, math.min(#list, MAX_PMEM_CHUNKS + 1) do
+    for i = 1, math.min(#list, MAX_HIGH_SCORES + 1) do
         game.high_scores[(i - 1) * PMEM_CHUNK_ELEMENTS] = list[i]
     end
 end
@@ -1097,7 +1091,7 @@ function saveCurrentScore()
     local list = {}
 
     -- Pull saved scores into a list.
-    for idx = 0, MAX_PMEM_CHUNKS do
+    for idx = 0, MAX_HIGH_SCORES do
         local base = idx * PMEM_CHUNK_ELEMENTS
         local d = game.high_scores[base]
 
@@ -1129,7 +1123,7 @@ function saveCurrentScore()
     end
 
     -- Save compacted/sorted high scores.
-    for idx = 0, MAX_PMEM_CHUNKS do
+    for idx = 0, MAX_HIGH_SCORES do
         local base = idx * PMEM_CHUNK_ELEMENTS
         local d = game.high_scores[base]
 
@@ -1158,7 +1152,7 @@ function buildLines()
     lines = {}
 
     local score_count = 1
-    for idx = 0, MAX_PMEM_CHUNKS do
+    for idx = 0, MAX_HIGH_SCORES do
         local k = idx * PMEM_CHUNK_ELEMENTS
         local d = game.high_scores[k]
 
