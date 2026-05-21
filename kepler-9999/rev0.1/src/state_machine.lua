@@ -2,7 +2,7 @@
 -- STATE MACHINE
 -- ==========================================
 
-local states = {
+states = {
     [STATE.START] = {
         input  = inputStart,
         update = updateStart,

@@ -3,11 +3,11 @@
 -- ==========================================
 
 -- Persistent memory has 255 slots.
-local MAX_HIGH_SCORES     = 19
-local PMEM_CHUNK_ELEMENTS = 4
+MAX_HIGH_SCORES     = 19
+PMEM_CHUNK_ELEMENTS = 4
 
 -- We'll store our high scores in this table.
-local lines = {}
+lines = {}
 
 -- ==========================================
 -- HIGH SCORE HELPERS
@@ -210,5 +210,5 @@ function drawHighScores()
     -- end
 
     -- Instructions
-    drawCenteredText("Press Z or X to return to start screen", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
+    drawCenteredText("Press Z to Return", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
 end

@@ -22,7 +22,7 @@ function inputStart()
     if btnp(BTN_P1_A) or btnp(BTN_P1_START) then
         local selected = game.menu.selected
         if selected == 1 then
-            changeState(STATE.PLAY)
+            changeState(STATE.READY)
         elseif selected == 2 then
             changeState(STATE.OPTIONS)
         elseif selected == 3 then
@@ -38,7 +38,7 @@ end
 function drawStart()
     cls(BLACK)
 
-    drawCenteredText("SPACE RIDER!!", EDGE_Y_TOP + Y_PADDING, ORANGE, nil, 3, nil, YELLOW)
+    drawCenteredText("KEPLER-9999", EDGE_Y_TOP + Y_PADDING, ORANGE, nil, 3, nil, YELLOW)
 
     -- Menu options
     local start_y = 60
@@ -60,5 +60,5 @@ function drawStart()
         drawCenteredText(option, y, color, nil, nil, nil, GRAY_MED)
     end
 
-    drawCenteredText("Press Z to select options", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, false, GRAY_MED)
+    drawCenteredText("Press Z to select options", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
 end

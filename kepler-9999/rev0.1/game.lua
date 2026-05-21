@@ -73,7 +73,7 @@ local DEBUG             = false
 -- GAME STATE
 -- ==========================================
 
-STATE = {
+local STATE = {
     START      = "START",
     OPTIONS    = "OPTIONS",
     HIGHSCORES = "HIGHSCORES",
@@ -83,7 +83,7 @@ STATE = {
     GAMEOVER   = "GAMEOVER",
 }
 
-game = {
+local game = {
     state = STATE.START,
     prevState = nil,
 
@@ -99,15 +99,7 @@ game = {
         items = {
             -- {name = "Sound", values = {"On", "Off"}, current = 1},
             -- {name = "Difficulty", values = {"Easy", "Normal", "Hard"}, current = 2},
-            -- {name = "Back", values = {""}, current = 1},
-            {
-                name = "Back",
-                values = nil, -- No values means this is an action, not a setting.
-                current = 1,
-                apply = function()
-                    changeState(STATE.START)
-                end,
-            },
+            {name = "Back", values = {""}, current = 1},
         },
     },
 
@@ -128,7 +120,7 @@ game = {
 -- STATE CHANGE
 -- ==========================================
 
-function changeState(newState)
+local function changeState(newState)
     game.prevState = game.state
     game.state = newState
 
@@ -303,7 +295,7 @@ function inputStart()
     if btnp(BTN_P1_A) or btnp(BTN_P1_START) then
         local selected = game.menu.selected
         if selected == 1 then
-            changeState(STATE.READY)
+            changeState(STATE.PLAY)
         elseif selected == 2 then
             changeState(STATE.OPTIONS)
         elseif selected == 3 then
@@ -341,7 +333,7 @@ function drawStart()
         drawCenteredText(option, y, color, nil, nil, nil, GRAY_MED)
     end
 
-    drawCenteredText("Press Z to select options", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
+    drawCenteredText("Press Z to select options", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, false, GRAY_MED)
 end
 
 
@@ -473,11 +465,11 @@ end
 -- ==========================================
 
 -- Persistent memory has 255 slots.
-MAX_HIGH_SCORES     = 19
-PMEM_CHUNK_ELEMENTS = 4
+local MAX_HIGH_SCORES     = 19
+local PMEM_CHUNK_ELEMENTS = 4
 
 -- We'll store our high scores in this table.
-lines = {}
+local lines = {}
 
 -- ==========================================
 -- HIGH SCORE HELPERS
@@ -680,7 +672,7 @@ function drawHighScores()
     -- end
 
     -- Instructions
-    drawCenteredText("Press Z to Return", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
+    drawCenteredText("Press Z or X to return to start screen", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
 end
 
 
@@ -697,11 +689,11 @@ function inputReady()
 end
 
 function updateReady()
-    if btnp(BTN_P1_START) then
+    if btnPressed(BTN_P1_START) then
         changeState(STATE.PLAY)
     end
 
-    if btnp(BTN_P1_B) then
+    if btnPressed(BTN_P1_B) then
         changeState(STATE.START)
     end
 end
@@ -712,7 +704,10 @@ function drawReady()
 
     -- Draw overlay
     drawOverlayBox("READY?")
-    drawCenteredText("Press 'START' (S) to Begin", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
+
+    -- Instructions
+    drawCenteredText("Press 'START' (S) to Begin", EDGE_Y_BOTTOM / 2 + 30, 12)
+    -- drawCenteredText("Press 'START' (S) to Begin", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, false, GRAY_MED)
 end
 
 
@@ -725,6 +720,10 @@ end
 -- ==========================================
 
 function inputPlay()
+    if btnp(BTN_P1_SELECT) and btnp(BTN_P1_START) then
+        changeState(STATE.GAMEOVER)
+    end
+
     if btnp(BTN_P1_START) then
         changeState(STATE.PAUSE)
     end
@@ -788,11 +787,8 @@ end
 -- ==========================================
 
 function inputPause()
-    if btnp(BTN_P1_START) then
+    if btnPressed(BTN_P1_START) then
         changeState(STATE.PLAY)
-    end
-    if btnp(BTN_P1_SELECT) then
-        changeState(STATE.GAMEOVER)
     end
 end
 
@@ -806,8 +802,10 @@ function drawPause()
 
     -- Draw overlay
     drawOverlayBox("PAUSED")
-    drawCenteredText("Press 'START' (S) to Resume", EDGE_Y_BOTTOM - 2* Y_PADDING, WHITE, false, 1, true, GRAY_MED)
-    drawCenteredText("Press 'SELECT' (A) to Quit", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
+
+    -- Instructions
+    drawCenteredText("Press 'START' (S) to Resume", EDGE_Y_BOTTOM / 2 + 30, 12)
+    -- drawCenteredText("Press 'START' (S) to Resume", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, false, GRAY_MED)
 end
 
 
@@ -819,21 +817,17 @@ end
 -- STATE: GAMEOVER
 -- ==========================================
 
-function inputGameover()
-    if btnp(BTN_P1_A) or btnp(BTN_P1_B) then
+function updateGameover()
+    if btnPressed(BTN_P1_A) or btnPressed(BTN_P1_B) then
         changeState(STATE.START)
     end
-end
-
-function updateGameover()
-
 end
 
 function drawGameover()
     drawGame()
 
-    drawOverlayBox("GAME OVER")
-    drawCenteredText("Press Z to Continue", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
+    drawCenteredText("GAME OVER", EDGE_Y_TOP + Y_PADDING, ORANGE, nil, 3, nil, YELLOW)
+    drawCenteredText("Press Z or X to see high scores", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, false, GRAY_MED)
 end
 
 
@@ -845,7 +839,7 @@ end
 -- STATE MACHINE
 -- ==========================================
 
-states = {
+local states = {
     [STATE.START] = {
         input  = inputStart,
         update = updateStart,
@@ -903,3 +897,33 @@ function TIC()
         currentState.draw()
     end
 end
+
+-- <TILES>
+-- 001:eccccccccc888888caaaaaaaca888888cacccccccacc0ccccacc0ccccacc0ccc
+-- 002:ccccceee8888cceeaaaa0cee888a0ceeccca0ccc0cca0c0c0cca0c0c0cca0c0c
+-- 003:eccccccccc888888caaaaaaaca888888cacccccccacccccccacc0ccccacc0ccc
+-- 004:ccccceee8888cceeaaaa0cee888a0ceeccca0cccccca0c0c0cca0c0c0cca0c0c
+-- 017:cacccccccaaaaaaacaaacaaacaaaaccccaaaaaaac8888888cc000cccecccccec
+-- 018:ccca00ccaaaa0ccecaaa0ceeaaaa0ceeaaaa0cee8888ccee000cceeecccceeee
+-- 019:cacccccccaaaaaaacaaacaaacaaaaccccaaaaaaac8888888cc000cccecccccec
+-- 020:ccca00ccaaaa0ccecaaa0ceeaaaa0ceeaaaa0cee8888ccee000cceeecccceeee
+-- </TILES>
+
+-- <WAVES>
+-- 000:00000000ffffffff00000000ffffffff
+-- 001:0123456789abcdeffedcba9876543210
+-- 002:0123456789abcdef0123456789abcdef
+-- </WAVES>
+
+-- <SFX>
+-- 000:000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000304000000000
+-- </SFX>
+
+-- <TRACKS>
+-- 000:100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-- </TRACKS>
+
+-- <PALETTE>
+-- 000:1a1c2c5d275db13e53ef7d57ffcd75a7f07038b76425717929366f3b5dc941a6f673eff7f4f4f494b0c2566c86333c57
+-- </PALETTE>
+

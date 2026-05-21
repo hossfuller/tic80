@@ -1,9 +1,9 @@
--- title:   Space Rider!!
+-- title:   Kepler-9999
 -- author:  Hoss Fuller
 -- version: rev0.1
 -- script:  lua
 -- input:   mouse
--- saveid:  space_rider_bang_bang
+-- saveid:  kepler_9999
 
 -- ==========================================
 -- INCLUDES

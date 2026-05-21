@@ -3,8 +3,11 @@
 -- ==========================================
 
 function inputPause()
-    if btnPressed(BTN_P1_START) then
+    if btnp(BTN_P1_START) then
         changeState(STATE.PLAY)
+    end
+    if btnp(BTN_P1_SELECT) then
+        changeState(STATE.GAMEOVER)
     end
 end
 
@@ -18,8 +21,6 @@ function drawPause()
 
     -- Draw overlay
     drawOverlayBox("PAUSED")
-
-    -- Instructions
-    drawCenteredText("Press 'START' (S) to Resume", EDGE_Y_BOTTOM / 2 + 30, 12)
-    -- drawCenteredText("Press 'START' (S) to Resume", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, false, GRAY_MED)
+    drawCenteredText("Press 'START' (S) to Resume", EDGE_Y_BOTTOM - 2* Y_PADDING, WHITE, false, 1, true, GRAY_MED)
+    drawCenteredText("Press 'SELECT' (A) to Quit", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
 end
