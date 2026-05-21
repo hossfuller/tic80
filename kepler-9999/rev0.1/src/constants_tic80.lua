@@ -1,5 +1,5 @@
 -- ==========================================
--- CONSTANTS
+-- TIC80 CONSTANTS
 -- ==========================================
 
 -- Colors
@@ -38,10 +38,14 @@ local EDGE_X_RIGHT  = 240
 local EDGE_Y_TOP    = 0
 local EDGE_Y_BOTTOM = 136
 
+-- Map dimensions
+local MAP_W          = EDGE_X_RIGHT
+local MAP_H          = EDGE_Y_BOTTOM
+local SCREEN_TILES_W = 30             -- 240 / 8
+local SCREEN_TILES_H = 17             -- 136 / 8
+
 -- Character dimensions (these scale linearly)
 local FIXED_CHAR_WIDTH  = 6
 local FIXED_CHAR_HEIGHT = 6
 local X_PADDING         = FIXED_CHAR_WIDTH + 2
 local Y_PADDING         = FIXED_CHAR_HEIGHT + 2
-
-local DEBUG             = false

@@ -9,7 +9,10 @@
 -- INCLUDES
 -- ==========================================
 
-include "src.constants"
+include "src.constants_tic80"
+include "src.constants_game"
+
+include "src.generators"
 include "src.game_state"
 include "src.helpers"
 
@@ -31,6 +34,7 @@ function BOOT()
     applyAllOptions()
     changeState(STATE.START)
 end
+
 
 function TIC()
     local currentState = states[game.state]

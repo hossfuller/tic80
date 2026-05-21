@@ -14,10 +14,10 @@
 -- INCLUDES
 -- ==========================================
 
--- [TQ-Bundler: src.constants]
+-- [TQ-Bundler: src.constants_tic80]
 
 -- ==========================================
--- CONSTANTS
+-- TIC80 CONSTANTS
 -- ==========================================
 
 -- Colors
@@ -56,16 +56,77 @@ local EDGE_X_RIGHT  = 240
 local EDGE_Y_TOP    = 0
 local EDGE_Y_BOTTOM = 136
 
+-- Map dimensions
+local MAP_W          = EDGE_X_RIGHT
+local MAP_H          = EDGE_Y_BOTTOM
+local SCREEN_TILES_W = 30             -- 240 / 8
+local SCREEN_TILES_H = 17             -- 136 / 8
+
 -- Character dimensions (these scale linearly)
 local FIXED_CHAR_WIDTH  = 6
 local FIXED_CHAR_HEIGHT = 6
 local X_PADDING         = FIXED_CHAR_WIDTH + 2
 local Y_PADDING         = FIXED_CHAR_HEIGHT + 2
 
-local DEBUG             = false
+
+-- [/TQ-Bundler: src.constants_tic80]
+
+-- [TQ-Bundler: src.constants_game]
+
+-- ==========================================
+-- GAME CONSTANTS
+-- ==========================================
+
+local DEBUG = false
+
+local TILE_EMPTY       = 0
+local TILE_STAR_DIM    = 1
+local TILE_STAR_MED    = 2
+local TILE_STAR_BRIGHT = 3
 
 
--- [/TQ-Bundler: src.constants]
+-- [/TQ-Bundler: src.constants_game]
+
+-- [TQ-Bundler: src.generators]
+
+-- ==========================================
+-- GENERATORS
+-- ==========================================
+
+function generateStarMap()
+    -- Clear whole TIC-80 map.
+    for y = 0, MAP_H - 1 do
+        for x = 0, MAP_W - 1 do
+            mset(x, y, TILE_EMPTY)
+        end
+    end
+
+    -- Fill the visible screen area with sparse random stars.
+    for y = 0, SCREEN_TILES_H - 1 do
+        for x = 0, SCREEN_TILES_W - 1 do
+            local roll = math.random(1, 100)
+
+            if roll <= 4 then
+                -- 4% chance of a star in this tile.
+
+                local star_roll = math.random(1, 100)
+
+                if star_roll <= 70 then
+                    mset(x, y, TILE_STAR_DIM)
+                elseif star_roll <= 95 then
+                    mset(x, y, TILE_STAR_MED)
+                else
+                    mset(x, y, TILE_STAR_BRIGHT)
+                end
+            else
+                mset(x, y, TILE_EMPTY)
+            end
+        end
+    end
+end
+
+
+-- [/TQ-Bundler: src.generators]
 
 -- [TQ-Bundler: src.game_state]
 
@@ -73,7 +134,7 @@ local DEBUG             = false
 -- GAME STATE
 -- ==========================================
 
-local STATE = {
+STATE = {
     START      = "START",
     OPTIONS    = "OPTIONS",
     HIGHSCORES = "HIGHSCORES",
@@ -83,7 +144,7 @@ local STATE = {
     GAMEOVER   = "GAMEOVER",
 }
 
-local game = {
+game = {
     state = STATE.START,
     prevState = nil,
 
@@ -99,7 +160,15 @@ local game = {
         items = {
             -- {name = "Sound", values = {"On", "Off"}, current = 1},
             -- {name = "Difficulty", values = {"Easy", "Normal", "Hard"}, current = 2},
-            {name = "Back", values = {""}, current = 1},
+            -- {name = "Back", values = {""}, current = 1},
+            {
+                name = "Back",
+                values = nil, -- No values means this is an action, not a setting.
+                current = 1,
+                apply = function()
+                    changeState(STATE.START)
+                end,
+            },
         },
     },
 
@@ -120,16 +189,14 @@ local game = {
 -- STATE CHANGE
 -- ==========================================
 
-local function changeState(newState)
+function changeState(newState)
     game.prevState = game.state
     game.state = newState
 
     -- State entry logic
     if newState == STATE.READY then
         -- Reset game state for new game
-        game.play.score = 0
-        game.play.playerX = EDGE_X_RIGHT / 2
-        game.play.playerY = EDGE_Y_BOTTOM / 2
+        generateStarMap()
     end
 end
 
@@ -295,7 +362,7 @@ function inputStart()
     if btnp(BTN_P1_A) or btnp(BTN_P1_START) then
         local selected = game.menu.selected
         if selected == 1 then
-            changeState(STATE.PLAY)
+            changeState(STATE.READY)
         elseif selected == 2 then
             changeState(STATE.OPTIONS)
         elseif selected == 3 then
@@ -333,7 +400,7 @@ function drawStart()
         drawCenteredText(option, y, color, nil, nil, nil, GRAY_MED)
     end
 
-    drawCenteredText("Press Z to select options", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, false, GRAY_MED)
+    drawCenteredText("Press Z to select options", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
 end
 
 
@@ -465,11 +532,11 @@ end
 -- ==========================================
 
 -- Persistent memory has 255 slots.
-local MAX_HIGH_SCORES     = 19
-local PMEM_CHUNK_ELEMENTS = 4
+MAX_HIGH_SCORES     = 19
+PMEM_CHUNK_ELEMENTS = 4
 
 -- We'll store our high scores in this table.
-local lines = {}
+lines = {}
 
 -- ==========================================
 -- HIGH SCORE HELPERS
@@ -672,7 +739,7 @@ function drawHighScores()
     -- end
 
     -- Instructions
-    drawCenteredText("Press Z or X to return to start screen", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
+    drawCenteredText("Press Z to Return", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
 end
 
 
@@ -689,11 +756,11 @@ function inputReady()
 end
 
 function updateReady()
-    if btnPressed(BTN_P1_START) then
+    if btnp(BTN_P1_START) then
         changeState(STATE.PLAY)
     end
 
-    if btnPressed(BTN_P1_B) then
+    if btnp(BTN_P1_B) then
         changeState(STATE.START)
     end
 end
@@ -704,10 +771,7 @@ function drawReady()
 
     -- Draw overlay
     drawOverlayBox("READY?")
-
-    -- Instructions
-    drawCenteredText("Press 'START' (S) to Begin", EDGE_Y_BOTTOM / 2 + 30, 12)
-    -- drawCenteredText("Press 'START' (S) to Begin", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, false, GRAY_MED)
+    drawCenteredText("Press 'START' (S) to Begin", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
 end
 
 
@@ -720,10 +784,6 @@ end
 -- ==========================================
 
 function inputPlay()
-    if btnp(BTN_P1_SELECT) and btnp(BTN_P1_START) then
-        changeState(STATE.GAMEOVER)
-    end
-
     if btnp(BTN_P1_START) then
         changeState(STATE.PAUSE)
     end
@@ -745,6 +805,15 @@ end
 
 function drawGame()
     cls(BLACK)
+
+    -- Draw generated star map.
+    map(
+        0, 0, -- map x/y in tiles
+        SCREEN_TILES_W,
+        SCREEN_TILES_H,
+        0, 0, -- screen x/y in pixels
+        0     -- transparent color
+    )
 
     -- ================================
     -- YOUR GAME RENDERING HERE
@@ -787,8 +856,11 @@ end
 -- ==========================================
 
 function inputPause()
-    if btnPressed(BTN_P1_START) then
+    if btnp(BTN_P1_START) then
         changeState(STATE.PLAY)
+    end
+    if btnp(BTN_P1_SELECT) then
+        changeState(STATE.GAMEOVER)
     end
 end
 
@@ -802,10 +874,8 @@ function drawPause()
 
     -- Draw overlay
     drawOverlayBox("PAUSED")
-
-    -- Instructions
-    drawCenteredText("Press 'START' (S) to Resume", EDGE_Y_BOTTOM / 2 + 30, 12)
-    -- drawCenteredText("Press 'START' (S) to Resume", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, false, GRAY_MED)
+    drawCenteredText("Press 'START' (S) to Resume", EDGE_Y_BOTTOM - 2* Y_PADDING, WHITE, false, 1, true, GRAY_MED)
+    drawCenteredText("Press 'SELECT' (A) to Quit", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
 end
 
 
@@ -817,17 +887,21 @@ end
 -- STATE: GAMEOVER
 -- ==========================================
 
-function updateGameover()
-    if btnPressed(BTN_P1_A) or btnPressed(BTN_P1_B) then
+function inputGameover()
+    if btnp(BTN_P1_A) or btnp(BTN_P1_B) then
         changeState(STATE.START)
     end
+end
+
+function updateGameover()
+
 end
 
 function drawGameover()
     drawGame()
 
-    drawCenteredText("GAME OVER", EDGE_Y_TOP + Y_PADDING, ORANGE, nil, 3, nil, YELLOW)
-    drawCenteredText("Press Z or X to see high scores", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, false, GRAY_MED)
+    drawOverlayBox("GAME OVER")
+    drawCenteredText("Press Z to Continue", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
 end
 
 
@@ -839,7 +913,7 @@ end
 -- STATE MACHINE
 -- ==========================================
 
-local states = {
+states = {
     [STATE.START] = {
         input  = inputStart,
         update = updateStart,
@@ -889,6 +963,7 @@ function BOOT()
     changeState(STATE.START)
 end
 
+
 function TIC()
     local currentState = states[game.state]
     if currentState then
@@ -899,14 +974,25 @@ function TIC()
 end
 
 -- <TILES>
--- 001:eccccccccc888888caaaaaaaca888888cacccccccacc0ccccacc0ccccacc0ccc
--- 002:ccccceee8888cceeaaaa0cee888a0ceeccca0ccc0cca0c0c0cca0c0c0cca0c0c
--- 003:eccccccccc888888caaaaaaaca888888cacccccccacccccccacc0ccccacc0ccc
--- 004:ccccceee8888cceeaaaa0cee888a0ceeccca0cccccca0c0c0cca0c0c0cca0c0c
--- 017:cacccccccaaaaaaacaaacaaacaaaaccccaaaaaaac8888888cc000cccecccccec
--- 018:ccca00ccaaaa0ccecaaa0ceeaaaa0ceeaaaa0cee8888ccee000cceeecccceeee
--- 019:cacccccccaaaaaaacaaacaaacaaaaccccaaaaaaac8888888cc000cccecccccec
--- 020:ccca00ccaaaa0ccecaaa0ceeaaaa0ceeaaaa0cee8888ccee000cceeecccceeee
+-- 001:00000000000000000000000000000000000b0000000000000000000000000000
+-- 002:0000000000020000000000000000000000000000000000000000000000000000
+-- 003:0000000000000000000000000000000000000000000000000000000000000004
+-- 016:c00000000c00000000c00000000cc000000ccc000000ccc000000ccc000000cc
+-- 017:00000000000000000000000000000000000000000000000000000011c0001111
+-- 018:0000000000000000000001110001111201122222112222331122233322233334
+-- 019:0011000011111000121221101121211122111211322112113321121133232111
+-- 032:0000000c00000000000000000000000100000011000001110000011100001112
+-- 033:cc111122ccc111241ccc444011ccc000114c0000124000002440000024000000
+-- 034:2233344344443433000444430000443300000432000044330000433300044432
+-- 035:3223211232322111223211212322112122211221321112102211111023111100
+-- 048:0001122200011212001121230012112300111233001112330111223301212333
+-- 049:2400000034000000240000003440004434404444444444224334223344333332
+-- 050:004433320443332344432233443223312222222122222311223332112333221c
+-- 051:331210003111000011210000121000001110000010000000c0000000c0000000
+-- 064:0121222301212233012212330112122201121222001112220001111100000111
+-- 065:3333333323333232333333322333332222222221222221101111100011100000
+-- 066:233221cc22221000221100001010000000000000000000000000000000000000
+-- 067:cc000000ccc000000ccc000000ccc0000000c00000000c00000000c00000000c
 -- </TILES>
 
 -- <WAVES>

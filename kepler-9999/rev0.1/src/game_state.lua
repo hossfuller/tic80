@@ -64,9 +64,7 @@ function changeState(newState)
     -- State entry logic
     if newState == STATE.READY then
         -- Reset game state for new game
-        game.play.score = 0
-        game.play.playerX = EDGE_X_RIGHT / 2
-        game.play.playerY = EDGE_Y_BOTTOM / 2
+        generateStarMap()
     end
 end
 

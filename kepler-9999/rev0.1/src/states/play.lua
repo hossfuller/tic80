@@ -25,6 +25,15 @@ end
 function drawGame()
     cls(BLACK)
 
+    -- Draw generated star map.
+    map(
+        0, 0, -- map x/y in tiles
+        SCREEN_TILES_W,
+        SCREEN_TILES_H,
+        0, 0, -- screen x/y in pixels
+        0     -- transparent color
+    )
+
     -- ================================
     -- YOUR GAME RENDERING HERE
     -- ================================

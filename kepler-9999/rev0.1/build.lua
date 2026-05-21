@@ -14,10 +14,10 @@
 -- INCLUDES
 -- ==========================================
 
--- [TQ-Bundler: src.constants]
+-- [TQ-Bundler: src.constants_tic80]
 
 -- ==========================================
--- CONSTANTS
+-- TIC80 CONSTANTS
 -- ==========================================
 
 -- Colors
@@ -56,16 +56,77 @@ local EDGE_X_RIGHT  = 240
 local EDGE_Y_TOP    = 0
 local EDGE_Y_BOTTOM = 136
 
+-- Map dimensions
+local MAP_W          = EDGE_X_RIGHT
+local MAP_H          = EDGE_Y_BOTTOM
+local SCREEN_TILES_W = 30             -- 240 / 8
+local SCREEN_TILES_H = 17             -- 136 / 8
+
 -- Character dimensions (these scale linearly)
 local FIXED_CHAR_WIDTH  = 6
 local FIXED_CHAR_HEIGHT = 6
 local X_PADDING         = FIXED_CHAR_WIDTH + 2
 local Y_PADDING         = FIXED_CHAR_HEIGHT + 2
 
-local DEBUG             = false
+
+-- [/TQ-Bundler: src.constants_tic80]
+
+-- [TQ-Bundler: src.constants_game]
+
+-- ==========================================
+-- GAME CONSTANTS
+-- ==========================================
+
+local DEBUG = false
+
+local TILE_EMPTY       = 0
+local TILE_STAR_DIM    = 1
+local TILE_STAR_MED    = 2
+local TILE_STAR_BRIGHT = 3
 
 
--- [/TQ-Bundler: src.constants]
+-- [/TQ-Bundler: src.constants_game]
+
+-- [TQ-Bundler: src.generators]
+
+-- ==========================================
+-- GENERATORS
+-- ==========================================
+
+function generateStarMap()
+    -- Clear whole TIC-80 map.
+    for y = 0, MAP_H - 1 do
+        for x = 0, MAP_W - 1 do
+            mset(x, y, TILE_EMPTY)
+        end
+    end
+
+    -- Fill the visible screen area with sparse random stars.
+    for y = 0, SCREEN_TILES_H - 1 do
+        for x = 0, SCREEN_TILES_W - 1 do
+            local roll = math.random(1, 100)
+
+            if roll <= 4 then
+                -- 4% chance of a star in this tile.
+
+                local star_roll = math.random(1, 100)
+
+                if star_roll <= 70 then
+                    mset(x, y, TILE_STAR_DIM)
+                elseif star_roll <= 95 then
+                    mset(x, y, TILE_STAR_MED)
+                else
+                    mset(x, y, TILE_STAR_BRIGHT)
+                end
+            else
+                mset(x, y, TILE_EMPTY)
+            end
+        end
+    end
+end
+
+
+-- [/TQ-Bundler: src.generators]
 
 -- [TQ-Bundler: src.game_state]
 
@@ -135,9 +196,7 @@ function changeState(newState)
     -- State entry logic
     if newState == STATE.READY then
         -- Reset game state for new game
-        game.play.score = 0
-        game.play.playerX = EDGE_X_RIGHT / 2
-        game.play.playerY = EDGE_Y_BOTTOM / 2
+        generateStarMap()
     end
 end
 
@@ -747,6 +806,15 @@ end
 function drawGame()
     cls(BLACK)
 
+    -- Draw generated star map.
+    map(
+        0, 0, -- map x/y in tiles
+        SCREEN_TILES_W,
+        SCREEN_TILES_H,
+        0, 0, -- screen x/y in pixels
+        0     -- transparent color
+    )
+
     -- ================================
     -- YOUR GAME RENDERING HERE
     -- ================================
@@ -894,6 +962,7 @@ function BOOT()
     applyAllOptions()
     changeState(STATE.START)
 end
+
 
 function TIC()
     local currentState = states[game.state]
