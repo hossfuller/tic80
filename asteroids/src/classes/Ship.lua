@@ -228,7 +228,7 @@ function Ship:checkLaserHitAlien(alien)
     if not alien or not alien:isActive() then
         return false
     end
-    
+
     for laser_index, laser in ipairs(self.laser_blasts) do
         local alien_r = alien:getBoundingRadius()
         local separation_value = self:checkSeparation(
@@ -246,7 +246,7 @@ function Ship:checkLaserHitAlien(alien)
                 table.remove(self.laser_blasts, laser_index)
                 self:laserHitEffect(hit_position)
                 alien:takesDamage(1)
-                return true
+                return alien.dead
             end
         end
     end

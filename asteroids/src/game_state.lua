@@ -36,11 +36,6 @@ game = {
                 values = { "Easy", "Medium", "Hard" },
                 current = DIFFICULTY.MEDIUM,
 
-                -- Function to apply this setting.
-                -- Difficulty values:
-                --   1 = Easy
-                --   2 = Medium
-                --   3 = Hard
                 apply = function(value)
                     -- Store current difficulty for high scores.
                     game.play.diff = value
@@ -125,11 +120,17 @@ game = {
                 elasticity     = 0.95,
             },
             alien = {
-                min_level  = 3,
-                min_health = 3,
-                cur_health = 3,
-                speed_min  = 0.3,
-                speed_max  = 0.7,
+                min_level           = 3,
+                min_health          = 3,
+                cur_health          = 3,
+                speed_min           = 0.3,
+                speed_max           = 0.7,
+                fire_interval_start = 120,   -- frames between shots when aliens first appear
+                fire_interval_min   = 25,    -- fastest possible interval
+                fire_interval_step  = 10,    -- interval reduction per level after min_level
+                laser_speed         = 1.5,
+                laser_lifetime      = 90,
+                laser_damage        = 35,
             }
         },
         player                = {},
@@ -224,11 +225,14 @@ function generateAlien()
     end
 
     game.play.alien = Alien:new({
-        x          = spawn_x,
-        y          = math.random(20, EDGE_Y_BOTTOM - 20),
-        speed      = speed,
-        direction  = direction,
-        max_health = params.cur_health,  -- USE TRACKED HEALTH
+        x              = spawn_x,
+        y              = math.random(20, EDGE_Y_BOTTOM - 20),
+        speed          = speed,
+        direction      = direction,
+        max_health     = params.cur_health,
+        laser_speed    = params.laser_speed,
+        laser_lifetime = params.laser_lifetime,
+        laser_damage   = params.laser_damage,
     })
 
     -- Increment health for next spawn

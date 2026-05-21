@@ -14,7 +14,7 @@ end
 
 function updatePlay()
     local player = game.play.player
-    local alien = game.play.alien
+    local alien  = game.play.alien
 
     player:move()
     if game.play.params.player.deadstop_allow == true and btn(BTN_P1_DOWN) then
@@ -30,11 +30,16 @@ function updatePlay()
     end
 
     -- Move the alien if it exists and is active
-    if alien and alien:isActive() then
+    -- Move the alien if it exists.
+    if alien then
         alien:move()
-    elseif alien and alien.dead then
-        -- Still update particles for dead alien
-        alien:move()
+
+        -- Alien shooting and laser movement.
+        if alien:isActive() then
+            alien:updateShooting(player, game.play.level)
+        end
+
+        alien:moveLaserBlasts()
     end
 
     -- Move the laser blast and then check if it hit anything.
@@ -77,6 +82,16 @@ function updatePlay()
             end
         else
             asteroid:move()
+        end
+    end
+
+    -- Check if alien lasers hit asteroids first. This allows asteroids to block
+    -- alien shots. Then check if remaining alien lasers hit the player.
+    if alien then
+        alien:checkLaserHitAsteroids(game.play.asteroids)
+
+        if alien:isActive() then
+            alien:checkLaserHitPlayer(player)
         end
     end
 
@@ -226,9 +241,11 @@ function drawPlay()
     player:drawParticles(player.TYPES.THRUST)
 
     -- Draw alien if it exists
-    if alien and alien.active then
+    if alien then
         alien:draw()
-        drawAlienHealthBar()
+        if alien.active then
+            drawAlienHealthBar()
+        end
     end
 
     for index, asteroid in ipairs(game.play.asteroids) do

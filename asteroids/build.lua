@@ -225,11 +225,6 @@ game = {
                 values = { "Easy", "Medium", "Hard" },
                 current = DIFFICULTY.MEDIUM,
 
-                -- Function to apply this setting.
-                -- Difficulty values:
-                --   1 = Easy
-                --   2 = Medium
-                --   3 = Hard
                 apply = function(value)
                     -- Store current difficulty for high scores.
                     game.play.diff = value
@@ -314,11 +309,17 @@ game = {
                 elasticity     = 0.95,
             },
             alien = {
-                min_level  = 3,
-                min_health = 3,
-                cur_health = 3,
-                speed_min  = 0.3,
-                speed_max  = 0.7,
+                min_level           = 3,
+                min_health          = 3,
+                cur_health          = 3,
+                speed_min           = 0.3,
+                speed_max           = 0.7,
+                fire_interval_start = 120,   -- frames between shots when aliens first appear
+                fire_interval_min   = 25,    -- fastest possible interval
+                fire_interval_step  = 10,    -- interval reduction per level after min_level
+                laser_speed         = 1.5,
+                laser_lifetime      = 90,
+                laser_damage        = 35,
             }
         },
         player                = {},
@@ -413,11 +414,14 @@ function generateAlien()
     end
 
     game.play.alien = Alien:new({
-        x          = spawn_x,
-        y          = math.random(20, EDGE_Y_BOTTOM - 20),
-        speed      = speed,
-        direction  = direction,
-        max_health = params.cur_health,  -- USE TRACKED HEALTH
+        x              = spawn_x,
+        y              = math.random(20, EDGE_Y_BOTTOM - 20),
+        speed          = speed,
+        direction      = direction,
+        max_health     = params.cur_health,
+        laser_speed    = params.laser_speed,
+        laser_lifetime = params.laser_lifetime,
+        laser_damage   = params.laser_damage,
     })
 
     -- Increment health for next spawn
@@ -717,7 +721,7 @@ end
 
 function updatePlay()
     local player = game.play.player
-    local alien = game.play.alien
+    local alien  = game.play.alien
 
     player:move()
     if game.play.params.player.deadstop_allow == true and btn(BTN_P1_DOWN) then
@@ -733,11 +737,16 @@ function updatePlay()
     end
 
     -- Move the alien if it exists and is active
-    if alien and alien:isActive() then
+    -- Move the alien if it exists.
+    if alien then
         alien:move()
-    elseif alien and alien.dead then
-        -- Still update particles for dead alien
-        alien:move()
+
+        -- Alien shooting and laser movement.
+        if alien:isActive() then
+            alien:updateShooting(player, game.play.level)
+        end
+
+        alien:moveLaserBlasts()
     end
 
     -- Move the laser blast and then check if it hit anything.
@@ -780,6 +789,16 @@ function updatePlay()
             end
         else
             asteroid:move()
+        end
+    end
+
+    -- Check if alien lasers hit asteroids first. This allows asteroids to block
+    -- alien shots. Then check if remaining alien lasers hit the player.
+    if alien then
+        alien:checkLaserHitAsteroids(game.play.asteroids)
+
+        if alien:isActive() then
+            alien:checkLaserHitPlayer(player)
         end
     end
 
@@ -929,9 +948,11 @@ function drawPlay()
     player:drawParticles(player.TYPES.THRUST)
 
     -- Draw alien if it exists
-    if alien and alien.active then
+    if alien then
         alien:draw()
-        drawAlienHealthBar()
+        if alien.active then
+            drawAlienHealthBar()
+        end
     end
 
     for index, asteroid in ipairs(game.play.asteroids) do
@@ -2256,7 +2277,7 @@ function Ship:checkLaserHitAlien(alien)
     if not alien or not alien:isActive() then
         return false
     end
-    
+
     for laser_index, laser in ipairs(self.laser_blasts) do
         local alien_r = alien:getBoundingRadius()
         local separation_value = self:checkSeparation(
@@ -2274,7 +2295,7 @@ function Ship:checkLaserHitAlien(alien)
                 table.remove(self.laser_blasts, laser_index)
                 self:laserHitEffect(hit_position)
                 alien:takesDamage(1)
-                return true
+                return alien.dead
             end
         end
     end
@@ -2401,13 +2422,14 @@ function Alien:new(params)
         { x = 6,  y = 0  }
     }
 
-    -- Alien doesn't use lasers (for now)
+    -- Alien laser settings
+    self.fire_timer   = 0
     self.laser_blasts = {}
     self.laser_params = {
-        lifetime  = 0,
-        max_shots = 0,
-        speed     = 0,
-        offset    = { x = 0, y = 0 }
+        lifetime = params.laser_lifetime or 90,
+        speed    = params.laser_speed    or 1.5,
+        damage   = params.laser_damage   or 35,
+        offset   = { x = 6, y = 0 },
     }
 
     -- Point rotation in direction of travel
@@ -2451,6 +2473,145 @@ end
 -- ==========================================
 -- ALIEN UPDATE
 -- ==========================================
+
+function Alien:getFireInterval(level)
+    local params             = game.play.params.alien
+    local levels_after_spawn = math.max(0, level - params.min_level)
+    local interval           = params.fire_interval_start - (levels_after_spawn * params.fire_interval_step)
+    return math.max(params.fire_interval_min, interval)
+end
+
+function Alien:getDirectionToTarget(target)
+    local dx        = target.position.x - self.position.x
+    local dy        = target.position.y - self.position.y
+    local direction = math.atan(dy, dx)
+    return self:keepAngleInRange(direction)
+end
+
+function Alien:fireAtPlayer(player)
+    if not player or player.dead then
+        return
+    end
+
+    local direction     = self:getDirectionToTarget(player)
+    local rel_spawn_pos = self:rotatePoint(self.laser_params.offset, direction)
+    local laser         = {
+        position = {
+            x = self.position.x + rel_spawn_pos.x,
+            y = self.position.y + rel_spawn_pos.y,
+        },
+        velocity = {
+            speed     = self.laser_params.speed,
+            direction = direction,
+        },
+        lifetime = self.laser_params.lifetime,
+        damage   = self.laser_params.damage,
+    }
+    table.insert(self.laser_blasts, laser)
+
+    sfx(0, 30, 15, 0, 8, 1)
+end
+
+function Alien:updateShooting(player, level)
+    if not self:isActive() then
+        return
+    end
+    self.fire_timer = self.fire_timer + 1
+    local interval = self:getFireInterval(level)
+    if self.fire_timer >= interval then
+        self.fire_timer = 0
+        self:fireAtPlayer(player)
+    end
+end
+
+function Alien:moveLaserBlasts()
+    for index = #self.laser_blasts, 1, -1 do
+        local laser    = self.laser_blasts[index]
+        laser.lifetime = laser.lifetime - 1
+        if laser.lifetime < 0 then
+            table.remove(self.laser_blasts, index)
+        else
+            laser.position = self:movePointByVelocity(laser)
+            laser.position = self:wrapPosition(laser)
+        end
+    end
+end
+
+function Alien:checkLaserHitAsteroids(asteroids)
+    for laser_index = #self.laser_blasts, 1, -1 do
+        local laser = self.laser_blasts[laser_index]
+
+        for asteroid_index = #asteroids, 1, -1 do
+            local asteroid         = asteroids[asteroid_index]
+            local ast_r            = asteroid:getRadius()
+            local ast_r_var        = asteroid:getRadiusPlusMinus()
+            local separation_value = self:checkSeparation(
+                laser.position,
+                asteroid.position,
+                ast_r + ast_r_var.plus
+            )
+
+            if separation_value and self:pointInPolygon(laser.position, asteroid) then
+                local hit_position = {
+                    x = laser.position.x,
+                    y = laser.position.y,
+                }
+
+                table.remove(self.laser_blasts, laser_index)
+                self:laserHitEffect(hit_position)
+
+                local fragments = asteroid:explode()
+                table.remove(asteroids, asteroid_index)
+                if fragments then
+                    for _, fragment in ipairs(fragments) do
+                        table.insert(asteroids, fragment)
+                    end
+                end
+
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
+function Alien:checkLaserHitPlayer(player)
+    if not player or player.dead then
+        return false
+    end
+
+    if player.invulnerable and player.invulnerable > 0 then
+        return false
+    end
+
+    for laser_index = #self.laser_blasts, 1, -1 do
+        local laser            = self.laser_blasts[laser_index]
+        local player_r         = player:getBoundingRadius()
+        local separation_value = self:checkSeparation(
+            laser.position,
+            player.position,
+            player_r
+        )
+
+        if separation_value and self:pointInPolygon(laser.position, player) then
+            local hit_position = {
+                x = laser.position.x,
+                y = laser.position.y,
+            }
+            table.remove(self.laser_blasts, laser_index)
+            self:laserHitEffect(hit_position)
+            player:takesDamage(laser.damage)
+            if player:getHealth() <= 0 then
+                player:kill()
+            end
+
+            return true
+        end
+    end
+
+    return false
+end
 
 function Alien:move()
     if self.dead then
@@ -2505,14 +2666,23 @@ end
 -- ALIEN DRAW
 -- ==========================================
 
+function Alien:drawLaserBlasts()
+    for _, laser in ipairs(self.laser_blasts) do
+        -- Use a simple red/yellow pixel or small circle.
+        circ(laser.position.x, laser.position.y, 1, RED)
+        pix(laser.position.x, laser.position.y, YELLOW)
+    end
+end
+
 function Alien:draw()
     if not self.dead then
         self:drawBody()
     end
-
+    self:drawLaserBlasts()
     self:drawParticles(self.TYPES.EXPLOSION)
     self:drawParticles(self.TYPES.SPARK)
 end
+
 
 -- [/TQ-Bundler: src.classes.Alien]
 
