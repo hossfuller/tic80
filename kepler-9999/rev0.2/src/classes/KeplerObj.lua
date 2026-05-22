@@ -9,6 +9,13 @@ function KeplerObj.new(params)
     params = params or {}
     local self = setmetatable({}, KeplerObj)
 
+    self.colors = {
+        primary   = params.primary_color   or BLUE_MED,
+        secondary = params.secondary_color or WHITE,
+        tertiary  = params.tertiary_color  or YELLOW,
+    }
+    self.color = self.colors.primary    -- In case it's a one-color object.
+
     self.mass   = params.mass or 100   -- (kg)
     self.radius = params.radius or 10  -- (m)
 
@@ -20,9 +27,9 @@ function KeplerObj.new(params)
         speed     = params.speed     or 0,
         direction = params.direction or 0,
     }
-    self.acceleration   = params.acceleration or 0.05
-    self.deceleration   = params.deceleration or 0.01
-    self.rotation       = params.rotation or 5
+    self.acceleration   = params.acceleration   or 0.05
+    self.deceleration   = params.deceleration   or 0.01
+    self.rotation       = params.rotation       or 5
     self.rotation_speed = params.rotation_speed or 0.07
 
     -- For deflections: 1.0 = perfectly elastic, <1.0 loses speed

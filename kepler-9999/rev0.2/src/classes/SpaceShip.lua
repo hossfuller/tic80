@@ -14,25 +14,31 @@ function SpaceShip:new(params)
     -- regeneration. These also act as a multiplier for the max values.
     self.engines = {
         energy = {
-            max = params.max_energy or 100,
             cur = params.cur_energy or 100,
+            max = params.max_energy or 100,
             mul = params.mul_energy or 1,
+            tik = params.tik_energy or 60,
         },
         life_support = {
-            max = params.max_life_support or 100,
             cur = params.cur_life_support or 100,
+            max = params.max_life_support or 100,
             mul = params.mul_life_support or 1,
+            tik = params.tik_life_support or 600,
         },
         shield = {
-            max = params.max_shield or 100,
             cur = params.cur_shield or 100,
+            max = params.max_shield or 100,
             mul = params.mul_shield or 1,
+            tik = params.tik_shield or 120,
         },
     }
 
-    self.mass       = params.mass or 100 -- (kg)
-    self.radius     = params.radius or 10 -- (m)
+    self.mass       = params.mass       or 100 -- (kg)
+    self.radius     = params.radius     or 10 -- (m)
     self.elasticity = params.elasticity or 0.5
+
+    self.max_speed  = params.max_speed or 2.5
+    self.max_mass   = params.max_mass or 1000 -- (kg)
 
     -- The default SpaceShip shape
     self.shape = params.shape or {
@@ -56,65 +62,65 @@ function SpaceShip:new(params)
         respawn_timer = 0,
     }
 
-    -- Particle Effects
-    self.particles = {
-        explosion = {
-            colors = { YELLOW, ORANGE, RED },
-            params = {
-                cooldown      = 0,
-                deceleration  = 0.015,
-                max_lifetime  = 90,
-                max_size      = 3,
-                max_speed     = 2,
-                num_particles = 100,
-                offset        = { x = 0, y = 0 },
-                type          = "explosion",
-            },
-            particles = {},
-        },
-        smoke = {
-            colors = { GRAY_LITE, GRAY_MED, GRAY_DARK },
-            params = {
-                cooldown      = 0,
-                deceleration  = 0.015,
-                max_lifetime  = 90,
-                max_size      = 3,
-                max_speed     = 2,
-                num_particles = 100,
-                offset        = { x = 0, y = 0 },
-                type          = "smoke",
-            },
-            particles = {},
-        },
-        spark = {
-            colors = { ORANGE },
-            params = {
-                cooldown      = 0,
-                deceleration  = 0.01,
-                max_lifetime  = 30,
-                max_size      = 1,
-                max_speed     = 2,
-                num_particles = 30,
-                offset        = { x = 0, y = 0 },
-                type          = "spark",
-            },
-            particles = {},
-        },
-        thrust = {
-            colors = { YELLOW, ORANGE, RED, GRAY_LITE, GRAY_MED, GRAY_DARK },
-            params = {
-                cooldown      = 0,
-                deceleration  = 0.01,
-                max_lifetime  = 30,
-                max_size      = 1,
-                max_speed     = 2,
-                num_particles = 5,
-                offset        = { x = -5, y = 0 },
-                type          = "thrust",
-            },
-            particles = {},
-        },
-    }
+    -- -- Particle Effects
+    -- self.particles = {
+    --     explosion = {
+    --         colors = { YELLOW, ORANGE, RED },
+    --         params = {
+    --             cooldown      = 0,
+    --             deceleration  = 0.015,
+    --             max_lifetime  = 90,
+    --             max_size      = 3,
+    --             max_speed     = 2,
+    --             num_particles = 100,
+    --             offset        = { x = 0, y = 0 },
+    --             type          = "explosion",
+    --         },
+    --         particles = {},
+    --     },
+    --     smoke = {
+    --         colors = { GRAY_LITE, GRAY_MED, GRAY_DARK },
+    --         params = {
+    --             cooldown      = 0,
+    --             deceleration  = 0.015,
+    --             max_lifetime  = 90,
+    --             max_size      = 3,
+    --             max_speed     = 2,
+    --             num_particles = 100,
+    --             offset        = { x = 0, y = 0 },
+    --             type          = "smoke",
+    --         },
+    --         particles = {},
+    --     },
+    --     spark = {
+    --         colors = { ORANGE },
+    --         params = {
+    --             cooldown      = 0,
+    --             deceleration  = 0.01,
+    --             max_lifetime  = 30,
+    --             max_size      = 1,
+    --             max_speed     = 2,
+    --             num_particles = 30,
+    --             offset        = { x = 0, y = 0 },
+    --             type          = "spark",
+    --         },
+    --         particles = {},
+    --     },
+    --     thrust = {
+    --         colors = { YELLOW, ORANGE, RED, GRAY_LITE, GRAY_MED, GRAY_DARK },
+    --         params = {
+    --             cooldown      = 0,
+    --             deceleration  = 0.01,
+    --             max_lifetime  = 30,
+    --             max_size      = 1,
+    --             max_speed     = 2,
+    --             num_particles = 5,
+    --             offset        = { x = -5, y = 0 },
+    --             type          = "thrust",
+    --         },
+    --         particles = {},
+    --     },
+    -- }
 
     return self
 end
@@ -160,6 +166,11 @@ end
 -- ==========================================
 -- SPACESHIP ENGINE MANAGEMENT
 -- ==========================================
+
+-- TODO:
+-- 1. Whenever one of these values regenerates, it pulls from energy. Unless
+--    energy regenerates, and that happens on its own.
+-- 2. Whenever one of these values gets upgraded, the ship's mass increases.
 
 -- function SpaceShip:modifyEngineMaxValue(type, upgrade)
 --     if type == nil then
@@ -554,7 +565,7 @@ end
 function SpaceShip:deadStop()
     local s = self.velocity.speed
     if self.velocity.speed <= 0 then
-        self.velocity.speed = 0
+        self.velocity.speed     = 0
         self.velocity.direction = 0
         return
     end
@@ -562,7 +573,7 @@ function SpaceShip:deadStop()
     -- Smoothly reduce speed; never goes negative
     self.velocity.speed = self.velocity.speed * (1 - self.deadstop.brake)
     if self.velocity.speed < self.deadstop.snap then
-        self.velocity.speed = 0
+        self.velocity.speed     = 0
         self.velocity.direction = 0
     end
 end
@@ -573,6 +584,9 @@ function SpaceShip:thrust()
         direction = self.rotation
     }
     self.velocity = self:addVectors(self.velocity, acceleration)
+    if self.velocity.speed > self.max_speed then
+        self.velocity.speed = self.max_speed
+    end
 
     -- self:thrustEffect()
     -- sfx(3, 10, 10, 3, -8, 1)
@@ -581,10 +595,10 @@ end
 -- Need to do an energy check before doing any of the following.
 function SpaceShip:input()
     if not self.mortality.dead then
-        if btnp(BTN_P1_UP) then
+        if btn(BTN_P1_UP) then
             self:thrust()
         end
-        if btnp(BTN_P1_DOWN) then
+        if btn(BTN_P1_DOWN) then
             self:deadStop()
         end
         if btn(BTN_P1_LEFT) then
@@ -604,7 +618,7 @@ end
 
 function SpaceShip:move()
 
-    if not self.dead then
+    if not self.mortality.dead then
         -- We want to be able to coast without any deceleration....
         -- self.velocity.speed = self.velocity.speed - self.deceleration
         -- if self.velocity.speed < 0 then
@@ -617,7 +631,9 @@ function SpaceShip:move()
         --     self:leakingSmoke(health_frac)
         -- end
 
-        self.position = self:movePointByVelocity()
+        self.position   = self:movePointByVelocity()
+        self.position.x = clamp(self.position.x, 0, MAP_PIXELS_W - 1)
+        self.position.y = clamp(self.position.y, 0, MAP_PIXELS_H - 1)
     else
         -- Dead ship body does not move, but particles still animate.
         -- self:moveParticles(self.TYPES.EXPLOSION)
@@ -652,8 +668,11 @@ end
 
 function SpaceShip:drawBody()
     local first_point = true
-    local last_point = 0
-    local rotated_point = 0
+    local last_point = nil
+    local rotated_point = nil
+
+    local screen_x = self.position.x - game.camera.x
+    local screen_y = self.position.y - game.camera.y
 
     for index, point in ipairs(self.shape) do
         rotated_point = self:rotatePoint(point, self.rotation)
@@ -663,12 +682,13 @@ function SpaceShip:drawBody()
             first_point = false
         else
             line(
-                last_point.x + self.position.x,
-                last_point.y + self.position.y,
-                rotated_point.x + self.position.x,
-                rotated_point.y + self.position.y,
+                last_point.x + screen_x,
+                last_point.y + screen_y,
+                rotated_point.x + screen_x,
+                rotated_point.y + screen_y,
                 self.color
             )
+
             last_point = rotated_point
         end
     end

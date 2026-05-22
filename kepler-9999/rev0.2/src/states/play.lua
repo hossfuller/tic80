@@ -8,63 +8,47 @@ function inputPlay()
     end
 
     -- Push all button monitoring off on the player class.
-    -- if not game.play.player.dead then
-    --     game.play.player:input()
-    -- end
-end
-
--- ============
--- For testing
--- ============
-function updatePlayer()
-    local player = game.play.player
-
-    local dx = 0
-    local dy = 0
-
-    if btn(BTN_P1_LEFT) then
-        dx = dx - 1
+    if not game.play.player.dead then
+        game.play.player:input()
     end
-
-    if btn(BTN_P1_RIGHT) then
-        dx = dx + 1
-    end
-
-    if btn(BTN_P1_UP) then
-        dy = dy - 1
-    end
-
-    if btn(BTN_P1_DOWN) then
-        dy = dy + 1
-    end
-
-    -- Normalize diagonal movement.
-    if dx ~= 0 and dy ~= 0 then
-        local inv = 1 / math.sqrt(2)
-        dx = dx * inv
-        dy = dy * inv
-    end
-
-    player.x = player.x + dx * player.speed
-    player.y = player.y + dy * player.speed
-
-    player.x = clamp(player.x, 0, MAP_PIXELS_W - 1)
-    player.y = clamp(player.y, 0, MAP_PIXELS_H - 1)
 end
 
 function updatePlay()
-    updatePlayer()
-    updateCamera(game.play.player, game.camera)
-end
-
-function drawPlayer()
     local player = game.play.player
+    player:move()
+    updateCamera(player, game.camera)
 
-    local screen_x, screen_y = worldToScreen(player.x, player.y)
+    -- Regenerate energy, life support, and shields. tik check happens within
+    -- the regenerate function.
+    -- if player:everyNTicks(90) then
+    --     player:regenerateHealth()
+    -- end
 
-    circ(screen_x, screen_y, 3, CYAN)
-    pix(screen_x, screen_y, WHITE)
+    -- If ship is dead, count down and respawn or gameover
+    if player.mortality.dead then
+        player.mortality.respawn_timer = player.mortality.respawn_timer - 1
+
+        if player.mortality.respawn_timer <= 0 then
+            if player.mortality.num_lives <= 0 then
+                changeState(STATE.GAMEOVER)
+                return
+
+            -- We'll figure this out later
+            -- else
+            --     player:respawn()
+            end
+        end
+    else
+        -- Check for collisions.
+    end
+
+    -- tick invulnerability
+    if player.mortality.invulnerable > 0 then
+        player.mortality.invulnerable = player.mortality.invulnerable - 1
+    end
+
 end
+
 
 function drawStarMap()
     local camera = game.camera
@@ -101,21 +85,25 @@ function drawDebugCameraInfo()
     local player = game.play.player
     local camera = game.camera
 
-    local screen_x = math.floor(player.x / SCREEN_W)
-    local screen_y = math.floor(player.y / SCREEN_H)
+    local screen_x = math.floor(player.position.x / SCREEN_W)
+    local screen_y = math.floor(player.position.y / SCREEN_H)
 
     local debug_statements = {
-        "Player X: " .. math.floor(player.x),
-        "Player Y: " .. math.floor(player.y),
+        "Player X: " .. math.floor(player.position.x),
+        "Player Y: " .. math.floor(player.position.y),
+        "Player Vs: " .. string.format("%.3f", player.velocity.speed),
+        "Player Vd: " .. string.format("%.3f", player.velocity.direction),
         "Camera X: " .. math.floor(camera.x),
         "Camera Y: " .. math.floor(camera.y),
         "MAP SCREEN: " .. screen_x .. "," .. screen_y,
     }
     for index, debug_msg in ipairs(debug_statements) do
-        local debug_color = WHITE
+        local debug_color = BLUE_LITE
         if index == 3 or index == 4 then
             debug_color = CYAN
-        elseif index == 5 then
+        elseif index == 5 or index == 6 then
+            debug_color = WHITE
+        elseif index > 6 then
             debug_color = YELLOW
         end
         local len = print(debug_msg, -10, -10, debug_color, true)
@@ -134,7 +122,16 @@ function drawGame()
 
     drawStarMap()
 
-    drawPlayer()
+    local player = game.play.player
+    if not player.mortality.dead and player:shouldDraw() then
+        player:drawBody()
+    end
+
+    -- Draw particle effects even if the ship explodes and isn't drawn anymore.
+    -- player:drawParticles(player.TYPES.EXPLOSION)
+    -- player:drawParticles(player.TYPES.SMOKE)
+    -- player:drawParticles(player.TYPES.SPARK)
+    -- player:drawParticles(player.TYPES.THRUST)
 
     drawUserHud()
 end

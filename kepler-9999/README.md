@@ -13,10 +13,10 @@ The ship will have energy, health, and shield bars. Shields take the damage and 
 
 #### Needed skills to develop
 
-- [ ] Vector spaceships with energy, health, and shields.
-- [ ] Camera that follows the spaceship across entire game map.
+- [x] Vector spaceships with energy, health, and shields.
+- [x] Camera that follows the spaceship across entire game map.
+- [x] Randomized map upon game start that stays the same throughout the game.
 - [ ] A main star, planets, and other space stuff with gravity that affects the spaceship.
-- [ ] Randomized map upon game start that stays the same throughout the game.
 
 #### Development Plan
 
@@ -27,33 +27,36 @@ The different revisions implement separate features. This list is ever changing.
     - [x] Debug screen that displays user's map location.
     - [x] Backdrop of stationary random stars, black holes, and distant galaxies.
 - [ ] **REV0.2**: Spaceships, modeled on the Asteroids work.
-    - [ ] Different space ship designs for different purposes.
-    - [ ] Spaceships have attributes like mass, engine power, etc that affect things like movement and shield regeneration.
-    - [ ] Ships have maximum values for things like mass, etc.
-    - [ ] Energy for movement, health and shields for life.
-    - [ ] Bring over Asteroids particle effects like explosions, thrust, sparks, and smoke.
+    - [x] Spaceships have attributes like mass, engine power, etc that affect things like movement and shield regeneration.
+    - [x] Energy for movement, health and shields for life.
     - [ ] Implement the player's HUD screen.
-- [ ] **REV0.3**: Add foreground heavenly bodies.
+- [ ] **REV0.3**: User can select the ship type they want.
+    - [ ] Different space ship designs for different purposes.
+    - [ ] Different types of spaceships with max_speed/holds being inversely proportional: freight (solid/liquid?), passengers, smugglers
+    - [ ] User selects their ship type from the options screen.
+    - [ ] Ship selection dictates ships' maximum values for mass, speed, etc.
+- [ ] **REV0.4**: Add foreground heavenly bodies.
     - [ ] Parent class for all heavenly bodies with mass, radius, color.
     - [ ] Implement keplarian orbital mechanics
     - [ ] Add mouse controls that allow us to zoom in and out of map.
-- [ ] **REV0.4**: Spaceships, modeled on the Asteroids work.
+- [ ] **REV0.5**: Spaceships, modeled on the Asteroids work, get physics
     - [ ] Collision detection.
     - [ ] Can feel gravitational effects from heavenly bodies.
-- [ ] **REV0.5**: Refined heavenly bodies.
+    - [ ] Implement inertia and make the energy engine feel it.
+    - [ ] Bring over Asteroids particle effects like explosions, thrust, sparks, and smoke.
+- [ ] **REV0.6**: Refined heavenly bodies.
     - [ ] Randomly generated names, colors, atmospherics for planets and moons.
     - [ ] AAU-style names for anything smaller than a moon.
     - [ ] When a ship is within 2 map screens of a big-enough heavenly body, put an arrow on the screen with the body's name and current distance.
-- [ ] **REV0.6**: Space docking, cargo, and passengers
+- [ ] **REV0.7**: Space docking, cargo, and passengers
     - [ ] Space stations and ships should have a way to connect to each other to exchange passengers, cargo, or energy/health.
     - [ ] Colors, effects, and sounds indicate successful docking.
-    - [ ] Implement cargo holds and passenger seating in spaceships.
-- [ ] **REV0.7**: Spaceship upgrades
+    - [ ] Implement cargo holds and passenger seating in spaceships. Solid cargo
+- [ ] **REV0.8**: Spaceship upgrades
     - [ ] Certain places will provide ways to auto-refill energy, health, and shields.
     - [ ] Energy, health, and shields can also be upgraded to higher max values.
     - [ ] Cargo space and passenger seating can also be increased.
-- [ ] **REV0.8**: Game objectives
-- [ ] **REV0.9**: tbd
+- [ ] **REV0.9**: Game objectives
 - [ ] **REV1.0**: tbd
 - [ ] **REV1.1**: tbd
 

@@ -50,25 +50,14 @@ game = {
     camera = {
         x = 0,
         y = 0,
-
         target_x = 0,
         target_y = 0,
-
         lerp = 0.08,
     },
 
     -- Gameplay state
     play = {
-        -- player = {},
-
-        -- ============
-        -- For testing
-        -- ============
-        player = {
-            x = MAP_PIXELS_W / 2,
-            y = MAP_PIXELS_H / 2,
-            speed = 2,
-        },
+        player = {},
     },
 }
 
@@ -85,6 +74,8 @@ function changeState(newState)
         math.randomseed(tstamp() + time())
 
         generateBackgroundMap()
+
+        game.play.player = generatePlayer()
         resetPlayerAndCamera()
     end
 end

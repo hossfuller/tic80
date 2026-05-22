@@ -2,6 +2,10 @@
 -- GENERATORS
 -- ==========================================
 
+-- ==========================================
+-- BACKGROUND MAP
+-- ==========================================
+
 function generateStarScreen(screen_x, screen_y)
     local start_tile_x = screen_x * SCREEN_TILES_W
     local start_tile_y = screen_y * SCREEN_TILES_H
@@ -135,4 +139,14 @@ function generateBackgroundMap()
             placed_objects
         )
     end
+end
+
+-- ==========================================
+-- KEPLER OBJECTS, INCLUDING SHIPS
+-- ==========================================
+
+function generatePlayer()
+    local player = SpaceShip:new({})
+    -- Do modifications, like change shape and max_speed.
+    return player
 end
