@@ -22,10 +22,10 @@ The ship will have energy, health, and shield bars. Shields take the damage and 
 
 The different revisions implement separate features. This list is ever changing.
 
-- [ ] **REV0.1**: Movement around the entire TIC-80 map.
+- [x] **REV0.1**: Movement around the entire TIC-80 map.
     - [x] Camera stays centered on object.
     - [x] Debug screen that displays user's map location.
-    - [ ] Backdrop of stationary random stars, black holes, and distant galaxies.
+    - [x] Backdrop of stationary random stars, black holes, and distant galaxies.
 - [ ] **REV0.2**: Spaceships, modeled on the Asteroids work.
     - [ ] Different space ship designs for different purposes.
     - [ ] Spaceships have attributes like mass, engine power, etc that affect things like movement and shield regeneration.

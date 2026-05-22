@@ -84,7 +84,7 @@ function changeState(newState)
     if newState == STATE.READY then
         math.randomseed(tstamp() + time())
 
-        generateStarMap()
+        generateBackgroundMap()
         resetPlayerAndCamera()
     end
 end

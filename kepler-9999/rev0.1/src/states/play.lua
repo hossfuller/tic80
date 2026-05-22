@@ -106,7 +106,7 @@ function drawStarMap()
         SCREEN_TILES_H + 1,
         -offset_x,          -- screen x/y in pixels
         -offset_y,          -- screen x/y in pixels
-        0                   -- transparent color
+        -1                  -- transparent color
     )
 end
 
@@ -130,9 +130,9 @@ function drawDebugCameraInfo()
     }
     for index, debug_msg in ipairs(debug_statements) do
         local debug_color = WHITE
-        if index == 2 or index == 3 then
+        if index == 3 or index == 4 then
             debug_color = CYAN
-        elseif index == 4 then
+        elseif index == 5 then
             debug_color = YELLOW
         end
         local len = print(debug_msg, -10, -10, debug_color, true)

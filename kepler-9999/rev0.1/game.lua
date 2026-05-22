@@ -94,6 +94,16 @@ local TILE_STAR_DIM    = 1
 local TILE_STAR_MED    = 2
 local TILE_STAR_BRIGHT = 3
 
+local SPRITESHEET_TILES_W = 16
+
+local TILE_BLACK_HOLE_ID = 16
+local TILE_BLACK_HOLE_W  = 4
+local TILE_BLACK_HOLE_H  = 4
+
+local TILE_GALAXY_ID = 80
+local TILE_GALAXY_W  = 4
+local TILE_GALAXY_H  = 4
+
 
 -- [/TQ-Bundler: src.constants_game]
 
@@ -107,8 +117,6 @@ function generateStarScreen(screen_x, screen_y)
     local start_tile_x = screen_x * SCREEN_TILES_W
     local start_tile_y = screen_y * SCREEN_TILES_H
 
-    -- Give every screen slightly different density.
-    -- Example: 2% to 8% chance per tile.
     local density = math.random(2, 8)
 
     for local_y = 0, SCREEN_TILES_H - 1 do
@@ -134,7 +142,6 @@ function generateStarScreen(screen_x, screen_y)
         end
     end
 
-    -- Optional: place a few brighter landmark stars per screen.
     local landmark_count = math.random(1, 4)
 
     for i = 1, landmark_count do
@@ -145,19 +152,99 @@ function generateStarScreen(screen_x, screen_y)
     end
 end
 
-function generateStarMap()
-    -- Clear the whole map first.
-    for y = 0, MAP_TILES_H - 1 do
-        for x = 0, MAP_TILES_W - 1 do
-            mset(x, y, TILE_EMPTY)
+function tileRectsOverlap(a, b)
+    return
+        a.x < b.x + b.w and
+        a.x + a.w > b.x and
+        a.y < b.y + b.h and
+        a.y + a.h > b.y
+end
+
+function canPlaceTileObject(candidate, placed_objects)
+    for _, object in ipairs(placed_objects) do
+        if tileRectsOverlap(candidate, object) then
+            return false
         end
     end
 
-    -- Generate each of the 8x8 map screens separately.
+    return true
+end
+
+function stampTileObjectToMap(base_tile_id, tile_w, tile_h, map_tile_x, map_tile_y)
+    for y = 0, tile_h - 1 do
+        for x = 0, tile_w - 1 do
+            local tile_id = base_tile_id + x + y * SPRITESHEET_TILES_W
+            mset(map_tile_x + x, map_tile_y + y, tile_id)
+        end
+    end
+end
+
+function placeRandomTileObjectOnMap(base_tile_id, tile_w, tile_h, placed_objects)
+    local max_tile_x = MAP_TILES_W - tile_w
+    local max_tile_y = MAP_TILES_H - tile_h
+
+    local attempts = 0
+    local max_attempts = 100
+
+    while attempts < max_attempts do
+        attempts = attempts + 1
+
+        local map_tile_x = math.random(0, max_tile_x)
+        local map_tile_y = math.random(0, max_tile_y)
+
+        local candidate = {
+            x = map_tile_x,
+            y = map_tile_y,
+            w = tile_w,
+            h = tile_h,
+        }
+
+        if canPlaceTileObject(candidate, placed_objects) then
+            stampTileObjectToMap(
+                base_tile_id,
+                tile_w,
+                tile_h,
+                map_tile_x,
+                map_tile_y
+            )
+
+            table.insert(placed_objects, candidate)
+
+            return true
+        end
+    end
+
+    return false
+end
+
+function generateBackgroundMap()
     for screen_y = 0, MAP_SCREENS_H - 1 do
         for screen_x = 0, MAP_SCREENS_W - 1 do
             generateStarScreen(screen_x, screen_y)
         end
+    end
+
+    local placed_objects = {}
+
+    local black_hole_count = math.random(1, 3)
+    local galaxy_count = math.random(1, 3)
+
+    for i = 1, black_hole_count do
+        placeRandomTileObjectOnMap(
+            TILE_BLACK_HOLE_ID,
+            TILE_BLACK_HOLE_W,
+            TILE_BLACK_HOLE_H,
+            placed_objects
+        )
+    end
+
+    for i = 1, galaxy_count do
+        placeRandomTileObjectOnMap(
+            TILE_GALAXY_ID,
+            TILE_GALAXY_W,
+            TILE_GALAXY_H,
+            placed_objects
+        )
     end
 end
 
@@ -252,7 +339,7 @@ function changeState(newState)
     if newState == STATE.READY then
         math.randomseed(tstamp() + time())
 
-        generateStarMap()
+        generateBackgroundMap()
         resetPlayerAndCamera()
     end
 end
@@ -985,7 +1072,7 @@ function drawStarMap()
         SCREEN_TILES_H + 1,
         -offset_x,          -- screen x/y in pixels
         -offset_y,          -- screen x/y in pixels
-        0                   -- transparent color
+        -1                  -- transparent color
     )
 end
 
@@ -1009,9 +1096,9 @@ function drawDebugCameraInfo()
     }
     for index, debug_msg in ipairs(debug_statements) do
         local debug_color = WHITE
-        if index == 2 or index == 3 then
+        if index == 3 or index == 4 then
             debug_color = CYAN
-        elseif index == 4 then
+        elseif index == 5 then
             debug_color = YELLOW
         end
         local len = print(debug_msg, -10, -10, debug_color, true)
@@ -1190,21 +1277,21 @@ end
 -- 065:3333333323333232333333322333332222222221222221101111100011100000
 -- 066:233221cc22221000221100001010000000000000000000000000000000000000
 -- 067:cc000000ccc000000ccc000000ccc0000000c00000000c00000000c00000000c
--- 080:0000000000000000000000000000000000000000000000000000000800000008
--- 081:0000000000000000000000000000008800088888088888888888888988899999
--- 082:0000000000000082000088228888822188888388c98888389999988199999991
--- 083:0222221122112211114121112221211823111118111114101211110021111100
--- 096:0000008800000088000008880000888800008889000088890008889900088899
--- 097:88999999899999aa9999aaaa999aaabb99aaabbb99aabcbb9aaabbbb9aabbbbb
--- 098:999c9912aaaa9122aaaaa121baaa1111bbba1211bbb12111bb122111bb121141
--- 099:2141280011112000111120001312800011228000112800001128000012880000
--- 112:000888990008889900038c890008888900083889008228880022128800212282
--- 113:9caabbbb9aaabbb499aaab1199aaa111999a1141991111111221111122111411
--- 114:b11111111111311111111119131111991111399911129998122299882299888c
--- 115:28880000948000009880000088800000880c0000880000008000000000000000
--- 128:0221212202111311221111112111111121141111111111221111222811222000
--- 129:1111131211111188141122881122280022288800288880008400000000000000
--- 130:9888888088888000888000004000c00000000000000000000000000000000000
+-- 080:1122222011221122111214118112122281111132014111110011112100111112
+-- 081:00000000280000002288000012288888883888888388889c1889999919999999
+-- 082:0000000000000000000000008800000088888000888888809888888899999884
+-- 083:0000000000000000000000000000000000000000000000008000000080000000
+-- 096:0082141200021111000211110008213100082211000082110000821100008821
+-- 097:2199c9992219aaaa121aaaaa1111aaab1121abbb11121bbb111221bb141121bb
+-- 098:99999988aa999998aaaa9999bbaaa999bbbaaa99bbcbaa99bbbbaaa9bbbbbaa9
+-- 099:8800000088000000888000008888000098880000988800009988800099888000
+-- 112:000088820000084900000889000008880000c088000000880000000800000000
+-- 113:1111111b111311119111111199111131999311118999211188992221c8889922
+-- 114:bbbbaac94bbbaaa911baaa99111aaa991411a999111111991111122111411122
+-- 115:998880009988800098c830009888800098838000888228008821220028221200
+-- 129:088888890008888800000888000c000400000000000000000000000000000000
+-- 130:2131111188111111882211410082221100888222000888820000004800000000
+-- 131:2212122011311120111111221111111211114112221111118222111100022211
 -- </TILES>
 
 -- <WAVES>
