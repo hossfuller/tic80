@@ -23,34 +23,36 @@ The ship will have energy, health, and shield bars. Shields take the damage and 
 The different revisions implement separate features. This list is ever changing.
 
 - [ ] **REV0.1**: Movement around the entire TIC-80 map.
-    - [ ] Camera stays centered on object.
-    - [ ] Debug screen that displays user's map location.
+    - [x] Camera stays centered on object.
+    - [x] Debug screen that displays user's map location.
     - [ ] Backdrop of stationary random stars, black holes, and distant galaxies.
-- [ ] **REV0.2**: Add foreground heavenly bodies.
-    - [ ] Parent class for all heavenly bodies with mass, radius, color.
-    - [ ] Implement keplarian orbital mechanics which is really
-    - [ ] Add mouse controls that allow us to zoom in and out of map.
-- [ ] **REV0.3**: Refined heavenly bodies.
-    - [ ] Randomly generated names, colors, atmospherics for planets and moons.
-    - [ ] AAU-style names for anything smaller than a moon.
-- [ ] **REV0.4**: Spaceships, modeled on the Asteroids work.
+- [ ] **REV0.2**: Spaceships, modeled on the Asteroids work.
     - [ ] Different space ship designs for different purposes.
     - [ ] Spaceships have attributes like mass, engine power, etc that affect things like movement and shield regeneration.
     - [ ] Ships have maximum values for things like mass, etc.
-    - [ ] Collision detection.
     - [ ] Energy for movement, health and shields for life.
     - [ ] Bring over Asteroids particle effects like explosions, thrust, sparks, and smoke.
+    - [ ] Implement the player's HUD screen.
+- [ ] **REV0.3**: Add foreground heavenly bodies.
+    - [ ] Parent class for all heavenly bodies with mass, radius, color.
+    - [ ] Implement keplarian orbital mechanics
+    - [ ] Add mouse controls that allow us to zoom in and out of map.
+- [ ] **REV0.4**: Spaceships, modeled on the Asteroids work.
+    - [ ] Collision detection.
     - [ ] Can feel gravitational effects from heavenly bodies.
-- [ ] **REV0.5**: Space docking, cargo, and passengers
+- [ ] **REV0.5**: Refined heavenly bodies.
+    - [ ] Randomly generated names, colors, atmospherics for planets and moons.
+    - [ ] AAU-style names for anything smaller than a moon.
+    - [ ] When a ship is within 2 map screens of a big-enough heavenly body, put an arrow on the screen with the body's name and current distance.
+- [ ] **REV0.6**: Space docking, cargo, and passengers
     - [ ] Space stations and ships should have a way to connect to each other to exchange passengers, cargo, or energy/health.
     - [ ] Colors, effects, and sounds indicate successful docking.
     - [ ] Implement cargo holds and passenger seating in spaceships.
-- [ ] **REV0.6**: Spaceship upgrades
+- [ ] **REV0.7**: Spaceship upgrades
     - [ ] Certain places will provide ways to auto-refill energy, health, and shields.
     - [ ] Energy, health, and shields can also be upgraded to higher max values.
     - [ ] Cargo space and passenger seating can also be increased.
-- [ ] **REV0.7**: Game objectives
-- [ ] **REV0.8**: tbd
+- [ ] **REV0.8**: Game objectives
 - [ ] **REV0.9**: tbd
 - [ ] **REV1.0**: tbd
 - [ ] **REV1.1**: tbd

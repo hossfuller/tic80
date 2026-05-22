@@ -33,16 +33,26 @@ local BTN_P1_SELECT = BTN_P1_X
 local BTN_P1_START  = BTN_P1_Y
 
 -- Screen dimensions
-local EDGE_X_LEFT   = 0
-local EDGE_X_RIGHT  = 240
-local EDGE_Y_TOP    = 0
-local EDGE_Y_BOTTOM = 136
+local EDGE_X_LEFT       = 0
+local EDGE_X_RIGHT      = 240
+local EDGE_Y_TOP        = 0
+local EDGE_Y_BOTTOM     = 136
+
+local SCREEN_W          = EDGE_X_RIGHT
+local SCREEN_H          = EDGE_Y_BOTTOM
 
 -- Map dimensions
-local MAP_W          = EDGE_X_RIGHT
-local MAP_H          = EDGE_Y_BOTTOM
-local SCREEN_TILES_W = 30             -- 240 / 8
-local SCREEN_TILES_H = 17             -- 136 / 8
+local TILE_SIZE         = 8
+local MAP_TILES_W       = 240
+local MAP_TILES_H       = 136
+local SCREEN_TILES_W    = 30
+local SCREEN_TILES_H    = 17
+
+local MAP_PIXELS_W      = MAP_TILES_W * TILE_SIZE
+local MAP_PIXELS_H      = MAP_TILES_H * TILE_SIZE
+
+local MAP_SCREENS_W     = 8
+local MAP_SCREENS_H     = 8
 
 -- Character dimensions (these scale linearly)
 local FIXED_CHAR_WIDTH  = 6

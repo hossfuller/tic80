@@ -46,9 +46,29 @@ game = {
     -- Game Parameters
     params = {},
 
+    -- The top-down camera
+    camera = {
+        x = 0,
+        y = 0,
+
+        target_x = 0,
+        target_y = 0,
+
+        lerp = 0.08,
+    },
+
     -- Gameplay state
     play = {
-        player = {},
+        -- player = {},
+
+        -- ============
+        -- For testing
+        -- ============
+        player = {
+            x = MAP_PIXELS_W / 2,
+            y = MAP_PIXELS_H / 2,
+            speed = 2,
+        },
     },
 }
 
@@ -61,10 +81,28 @@ function changeState(newState)
     game.prevState = game.state
     game.state = newState
 
-    -- State entry logic
     if newState == STATE.READY then
-        -- Reset game state for new game
+        math.randomseed(tstamp() + time())
+
         generateStarMap()
+        resetPlayerAndCamera()
     end
 end
 
+function resetPlayerAndCamera()
+    local player = game.play.player
+    local camera = game.camera
+
+    -- Start somewhere in the middle of the full 64-screen map.
+    player.x = MAP_PIXELS_W / 2
+    player.y = MAP_PIXELS_H / 2
+
+    camera.x = player.x - SCREEN_W / 2
+    camera.y = player.y - SCREEN_H / 2
+
+    camera.x = clamp(camera.x, 0, MAP_PIXELS_W - SCREEN_W)
+    camera.y = clamp(camera.y, 0, MAP_PIXELS_H - SCREEN_H)
+
+    camera.target_x = camera.x
+    camera.target_y = camera.y
+end

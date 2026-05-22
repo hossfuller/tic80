@@ -87,6 +87,30 @@
 -- end
 
 -- ==========================================
+-- CAMERA HELPERS
+-- ==========================================
+
+function clamp(value, min_value, max_value)
+    if value < min_value then
+        return min_value
+    end
+
+    if value > max_value then
+        return max_value
+    end
+
+    return value
+end
+
+function lerp(a, b, t)
+    return a + (b - a) * t
+end
+
+function worldToScreen(world_x, world_y)
+    return world_x - game.camera.x, world_y - game.camera.y
+end
+
+-- ==========================================
 -- DRAWING HELPERS
 -- ==========================================
 
