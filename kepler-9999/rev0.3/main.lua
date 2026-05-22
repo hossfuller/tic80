@@ -14,6 +14,7 @@ include "src.constants_game"
 
 include "src.generators"
 include "src.camera"
+include "src.polygons"
 include "src.game_state"
 include "src.helpers"
 

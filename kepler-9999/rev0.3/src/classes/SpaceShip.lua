@@ -62,65 +62,65 @@ function SpaceShip:new(params)
         respawn_timer = 0,
     }
 
-    -- -- Particle Effects
-    -- self.particles = {
-    --     explosion = {
-    --         colors = { YELLOW, ORANGE, RED },
-    --         params = {
-    --             cooldown      = 0,
-    --             deceleration  = 0.015,
-    --             max_lifetime  = 90,
-    --             max_size      = 3,
-    --             max_speed     = 2,
-    --             num_particles = 100,
-    --             offset        = { x = 0, y = 0 },
-    --             type          = "explosion",
-    --         },
-    --         particles = {},
-    --     },
-    --     smoke = {
-    --         colors = { GRAY_LITE, GRAY_MED, GRAY_DARK },
-    --         params = {
-    --             cooldown      = 0,
-    --             deceleration  = 0.015,
-    --             max_lifetime  = 90,
-    --             max_size      = 3,
-    --             max_speed     = 2,
-    --             num_particles = 100,
-    --             offset        = { x = 0, y = 0 },
-    --             type          = "smoke",
-    --         },
-    --         particles = {},
-    --     },
-    --     spark = {
-    --         colors = { ORANGE },
-    --         params = {
-    --             cooldown      = 0,
-    --             deceleration  = 0.01,
-    --             max_lifetime  = 30,
-    --             max_size      = 1,
-    --             max_speed     = 2,
-    --             num_particles = 30,
-    --             offset        = { x = 0, y = 0 },
-    --             type          = "spark",
-    --         },
-    --         particles = {},
-    --     },
-    --     thrust = {
-    --         colors = { YELLOW, ORANGE, RED, GRAY_LITE, GRAY_MED, GRAY_DARK },
-    --         params = {
-    --             cooldown      = 0,
-    --             deceleration  = 0.01,
-    --             max_lifetime  = 30,
-    --             max_size      = 1,
-    --             max_speed     = 2,
-    --             num_particles = 5,
-    --             offset        = { x = -5, y = 0 },
-    --             type          = "thrust",
-    --         },
-    --         particles = {},
-    --     },
-    -- }
+    -- Particle Effects
+    self.particles = {
+        explosion = {
+            colors = { YELLOW, ORANGE, RED },
+            params = {
+                cooldown      = 0,
+                deceleration  = 0.015,
+                max_lifetime  = 90,
+                max_size      = 3,
+                max_speed     = 2,
+                num_particles = 100,
+                offset        = { x = 0, y = 0 },
+                type          = "explosion",
+            },
+            particles = {},
+        },
+        smoke = {
+            colors = { GRAY_LITE, GRAY_MED, GRAY_DARK },
+            params = {
+                cooldown      = 0,
+                deceleration  = 0.015,
+                max_lifetime  = 90,
+                max_size      = 3,
+                max_speed     = 2,
+                num_particles = 100,
+                offset        = { x = 0, y = 0 },
+                type          = "smoke",
+            },
+            particles = {},
+        },
+        spark = {
+            colors = { ORANGE },
+            params = {
+                cooldown      = 0,
+                deceleration  = 0.01,
+                max_lifetime  = 30,
+                max_size      = 1,
+                max_speed     = 2,
+                num_particles = 30,
+                offset        = { x = 0, y = 0 },
+                type          = "spark",
+            },
+            particles = {},
+        },
+        thrust = {
+            colors = { YELLOW, ORANGE, RED, GRAY_LITE, GRAY_MED, GRAY_DARK },
+            params = {
+                cooldown      = 0,
+                deceleration  = 0.01,
+                max_lifetime  = 30,
+                max_size      = 1,
+                max_speed     = 2,
+                num_particles = 5,
+                offset        = { x = -5, y = 0 },
+                type          = "thrust",
+            },
+            particles = {},
+        },
+    }
 
     return self
 end
@@ -714,32 +714,32 @@ function SpaceShip:shouldDraw()
     return (math.floor(self.mortality.invulnerable / 6) % 2) == 0
 end
 
-function SpaceShip:drawBody()
-    local first_point = true
-    local last_point = nil
-    local rotated_point = nil
+function SpaceShip:getScreenShapePoints()
+    local screen_x = math.floor(self.position.x - game.camera.x)
+    local screen_y = math.floor(self.position.y - game.camera.y)
 
-    local screen_x = self.position.x - game.camera.x
-    local screen_y = self.position.y - game.camera.y
+    local points = {}
 
-    for index, point in ipairs(self.shape) do
-        rotated_point = self:rotatePoint(point, self.rotation)
+    for i, point in ipairs(self.shape) do
+        local rotated_point = self:rotatePoint(point, self.rotation)
 
-        if first_point then
-            last_point = rotated_point
-            first_point = false
-        else
-            line(
-                last_point.x + screen_x,
-                last_point.y + screen_y,
-                rotated_point.x + screen_x,
-                rotated_point.y + screen_y,
-                self.color
-            )
-
-            last_point = rotated_point
-        end
+        points[i] = {
+            x = math.floor(rotated_point.x + screen_x),
+            y = math.floor(rotated_point.y + screen_y),
+        }
     end
+
+    return points
+end
+
+function SpaceShip:drawBody()
+    local points = self:getScreenShapePoints()
+
+    -- Draw a ship-shaped black mask first.
+    drawFilledPolygon(points, BLACK)
+
+    -- Draw the ship outline on top.
+    drawPolygonOutline(points, self.color)
 end
 
 function SpaceShip:draw()

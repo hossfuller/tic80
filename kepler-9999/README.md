@@ -31,7 +31,6 @@ The different revisions implement separate features. This list is ever changing.
     - [x] Energy for movement, health and shields for life.
     - [x] Implement the player's HUD screen.
 - [ ] **REV0.3**: User can select the ship type they want.
-    = [ ] Particle effects!
     - [ ] Different space ship designs for different purposes.
     - [ ] Different types of spaceships with max_speed/holds being inversely proportional: freight (solid/liquid?), passengers, smugglers
     - [ ] User selects their ship type from the options screen.
