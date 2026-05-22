@@ -88,21 +88,3 @@ function changeState(newState)
         resetPlayerAndCamera()
     end
 end
-
-function resetPlayerAndCamera()
-    local player = game.play.player
-    local camera = game.camera
-
-    -- Start somewhere in the middle of the full 64-screen map.
-    player.x = MAP_PIXELS_W / 2
-    player.y = MAP_PIXELS_H / 2
-
-    camera.x = player.x - SCREEN_W / 2
-    camera.y = player.y - SCREEN_H / 2
-
-    camera.x = clamp(camera.x, 0, MAP_PIXELS_W - SCREEN_W)
-    camera.y = clamp(camera.y, 0, MAP_PIXELS_H - SCREEN_H)
-
-    camera.target_x = camera.x
-    camera.target_y = camera.y
-end

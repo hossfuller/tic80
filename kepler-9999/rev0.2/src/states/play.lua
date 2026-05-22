@@ -52,26 +52,9 @@ function updatePlayer()
     player.y = clamp(player.y, 0, MAP_PIXELS_H - 1)
 end
 
-function updateCamera()
-    local player = game.play.player
-    local camera = game.camera
-
-    -- Target camera position places player in center of screen.
-    camera.target_x = player.x - SCREEN_W / 2
-    camera.target_y = player.y - SCREEN_H / 2
-
-    -- Clamp target so camera does not show outside the map.
-    camera.target_x = clamp(camera.target_x, 0, MAP_PIXELS_W - SCREEN_W)
-    camera.target_y = clamp(camera.target_y, 0, MAP_PIXELS_H - SCREEN_H)
-
-    -- Smoothly move camera toward target.
-    camera.x = lerp(camera.x, camera.target_x, camera.lerp)
-    camera.y = lerp(camera.y, camera.target_y, camera.lerp)
-end
-
 function updatePlay()
     updatePlayer()
-    updateCamera()
+    updateCamera(game.play.player, game.camera)
 end
 
 function drawPlayer()

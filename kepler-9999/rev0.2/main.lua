@@ -13,6 +13,7 @@ include "src.constants_tic80"
 include "src.constants_game"
 
 include "src.generators"
+include "src.camera"
 include "src.game_state"
 include "src.helpers"
 
@@ -23,8 +24,10 @@ include "src.states.ready"
 include "src.states.play"
 include "src.states.pause"
 include "src.states.gameover"
-
 include "src.state_machine"
+
+include "src.classes.KeplerObj"
+include "src.classes.SpaceShip"
 
 -- ==========================================
 -- MAIN TIC FUNCTION
