@@ -14,22 +14,22 @@ function SpaceShip:new(params)
     -- regeneration. These also act as a multiplier for the max values.
     self.engines = {
         energy = {
-            cur = params.cur_energy or 100,
-            max = params.max_energy or 100,
+            cur = params.cur_energy or 250,
+            max = params.max_energy or 250,
             mul = params.mul_energy or 1,
-            tik = params.tik_energy or 60,
+            tik = params.tik_energy or 20,
         },
         life_support = {
             cur = params.cur_life_support or 100,
             max = params.max_life_support or 100,
             mul = params.mul_life_support or 1,
-            tik = params.tik_life_support or 600,
+            tik = params.tik_life_support or 3600,
         },
         shield = {
             cur = params.cur_shield or 100,
             max = params.max_shield or 100,
             mul = params.mul_shield or 1,
-            tik = params.tik_shield or 120,
+            tik = params.tik_shield or 60,
         },
     }
 
@@ -129,38 +129,50 @@ end
 -- SPACESHIP GETTERS
 -- ==========================================
 
--- function SpaceShip:getEnergy()
---     if self.engines.energy.cur < 0 then
---         self.engines.energy.cur = 0
---     end
---     return self.engines.energy.cur
--- end
+function SpaceShip:getEnergy()
+    if self.engines.energy.cur < 0 then
+        self.engines.energy.cur = 0
+    end
+    return self.engines.energy.cur
+end
 
--- function SpaceShip:getEnergyFraction()
---     return self:getEnergy() / self.engines.energy.max
--- end
+function SpaceShip:getEnergyFraction()
+    return self:getEnergy() / self.engines.energy.max
+end
 
--- function SpaceShip:getLifeSupport()
---     if self.engines.life_support.cur < 0 then
---         self.engines.life_support.cur = 0
---     end
---     return self.engines.life_support.cur
--- end
+function SpaceShip:getEnergyMultiplier()
+    return self.engines.energy.mul
+end
 
--- function SpaceShip:getLifeSupportFraction()
---     return self:getEnergy() / self.engines.life_support.max
--- end
+function SpaceShip:getLifeSupport()
+    if self.engines.life_support.cur < 0 then
+        self.engines.life_support.cur = 0
+    end
+    return self.engines.life_support.cur
+end
 
--- function SpaceShip:getShield()
---     if self.engines.shield.cur < 0 then
---         self.engines.shield.cur = 0
---     end
---     return self.engines.shield.cur
--- end
+function SpaceShip:getLifeSupportFraction()
+    return self:getLifeSupport() / self.engines.life_support.max
+end
 
--- function SpaceShip:getShieldFraction()
---     return self:getEnergy() / self.engines.shield.max
--- end
+function SpaceShip:getLifeSupportMultiplier()
+    return self.engines.life_support.mul
+end
+
+function SpaceShip:getShield()
+    if self.engines.shield.cur < 0 then
+        self.engines.shield.cur = 0
+    end
+    return self.engines.shield.cur
+end
+
+function SpaceShip:getShieldFraction()
+    return self:getShield() / self.engines.shield.max
+end
+
+function SpaceShip:getShieldMultiplier()
+    return self.engines.shield.mul
+end
 
 
 -- ==========================================
@@ -172,142 +184,161 @@ end
 --    energy regenerates, and that happens on its own.
 -- 2. Whenever one of these values gets upgraded, the ship's mass increases.
 
--- function SpaceShip:modifyEngineMaxValue(type, upgrade)
---     if type == nil then
---         type = "energy"
---     end
---     if upgrade == nil then
---         upgrade = false
---     end
+function SpaceShip:modifyEngineMaxValue(type, upgrade)
+    if type == nil then
+        type = "energy"
+    end
+    if upgrade == nil then
+        upgrade = false
+    end
 
---     local new_engine_max = nil
---     if type == "energy" then
---         if upgrade then
---             self.engines.energy.mul = self.engines.energy.mul + 1
---         else
---             self.engines.energy.mul = self.engines.energy.mul - 1
---         end
---         if self.engines.energy.mul > 9 then
---             self.engines.energy.mul = 9
---         elseif self.engines.energy.mul < 1 then
---             self.engines.energy.mul = 1
---         end
---         self.engines.energy.max = self.engines.energy.max * self.engines.energy.mul
---         new_engine_max = self.engines.energy.mul
---     elseif type == "life_support" then
---         if upgrade then
---             self.engines.life_support.mul = self.engines.life_support.mul + 1
---         else
---             self.engines.life_support.mul = self.engines.life_support.mul - 1
---         end
---         if self.engines.life_support.mul > 9 then
---             self.engines.life_support.mul = 9
---         elseif self.engines.life_support.mul < 1 then
---             self.engines.life_support.mul = 1
---         end
---         self.engines.life_support.max = self.engines.life_support.max * self.engines.life_support.mul
---         new_engine_max = self.engines.life_support.mul
---     elseif type == "shield" then
---         if upgrade then
---             self.engines.shield.mul = self.engines.shield.mul + 1
---         else
---             self.engines.shield.mul = self.engines.shield.mul - 1
---         end
---         if self.engines.shield.mul > 9 then
---             self.engines.shield.mul = 9
---         elseif self.engines.shield.mul < 1 then
---             self.engines.shield.mul = 1
---         end
---         self.engines.shield.max = self.engines.shield.max * self.engines.shield.mul
---         new_engine_max = self.engines.shield.mul
---     end
---     return new_engine_max
--- end
+    local new_engine_max = nil
+    if type == "energy" then
+        local max_chunk = math.floor(self.engines.energy.max / self.engines.energy.mul)
+        if upgrade then
+            self.engines.energy.mul = self.engines.energy.mul + 1
+        else
+            self.engines.energy.mul = self.engines.energy.mul - 1
+        end
+        if self.engines.energy.mul > 9 then
+            self.engines.energy.mul = 9
+        elseif self.engines.energy.mul < 1 then
+            self.engines.energy.mul = 1
+        end
+        self.engines.energy.max = max_chunk * self.engines.energy.mul
+        new_engine_max = self.engines.energy.mul
+    elseif type == "life_support" then
+        local max_chunk = math.floor(self.engines.life_support.max / self.engines.life_support.mul)
+        if upgrade then
+            self.engines.life_support.mul = self.engines.life_support.mul + 1
+        else
+            self.engines.life_support.mul = self.engines.life_support.mul - 1
+        end
+        if self.engines.life_support.mul > 9 then
+            self.engines.life_support.mul = 9
+        elseif self.engines.life_support.mul < 1 then
+            self.engines.life_support.mul = 1
+        end
+        self.engines.life_support.max = max_chunk * self.engines.life_support.mul
+        new_engine_max = self.engines.life_support.mul
+    elseif type == "shield" then
+        local max_chunk = math.floor(self.engines.shield.max / self.engines.shield.mul)
+        if upgrade then
+            self.engines.shield.mul = self.engines.shield.mul + 1
+        else
+            self.engines.shield.mul = self.engines.shield.mul - 1
+        end
+        if self.engines.shield.mul > 9 then
+            self.engines.shield.mul = 9
+        elseif self.engines.shield.mul < 1 then
+            self.engines.shield.mul = 1
+        end
+        self.engines.shield.max = max_chunk * self.engines.shield.mul
+        new_engine_max = self.engines.shield.mul
+    end
+    return new_engine_max
+end
 
--- function SpaceShip:upgradeEnergyEngine()
---     return self:modifyEngineMaxValue("energy", true)
--- end
+function SpaceShip:upgradeEnergyEngine()
+    return self:modifyEngineMaxValue("energy", true)
+end
 
--- function SpaceShip:degradeEnergyEngine()
---     return self:modifyEngineMaxValue("energy", false)
--- end
+function SpaceShip:degradeEnergyEngine()
+    return self:modifyEngineMaxValue("energy", false)
+end
 
--- function SpaceShip:upgradeLifeSupportEngine()
---     return self:modifyEngineMaxValue("life_support", true)
--- end
+function SpaceShip:upgradeLifeSupportEngine()
+    return self:modifyEngineMaxValue("life_support", true)
+end
 
--- function SpaceShip:degradeLifeSupportEngine()
---     return self:modifyEngineMaxValue("life_support", false)
--- end
+function SpaceShip:degradeLifeSupportEngine()
+    return self:modifyEngineMaxValue("life_support", false)
+end
 
--- function SpaceShip:upgradeShieldEngine()
---     return self:modifyEngineMaxValue("shield", true)
--- end
+function SpaceShip:upgradeShieldEngine()
+    return self:modifyEngineMaxValue("shield", true)
+end
 
--- function SpaceShip:degradeShieldEngine()
---     return self:modifyEngineMaxValue("shield", false)
--- end
+function SpaceShip:degradeShieldEngine()
+    return self:modifyEngineMaxValue("shield", false)
+end
 
--- function SpaceShip:modifyEngineCurrentValue(type, value)
---     if type == nil then
---         type = "energy"
---     end
---     if value == nil then
---         value = 10
---     end
+function SpaceShip:modifyEngineCurrentValue(type, value)
+    if type == nil then
+        type = "energy"
+    end
+    if value == nil then
+        value = 10
+    end
 
---     local new_engine_cur = nil
---     if type == "energy" then
---         self.engines.energy.cur = self.engines.energy.cur + value
---         if self.engines.energy.cur > self.engines.energy.max then
---             self.engines.energy.cur = self.engines.energy.max
---         elseif self.engines.energy.cur < 0 then
---             self.engines.energy.cur = 0
---         end
---         new_engine_cur = self.engines.energy.cur
---     elseif type == "life_support" then
---         self.engines.life_support.cur = self.engines.life_support.cur + value
---         if self.engines.life_support.cur > self.engines.life_support.max then
---             self.engines.life_support.cur = self.engines.life_support.max
---         elseif self.engines.life_support.cur < 0 then
---             self.engines.life_support.cur = 0
---         end
---         new_engine_cur = self.engines.life_support.cur
---     elseif type == "shield" then
---         self.engines.shield.cur = self.engines.shield.cur + value
---         if self.engines.shield.cur > self.engines.shield.max then
---             self.engines.shield.cur = self.engines.shield.max
---         elseif self.engines.shield.cur < 0 then
---             self.engines.shield.cur = 0
---         end
---         new_engine_cur = self.engines.shield.cur
---     end
---     return new_engine_cur
--- end
+    local new_engine_cur = nil
+    if type == "energy" then
+        self.engines.energy.cur = self.engines.energy.cur + value
+        if self.engines.energy.cur > self.engines.energy.max then
+            self.engines.energy.cur = self.engines.energy.max
+        elseif self.engines.energy.cur < 0 then
+            self.engines.energy.cur = 0
+        end
+        new_engine_cur = self.engines.energy.cur
+    elseif type == "life_support" then
+        self.engines.life_support.cur = self.engines.life_support.cur + value
+        if self.engines.life_support.cur > self.engines.life_support.max then
+            self.engines.life_support.cur = self.engines.life_support.max
+        elseif self.engines.life_support.cur < 0 then
+            self.engines.life_support.cur = 0
+        end
+        new_engine_cur = self.engines.life_support.cur
+    elseif type == "shield" then
+        self.engines.shield.cur = self.engines.shield.cur + value
+        if self.engines.shield.cur > self.engines.shield.max then
+            self.engines.shield.cur = self.engines.shield.max
+        elseif self.engines.shield.cur < 0 then
+            self.engines.shield.cur = 0
+        end
+        new_engine_cur = self.engines.shield.cur
+    end
+    return new_engine_cur
+end
 
--- function SpaceShip:drainEnergy(value)
---     return SpaceShip:modifyEngineCurrentValue("energy", value)
--- end
+function SpaceShip:drainEnergy()
+    return self:modifyEngineCurrentValue("energy", -1)
+end
 
--- function SpaceShip:regenerateEnergy(value)
---     return SpaceShip:modifyEngineCurrentValue("energy", value)
--- end
+function SpaceShip:regenerateEnergy()
+    return self:modifyEngineCurrentValue("energy", 1)
+end
 
--- function SpaceShip:drainLifeSupport(value)
---     return SpaceShip:modifyEngineCurrentValue("life_support", value)
--- end
+function SpaceShip:drainLifeSupport()
+    return self:modifyEngineCurrentValue("life_support", -1)
+end
 
--- function SpaceShip:regenerateLifeSupport(value)
---     return SpaceShip:modifyEngineCurrentValue("life_support", value)
--- end
+function SpaceShip:regenerateLifeSupport()
+    return self:modifyEngineCurrentValue("life_support", 1)
+end
 
--- function SpaceShip:drainShield(value)
---     return SpaceShip:modifyEngineCurrentValue("shield", value)
--- end
+function SpaceShip:drainShield()
+    return self:modifyEngineCurrentValue("shield", -1)
+end
 
--- function SpaceShip:regenerateShield(value)
---     return SpaceShip:modifyEngineCurrentValue("shield", value)
--- end
+function SpaceShip:regenerateShield()
+    return self:modifyEngineCurrentValue("shield", 1)
+end
+
+function SpaceShip:regenerateEnginesOnTimer()
+    if self:everyNTicks(self.engines.energy.tik) then
+        self:regenerateEnergy()
+    end
+    if (
+        self:everyNTicks(self.engines.life_support.tik) and
+        self:getEnergyFraction() > 0.99 and
+        self:getShieldFraction() > 0.99
+    ) then
+        self:regenerateLifeSupport()
+    end
+    if self:everyNTicks(self.engines.shield.tik) then
+        self:regenerateShield()
+    end
+end
 
 
 -- ==========================================
@@ -594,21 +625,36 @@ end
 
 -- Need to do an energy check before doing any of the following.
 function SpaceShip:input()
-    if not self.mortality.dead then
-        if btn(BTN_P1_UP) then
-            self:thrust()
-        end
-        if btn(BTN_P1_DOWN) then
-            self:deadStop()
-        end
-        if btn(BTN_P1_LEFT) then
-            self.rotation = self.rotation - self.rotation_speed
-        end
-        if btn(BTN_P1_RIGHT) then
-            self.rotation = self.rotation + self.rotation_speed
-        end
+    if self.mortality.dead or self:getEnergy() <= 0 then
+        return
+    end
 
-        self.rotation = self:keepAngleInRange(self.rotation)
+    local used_energy = false
+
+    if btn(BTN_P1_UP) then
+        self:thrust()
+        used_energy = true
+    end
+
+    if btn(BTN_P1_DOWN) then
+        self:deadStop()
+        used_energy = true
+    end
+
+    if btn(BTN_P1_LEFT) then
+        self.rotation = self.rotation - self.rotation_speed
+        used_energy = true
+    end
+
+    if btn(BTN_P1_RIGHT) then
+        self.rotation = self.rotation + self.rotation_speed
+        used_energy = true
+    end
+
+    self.rotation = self:keepAngleInRange(self.rotation)
+
+    if used_energy then
+        self:drainEnergy()
     end
 end
 
@@ -617,6 +663,7 @@ end
 -- ==========================================
 
 function SpaceShip:move()
+    self:updateTimer()
 
     if not self.mortality.dead then
         -- We want to be able to coast without any deceleration....
@@ -634,13 +681,14 @@ function SpaceShip:move()
         self.position   = self:movePointByVelocity()
         self.position.x = clamp(self.position.x, 0, MAP_PIXELS_W - 1)
         self.position.y = clamp(self.position.y, 0, MAP_PIXELS_H - 1)
+
+        self:regenerateEnginesOnTimer()
     else
         -- Dead ship body does not move, but particles still animate.
         -- self:moveParticles(self.TYPES.EXPLOSION)
         -- self:moveParticles(self.TYPES.SMOKE)
         -- self:moveParticles(self.TYPES.THRUST)
     end
-    self:updateTimer()
 end
 
 function SpaceShip:kill()

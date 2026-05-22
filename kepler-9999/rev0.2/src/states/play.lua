@@ -8,9 +8,7 @@ function inputPlay()
     end
 
     -- Push all button monitoring off on the player class.
-    if not game.play.player.dead then
-        game.play.player:input()
-    end
+    game.play.player:input()
 end
 
 function updatePlay()
@@ -78,42 +76,57 @@ function drawStarMap()
 end
 
 function drawUserHud()
-
-end
-
-function drawDebugCameraInfo()
     local player = game.play.player
-    local camera = game.camera
 
-    local screen_x = math.floor(player.position.x / SCREEN_W)
-    local screen_y = math.floor(player.position.y / SCREEN_H)
-
-    local debug_statements = {
-        "Player X: " .. math.floor(player.position.x),
-        "Player Y: " .. math.floor(player.position.y),
-        "Player Vs: " .. string.format("%.3f", player.velocity.speed),
-        "Player Vd: " .. string.format("%.3f", player.velocity.direction),
-        "Camera X: " .. math.floor(camera.x),
-        "Camera Y: " .. math.floor(camera.y),
-        "MAP SCREEN: " .. screen_x .. "," .. screen_y,
+    local bars = {
+        {
+            label      = "E",
+            color      = BLUE_LITE,
+            value      = player:getEnergyFraction(),
+            multiplier = player:getEnergyMultiplier(),
+        },
+        {
+            label      = "L",
+            color      = GREEN_MED,
+            value      = player:getLifeSupportFraction(),
+            multiplier = player:getLifeSupportMultiplier(),
+        },
+        {
+            label      = "S",
+            color      = RED,
+            value      = player:getShieldFraction(),
+            multiplier = player:getShieldMultiplier(),
+        },
     }
-    for index, debug_msg in ipairs(debug_statements) do
-        local debug_color = BLUE_LITE
-        if index == 3 or index == 4 then
-            debug_color = CYAN
-        elseif index == 5 or index == 6 then
-            debug_color = WHITE
-        elseif index > 6 then
-            debug_color = YELLOW
-        end
-        local len = print(debug_msg, -10, -10, debug_color, true)
-        print(
-        debug_msg,
-        EDGE_X_RIGHT - len,
-        EDGE_Y_TOP + (index - 1) * Y_PADDING,
-        debug_color,
-        true
-    )
+
+    local bar_w                 = print("E", -10, -10, WHITE, true, 1, true) + 1
+    local bottom_y              = EDGE_Y_BOTTOM - 8
+    local pixels_per_multiplier = 12
+
+    for i, bar in ipairs(bars) do
+        local bar_h  = pixels_per_multiplier * clamp(bar.multiplier, 1, 9)
+        local bar_x  = (i - 1) * bar_w
+        local bar_y  = bottom_y - bar_h
+        local value  = clamp(bar.value, 0, 1)
+        local fill_h = math.floor((bar_h - 2) * value)
+
+        -- Label
+        print(bar.label, bar_x, bottom_y, bar.color, true, 1, true)
+
+        -- Border
+        rectb(bar_x, bar_y, bar_w - 1, bar_h - 1, WHITE)
+
+        -- Empty background
+        rect(bar_x + 1, bar_y + 1, bar_w, bar_h - 1, BLACK)
+
+        -- Fill from bottom upward
+        rect(
+            bar_x + 1,
+            bar_y + bar_h - 1 - fill_h,
+            bar_w - 2,
+            fill_h,
+            bar.color
+        )
     end
 end
 
@@ -141,5 +154,43 @@ function drawPlay()
 
     if DEBUG == true then
         drawDebugCameraInfo()
+    end
+end
+
+-- For debug purposes...
+function drawDebugCameraInfo()
+    local player = game.play.player
+    local camera = game.camera
+
+    local screen_x = math.floor(player.position.x / SCREEN_W)
+    local screen_y = math.floor(player.position.y / SCREEN_H)
+
+    local debug_statements = {
+        -- "Player X: " .. math.floor(player.position.x),
+        -- "Player Y: " .. math.floor(player.position.y),
+        -- "Player Vs: " .. string.format("%.3f", player.velocity.speed),
+        -- "Player Vd: " .. string.format("%.3f", player.velocity.direction),
+        -- "Camera X: " .. math.floor(camera.x),
+        -- "Camera Y: " .. math.floor(camera.y),
+        "MAP SCREEN: " .. screen_x .. "," .. screen_y,
+        "Energy: " .. math.floor(player.engines.energy.cur) .. "/" .. player.engines.energy.max,
+    }
+    for index, debug_msg in ipairs(debug_statements) do
+        local debug_color = BLUE_LITE
+        if index == 3 or index == 4 then
+            debug_color = CYAN
+        elseif index == 5 or index == 6 then
+            debug_color = WHITE
+        elseif index > 6 then
+            debug_color = YELLOW
+        end
+        local len = print(debug_msg, -10, -10, debug_color, true)
+        print(
+            debug_msg,
+            EDGE_X_RIGHT - len,
+            EDGE_Y_TOP + (index - 1) * Y_PADDING,
+            debug_color,
+            true
+        )
     end
 end

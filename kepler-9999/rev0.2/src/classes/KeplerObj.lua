@@ -157,7 +157,7 @@ end
 -- ==========================================
 
 function KeplerObj:updateTimer()
-    self.timer = (self.timer + 1) % 60
+    self.timer = (self.timer + 1) % 36000
 end
 
 function KeplerObj:move()
