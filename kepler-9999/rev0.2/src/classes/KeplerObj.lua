@@ -30,7 +30,22 @@ function KeplerObj.new(params)
     -- have tiny elasticity.
     self.elasticity = params.elasticity or 1.0
 
+    self.timer = params.timer or 0
+
     return self
+end
+
+-- ==========================================
+-- KEPLEROBJ GETTERS
+-- ==========================================
+
+function KeplerObj:getTimer()
+    return self.timer
+end
+
+-- Returns true every N ticks
+function KeplerObj:everyNTicks(n)
+    return (self.timer % n) == 0
 end
 
 -- ==========================================
@@ -126,11 +141,6 @@ end
 -- When there's a collision, calculate the energy of the collision and destroy
 -- one or both objects depending on how massive the collision is.
 
-
--- ==========================================
--- KEPLEROBJ GETTERS
--- ==========================================
-
 -- ==========================================
 -- KEPLEROBJ INPUT
 -- ==========================================
@@ -139,6 +149,10 @@ end
 -- KEPLEROBJ UPDATE
 -- ==========================================
 
+function KeplerObj:updateTimer()
+    self.timer = (self.timer + 1) % 60
+end
+
 function KeplerObj:move()
 end
 
@@ -146,6 +160,16 @@ end
 -- KEPLEROBJ DRAW
 -- ==========================================
 
-function KeplerObj:draw()
+function KeplerObj:drawBody()
+
 end
 
+function KeplerObj:draw()
+    self:drawBody()
+
+    -- Anything else to draw, like particle effects?
+end
+
+function KeplerObj:explode()
+    -- All space objects explode. How is another matter.
+end
