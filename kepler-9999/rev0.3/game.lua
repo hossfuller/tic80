@@ -5,7 +5,7 @@
 
 -- title:   Kepler-9999
 -- author:  Hoss Fuller
--- version: rev0.1
+-- version: rev0.3
 -- script:  lua
 -- input:   mouse
 -- saveid:  kepler_9999
@@ -104,13 +104,297 @@ local TILE_GALAXY_ID = 80
 local TILE_GALAXY_W  = 4
 local TILE_GALAXY_H  = 4
 
+local PASSENGER_MASS         = 75
+local PASSENGER_LUGGAGE_MASS = 25
+local PASSENGER_TOTAL_MASS   = PASSENGER_MASS + PASSENGER_LUGGAGE_MASS
+
 
 -- [/TQ-Bundler: src.constants_game]
+
+-- [TQ-Bundler: src.presets.ships]
+
+-- ==========================================
+-- SPACESHIP PRESETS
+-- ==========================================
+
+--[[
+    These are presets for all the different types of ships a user can play as.
+    These presets are used by the `generatePlayer()` function. The user will
+    select which ship they want to fly around with at the options screen.
+--]]
+
+
+local default_ship = {
+    shape = {
+        { x = 8,  y = 0 },
+        { x = -8, y = 6 },
+        { x = -4, y = 0 },
+        { x = -8, y = -6 },
+        { x = 8,  y = 0 },
+    },
+    engines = {
+        energy = {
+            cur = 250,
+            max = 250,
+            mul = 1,
+            tik = 20,
+        },
+        life_support = {
+            cur = 100,
+            max = 100,
+            mul = 1,
+            tik = 3600,
+        },
+        shield = {
+            cur = 100,
+            max = 100,
+            mul = 1,
+            tik = 60,
+        },
+    },
+    holds = {
+        cargo = {
+            max = 500, -- (kg)
+        },
+        passengers = {
+            max = 6 * PASSENGER_TOTAL_MASS, -- (individuals and their luggage in kg)
+        },
+        smuggled = {
+            max = 100, -- (kg)
+        },
+    },
+    mass      = 100,   -- (kg)
+    max_mass  = 1300,  -- (kg, includes passenger luggage)
+    radius    = 10,    -- (pixels)
+    max_speed = 2.5,
+}
+
+local freight_ship = {
+    shape     = {
+        { x = 8,  y = 0 },
+        { x = -8, y = 6 },
+        { x = -4, y = 0 },
+        { x = -8, y = -6 },
+        { x = 8,  y = 0 },
+    },
+    engines   = {
+        energy = {
+            cur = 1000,
+            max = 1000,
+            mul = 1,
+            tik = 20,
+        },
+        life_support = {
+            cur = 100,
+            max = 100,
+            mul = 1,
+            tik = 3600,
+        },
+        shield = {
+            cur = 250,
+            max = 250,
+            mul = 1,
+            tik = 60,
+        },
+    },
+    holds   = {
+        cargo = {
+            max = 2000, -- (kg)
+        },
+        passengers = {
+            max = 4 * PASSENGER_TOTAL_MASS, -- (individuals in kg)
+        },
+        smuggled = {
+            max = 400, -- (kg)
+        },
+    },
+    mass      = 500,   -- (kg)
+    max_mass  = 3300,  -- (kg, includes passenger luggage)
+    radius    = 15,    -- (pixels)
+    max_speed = 1.5,
+}
+
+local passenger_ship = {
+    shape = {
+        { x = 8,  y = 0 },
+        { x = -8, y = 6 },
+        { x = -4, y = 0 },
+        { x = -8, y = -6 },
+        { x = 8,  y = 0 },
+    },
+    engines   = {
+        energy = {
+            cur = 500,
+            max = 500,
+            mul = 1,
+            tik = 20,
+        },
+        life_support = {
+            cur = 500,
+            max = 500,
+            mul = 1,
+            tik = 3600,
+        },
+        shield = {
+            cur = 100,
+            max = 100,
+            mul = 1,
+            tik = 60,
+        },
+    },
+    holds = {
+        cargo = {
+            max = 500, -- (kg)
+        },
+        passengers = {
+            max = 16 * PASSENGER_TOTAL_MASS, -- (individuals in kg)
+        },
+        smuggled = {
+            max = 100, -- (kg)
+        },
+    },
+    mass      = 500,  -- (kg)
+    max_mass  = 2700, -- (kg, includes passenger luggage)
+    radius    = 15,   -- (pixels)
+    max_speed = 2.0,
+}
+
+local smuggler_ship = {
+    shape     = {
+        { x = 8,  y = 0 },
+        { x = -8, y = 6 },
+        { x = -4, y = 0 },
+        { x = -8, y = -6 },
+        { x = 8,  y = 0 },
+    },
+    engines   = {
+        energy = {
+            cur = 500,
+            max = 500,
+            mul = 1,
+            tik = 20,
+        },
+        life_support = {
+            cur = 100,
+            max = 100,
+            mul = 1,
+            tik = 3600,
+        },
+        shield = {
+            cur = 150,
+            max = 150,
+            mul = 1,
+            tik = 60,
+        },
+    },
+    holds     = {
+        cargo = {
+            max = 250, -- (kg)
+        },
+        passengers = {
+            max = 2 * PASSENGER_TOTAL_MASS, -- (individuals in kg)
+        },
+        smuggled = {
+            max = 1000, -- (kg)
+        },
+    },
+    mass      = 250,  -- (kg)
+    max_mass  = 1700, -- (kg, includes passenger luggage)
+    radius    = 10,   -- (pixels)
+    max_speed = 2.5,
+}
+
+-- Use this in `generatePlayer()`.
+ship_presets = {
+    default_ship,
+    freight_ship,
+    passenger_ship,
+    smuggler_ship,
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- local freight_shape = {
+--     { x = -7, y = 0 },
+--     { x = -4, y = 1 },
+--     { x = -2, y = 4 },
+--     { x = -4, y = 4 },
+--     { x = -6, y = 6 },
+--     { x = -7, y = 9 },
+--     { x = -1, y = 9 },
+--     { x = 2,  y = 7 },
+--     { x = 5,  y = 4 },
+--     { x = 7,  y = 0 },
+--     { x = 5,  y = -4 },
+--     { x = 2,  y = -7 },
+--     { x = -1, y = -9 },
+--     { x = -7, y = -9 },
+--     { x = -6, y = -6 },
+--     { x = -4, y = -4 },
+--     { x = -2, y = -4 },
+--     { x = -4, y = -1 },
+--     { x = -7, y = -0 },
+--     { x = 5,  y = 4 },
+--     { x = 3,  y = 1 },
+--     { x = 2,  y = 0 },
+--     { x = 3,  y = -1 },
+--     { x = 5,  y = -4 },
+
+-- }
+-- local smuggler_shape = {
+--     { x = -5, y = -5 },
+--     { x = 0,  y = -4 },
+--     { x = 5,  y = 0 },
+--     { x = 0,  y = 4 },
+--     { x = -5, y = 5 },
+--     { x = -4, y = 3 },
+--     { x = -3, y = 0 },
+--     { x = -4, y = -3 },
+--     { x = -5, y = -5 },
+-- }
+-- local passenger_shape = {
+--     { x = -6, y = -0 },
+--     { x = 8,  y = -3 },
+--     { x = 6,  y = 0 },
+--     { x = 8,  y = 3 },
+--     { x = -6, y = 0 },
+--     { x = -4, y = 1 },
+--     { x = -2, y = 6 },
+--     { x = 2,  y = 2 },
+--     { x = -4, y = 1 },
+--     { x = 0,  y = 3 },
+--     { x = -4, y = 1 },
+--     { x = -2, y = -6 },
+--     { x = 2,  y = -2 },
+--     { x = -4, y = -1 },
+--     { x = 0,  y = -3 },
+
+-- }
+
+
+-- [/TQ-Bundler: src.presets.ships]
 
 -- [TQ-Bundler: src.generators]
 
 -- ==========================================
 -- GENERATORS
+-- ==========================================
+
+-- ==========================================
+-- BACKGROUND MAP
 -- ==========================================
 
 function generateStarScreen(screen_x, screen_y)
@@ -248,8 +532,336 @@ function generateBackgroundMap()
     end
 end
 
+-- ==========================================
+-- KEPLER OBJECTS, INCLUDING SHIPS
+-- ==========================================
+
+--[[
+Important shape rules
+This triangulation assumes your polygon is:
+
+- Simple — edges do not cross each other.
+- Ordered — points go around the outline in clockwise or counter-clockwise order.
+- Not full of duplicate points — except the final point may duplicate the first point.
+- Not self-intersecting.
+
+Performance note
+For one player ship, recalculating triangulation every frame is totally fine.
+
+But if you later have many polygon ships/enemies with fixed shapes, you may want to triangulate the local shape once and then rotate/draw the triangle vertices each frame. For now, this version is simpler and reusable.
+--]]
+
+
+function generatePlayer()
+    local selected_ship = game.params.ship_type or 1
+    local preset = ship_presets[selected_ship] or default_ship
+    return SpaceShip:new(preset)
+end
+
 
 -- [/TQ-Bundler: src.generators]
+
+-- [TQ-Bundler: src.camera]
+
+-- ==========================================
+-- CAMERA FUNCTIONS
+-- ==========================================
+
+function getPlayerCurrentMapScreen()
+    return {
+        screen_x = math.floor(game.play.player.position.x / SCREEN_W),
+        screen_y = math.floor(game.play.player.position.y / SCREEN_H)
+    }
+end
+
+function setPlayerStartMapScreen(screen_x, screen_y)
+    local player = game.play.player
+    local camera = game.camera
+
+    player.position.x = screen_x * SCREEN_W + SCREEN_W / 2
+    player.position.y = screen_y * SCREEN_H + SCREEN_H / 2
+
+    camera.x = screen_x * SCREEN_W
+    camera.y = screen_y * SCREEN_H
+
+    camera.x = clamp(camera.x, 0, MAP_PIXELS_W - SCREEN_W)
+    camera.y = clamp(camera.y, 0, MAP_PIXELS_H - SCREEN_H)
+
+    camera.target_x = camera.x
+    camera.target_y = camera.y
+end
+
+function resetPlayerAndCamera()
+    setPlayerStartMapScreen(0, 0)
+end
+
+function updateCamera(player, camera)
+    -- Target camera position places player in center of screen.
+    camera.target_x = player.position.x - SCREEN_W / 2
+    camera.target_y = player.position.y - SCREEN_H / 2
+
+    -- Clamp target so camera does not show outside the map.
+    camera.target_x = clamp(camera.target_x, 0, MAP_PIXELS_W - SCREEN_W)
+    camera.target_y = clamp(camera.target_y, 0, MAP_PIXELS_H - SCREEN_H)
+
+    -- Smoothly move camera toward target.
+    camera.x = lerp(camera.x, camera.target_x, camera.lerp)
+    camera.y = lerp(camera.y, camera.target_y, camera.lerp)
+end
+
+-- ==========================================
+-- CAMERA HELPERS
+-- ==========================================
+
+function clamp(value, min_value, max_value)
+    if value < min_value then
+        return min_value
+    end
+
+    if value > max_value then
+        return max_value
+    end
+
+    return value
+end
+
+function lerp(a, b, t)
+    return a + (b - a) * t
+end
+
+function worldToScreen(world_x, world_y)
+    return world_x - game.camera.x, world_y - game.camera.y
+end
+
+
+-- [/TQ-Bundler: src.camera]
+
+-- [TQ-Bundler: src.polygons]
+
+-- ==========================================
+-- POLYGON FUNCTIONS
+-- ==========================================
+
+function polygonSignedArea(points)
+    local area = 0
+
+    for i = 1, #points do
+        local j = i + 1
+        if j > #points then
+            j = 1
+        end
+
+        area = area + points[i].x * points[j].y - points[j].x * points[i].y
+    end
+
+    return area / 2
+end
+
+function polygonIsClockwise(points)
+    return polygonSignedArea(points) < 0
+end
+
+function pointInTriangle(p, a, b, c)
+    local function sign(p1, p2, p3)
+        return (p1.x - p3.x) * (p2.y - p3.y) -
+            (p2.x - p3.x) * (p1.y - p3.y)
+    end
+
+    local d1 = sign(p, a, b)
+    local d2 = sign(p, b, c)
+    local d3 = sign(p, c, a)
+
+    local has_neg = d1 < 0 or d2 < 0 or d3 < 0
+    local has_pos = d1 > 0 or d2 > 0 or d3 > 0
+
+    return not (has_neg and has_pos)
+end
+
+function polygonVertexIsConvex(prev, current, next, clockwise)
+    local cross =
+        (current.x - prev.x) * (next.y - current.y) -
+        (current.y - prev.y) * (next.x - current.x)
+
+    if clockwise then
+        return cross < 0
+    else
+        return cross > 0
+    end
+end
+
+function removeDuplicateClosingPoint(points)
+    local result = {}
+
+    for i, p in ipairs(points) do
+        result[#result + 1] = {
+            x = p.x,
+            y = p.y,
+        }
+    end
+
+    if #result >= 2 then
+        local first = result[1]
+        local last = result[#result]
+
+        if first.x == last.x and first.y == last.y then
+            table.remove(result, #result)
+        end
+    end
+
+    return result
+end
+
+function triangulatePolygon(points)
+    local polygon = removeDuplicateClosingPoint(points)
+    local triangles = {}
+
+    if #polygon < 3 then
+        return triangles
+    end
+
+    if #polygon == 3 then
+        triangles[#triangles + 1] = {
+            polygon[1],
+            polygon[2],
+            polygon[3],
+        }
+        return triangles
+    end
+
+    local clockwise = polygonIsClockwise(polygon)
+
+    -- Build index list so we can remove ears without destroying original points.
+    local indices = {}
+
+    for i = 1, #polygon do
+        indices[#indices + 1] = i
+    end
+
+    local guard = 0
+    local max_guard = #polygon * #polygon
+
+    while #indices > 3 and guard < max_guard do
+        guard = guard + 1
+
+        local ear_found = false
+
+        for i = 1, #indices do
+            local prev_i = i - 1
+            local next_i = i + 1
+
+            if prev_i < 1 then
+                prev_i = #indices
+            end
+
+            if next_i > #indices then
+                next_i = 1
+            end
+
+            local prev_index = indices[prev_i]
+            local curr_index = indices[i]
+            local next_index = indices[next_i]
+
+            local prev_point = polygon[prev_index]
+            local curr_point = polygon[curr_index]
+            local next_point = polygon[next_index]
+
+            if polygonVertexIsConvex(prev_point, curr_point, next_point, clockwise) then
+                local contains_point = false
+
+                for j = 1, #indices do
+                    local test_index = indices[j]
+
+                    if test_index ~= prev_index and
+                        test_index ~= curr_index and
+                        test_index ~= next_index then
+                        local test_point = polygon[test_index]
+
+                        if pointInTriangle(test_point, prev_point, curr_point, next_point) then
+                            contains_point = true
+                            break
+                        end
+                    end
+                end
+
+                if not contains_point then
+                    triangles[#triangles + 1] = {
+                        prev_point,
+                        curr_point,
+                        next_point,
+                    }
+
+                    table.remove(indices, i)
+                    ear_found = true
+                    break
+                end
+            end
+        end
+
+        -- If no ear was found, the polygon may be self-intersecting,
+        -- degenerate, or have duplicate/collinear points causing trouble.
+        if not ear_found then
+            break
+        end
+    end
+
+    if #indices == 3 then
+        triangles[#triangles + 1] = {
+            polygon[indices[1]],
+            polygon[indices[2]],
+            polygon[indices[3]],
+        }
+    end
+
+    return triangles
+end
+
+function drawFilledPolygon(points, color)
+    local triangles = triangulatePolygon(points)
+
+    for _, triangle in ipairs(triangles) do
+        local a = triangle[1]
+        local b = triangle[2]
+        local c = triangle[3]
+
+        tri(
+            a.x, a.y,
+            b.x, b.y,
+            c.x, c.y,
+            color
+        )
+    end
+end
+
+function drawPolygonOutline(points, color)
+    if #points < 2 then
+        return
+    end
+
+    for i = 2, #points do
+        line(
+            points[i - 1].x,
+            points[i - 1].y,
+            points[i].x,
+            points[i].y,
+            color
+        )
+    end
+
+    local first = points[1]
+    local last = points[#points]
+
+    if first.x ~= last.x or first.y ~= last.y then
+        line(
+            last.x,
+            last.y,
+            first.x,
+            first.y,
+            color
+        )
+    end
+end
+
+-- [/TQ-Bundler: src.polygons]
 
 -- [TQ-Bundler: src.game_state]
 
@@ -281,9 +893,14 @@ game = {
     options = {
         selected = 1,
         items = {
-            -- {name = "Sound", values = {"On", "Off"}, current = 1},
-            -- {name = "Difficulty", values = {"Easy", "Normal", "Hard"}, current = 2},
-            -- {name = "Back", values = {""}, current = 1},
+            {
+                name = "Ship Type",
+                values = { "Default", "Freight", "Passenger", "Smuggler" },
+                current = 1,
+                apply = function(current)
+                    game.params.ship_type = current
+                end,
+            },
             {
                 name = "Back",
                 values = nil, -- No values means this is an action, not a setting.
@@ -299,31 +916,22 @@ game = {
     hiscores = {},
 
     -- Game Parameters
-    params = {},
+    params = {
+        ship_type = 1, -- default ship by default
+    },
 
     -- The top-down camera
     camera = {
         x = 0,
         y = 0,
-
         target_x = 0,
         target_y = 0,
-
         lerp = 0.08,
     },
 
     -- Gameplay state
     play = {
-        -- player = {},
-
-        -- ============
-        -- For testing
-        -- ============
-        player = {
-            x = MAP_PIXELS_W / 2,
-            y = MAP_PIXELS_H / 2,
-            speed = 2,
-        },
+        player = {},
     },
 }
 
@@ -340,26 +948,10 @@ function changeState(newState)
         math.randomseed(tstamp() + time())
 
         generateBackgroundMap()
+
+        game.play.player = generatePlayer()
         resetPlayerAndCamera()
     end
-end
-
-function resetPlayerAndCamera()
-    local player = game.play.player
-    local camera = game.camera
-
-    -- Start somewhere in the middle of the full 64-screen map.
-    player.x = MAP_PIXELS_W / 2
-    player.y = MAP_PIXELS_H / 2
-
-    camera.x = player.x - SCREEN_W / 2
-    camera.y = player.y - SCREEN_H / 2
-
-    camera.x = clamp(camera.x, 0, MAP_PIXELS_W - SCREEN_W)
-    camera.y = clamp(camera.y, 0, MAP_PIXELS_H - SCREEN_H)
-
-    camera.target_x = camera.x
-    camera.target_y = camera.y
 end
 
 
@@ -371,113 +963,6 @@ end
 -- HELPERS
 -- ==========================================
 
--- ==========================================
--- TIME HELPERS
--- ==========================================
-
--- mdays_common = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
-
--- function get_unix_timestamp()
---     return math.tointeger(tstamp())
--- end
-
--- function convert_datetime_obj_to_string(datetime_obj)
---     return string.format(
---         "%04d-%02d-%02d",
---         datetime_obj.year,
---         datetime_obj.month,
---         datetime_obj.day
---     )
--- end
-
--- function is_greg_leap(y)
---     return (y % 4 == 0) and ((y % 100 ~= 0) or (y % 400 == 0))
--- end
-
--- function greg_days_in_month(y, m)
---     if m == 2 and is_greg_leap(y) then return 29 end
---     return mdays_common[m]
--- end
-
--- -- Unix seconds -> Gregorian UTC date/time (year,month,day,hour,min,sec)
--- function unix_to_greg_utc(ts)
---     local sec_per_day = 86400
---     local days        = math.floor(ts / sec_per_day)
---     local sod         = ts - days * sec_per_day
---     if sod < 0 then
---         sod = sod + sec_per_day
---         days = days - 1
---     end
-
---     local hour = math.floor(sod / 3600); sod = sod - hour * 3600
---     local min  = math.floor(sod / 60)
---     local sec  = sod - min * 60
-
---     local y    = 1970
---     if days >= 0 then
---         while true do
---             local diy = is_greg_leap(y) and 366 or 365
---             if days >= diy then
---                 days = days - diy
---                 y = y + 1
---             else
---                 break
---             end
---         end
---     else
---         while days < 0 do
---             y = y - 1
---             local diy = is_greg_leap(y) and 366 or 365
---             days = days + diy
---         end
---     end
-
---     local m = 1
---     while true do
---         local dim = greg_days_in_month(y, m)
---         if days >= dim then
---             days = days - dim
---             m = m + 1
---         else
---             break
---         end
---     end
-
---     local d = days + 1
-
---     return {
---         year  = y,
---         month = m,
---         day   = d,
---         hour  = hour,
---         min   = min,
---         sec   = sec
---     }
--- end
-
--- ==========================================
--- CAMERA HELPERS
--- ==========================================
-
-function clamp(value, min_value, max_value)
-    if value < min_value then
-        return min_value
-    end
-
-    if value > max_value then
-        return max_value
-    end
-
-    return value
-end
-
-function lerp(a, b, t)
-    return a + (b - a) * t
-end
-
-function worldToScreen(world_x, world_y)
-    return world_x - game.camera.x, world_y - game.camera.y
-end
 
 -- ==========================================
 -- DRAWING HELPERS
@@ -516,6 +1001,41 @@ function drawOverlayBox(text)
 
     -- Draw text
     drawCenteredText(text, boxY + 16, 12)
+end
+
+function drawPieSlice(cx, cy, radius, start_fraction, end_fraction, color)
+    if end_fraction <= start_fraction then
+        return
+    end
+
+    start_fraction    = clamp(start_fraction, 0, 1)
+    end_fraction      = clamp(end_fraction, 0, 1)
+
+    local start_angle = start_fraction * math.pi * 2
+    local end_angle   = end_fraction * math.pi * 2
+
+    local angle_span  = end_angle - start_angle
+
+    -- More segments = smoother circle.
+    local segments    = math.max(1, math.ceil(angle_span / (math.pi / 12)))
+
+    for i = 0, segments - 1 do
+        local a1 = start_angle + angle_span * (i / segments)
+        local a2 = start_angle + angle_span * ((i + 1) / segments)
+
+        local x1 = cx + math.cos(a1) * radius
+        local y1 = cy + math.sin(a1) * radius
+
+        local x2 = cx + math.cos(a2) * radius
+        local y2 = cy + math.sin(a2) * radius
+
+        tri(
+            cx, cy,
+            x1, y1,
+            x2, y2,
+            color
+        )
+    end
 end
 
 
@@ -974,80 +1494,76 @@ function inputPlay()
     end
 
     -- Push all button monitoring off on the player class.
-    -- if not game.play.player.dead then
-    --     game.play.player:input()
-    -- end
-end
-
--- ============
--- For testing
--- ============
-function updatePlayer()
-    local player = game.play.player
-
-    local dx = 0
-    local dy = 0
-
-    if btn(BTN_P1_LEFT) then
-        dx = dx - 1
-    end
-
-    if btn(BTN_P1_RIGHT) then
-        dx = dx + 1
-    end
-
-    if btn(BTN_P1_UP) then
-        dy = dy - 1
-    end
-
-    if btn(BTN_P1_DOWN) then
-        dy = dy + 1
-    end
-
-    -- Normalize diagonal movement.
-    if dx ~= 0 and dy ~= 0 then
-        local inv = 1 / math.sqrt(2)
-        dx = dx * inv
-        dy = dy * inv
-    end
-
-    player.x = player.x + dx * player.speed
-    player.y = player.y + dy * player.speed
-
-    player.x = clamp(player.x, 0, MAP_PIXELS_W - 1)
-    player.y = clamp(player.y, 0, MAP_PIXELS_H - 1)
-end
-
-function updateCamera()
-    local player = game.play.player
-    local camera = game.camera
-
-    -- Target camera position places player in center of screen.
-    camera.target_x = player.x - SCREEN_W / 2
-    camera.target_y = player.y - SCREEN_H / 2
-
-    -- Clamp target so camera does not show outside the map.
-    camera.target_x = clamp(camera.target_x, 0, MAP_PIXELS_W - SCREEN_W)
-    camera.target_y = clamp(camera.target_y, 0, MAP_PIXELS_H - SCREEN_H)
-
-    -- Smoothly move camera toward target.
-    camera.x = lerp(camera.x, camera.target_x, camera.lerp)
-    camera.y = lerp(camera.y, camera.target_y, camera.lerp)
+    game.play.player:input()
 end
 
 function updatePlay()
-    updatePlayer()
-    updateCamera()
-end
-
-function drawPlayer()
     local player = game.play.player
+    player:move()
+    updateCamera(player, game.camera)
 
-    local screen_x, screen_y = worldToScreen(player.x, player.y)
+    -- Regenerate energy, life support, and shields. tik check happens within
+    -- the regenerate function.
+    -- if player:everyNTicks(90) then
+    --     player:regenerateHealth()
+    -- end
 
-    circ(screen_x, screen_y, 3, CYAN)
-    pix(screen_x, screen_y, WHITE)
+    -- If ship is dead, count down and respawn or gameover
+    if player.mortality.dead then
+        player.mortality.respawn_timer = player.mortality.respawn_timer - 1
+
+        if player.mortality.respawn_timer <= 0 then
+            if player.mortality.num_lives <= 0 then
+                changeState(STATE.GAMEOVER)
+                return
+
+            -- We'll figure this out later
+            -- else
+            --     player:respawn()
+            end
+        end
+    else
+        -- Check for collisions.
+    end
+
+    -- tick invulnerability
+    if player.mortality.invulnerable > 0 then
+        player.mortality.invulnerable = player.mortality.invulnerable - 1
+    end
+
+
+    -- FOR TESTING
+    if player:everyNTicks(60) then
+        local mode = math.random(1, 3)
+        local plus_minus = math.random(0, 1) == 1
+        if mode == 1 then
+            if plus_minus then
+                player:pickupCargo(mode * 50)
+                drawCenteredText("Picked up " .. tostring(mode * 50) .. "kg of cargo", 30, WHITE)
+            else
+                player:deliverCargo(mode * 50)
+                drawCenteredText("Delivered up " .. tostring(mode * 50) .. "kg of cargo", 30, WHITE)
+            end
+        elseif mode == 2 then
+            if plus_minus then
+                player:pickupPassengers(mode)
+                drawCenteredText("Picked up " .. tostring(mode * 50) .. " passengers", 30, WHITE)
+            else
+                player:deliverPassengers(mode)
+                drawCenteredText("Delivered up " .. tostring(mode * 50) .. " passengers", 30, WHITE)
+            end
+        elseif mode == 3 then
+            if plus_minus then
+                player:pickupSmuggledGoods(mode * 50)
+                drawCenteredText("Picked up " .. tostring(mode * 50) .. "kg of smuggled goods", 30, WHITE)
+            else
+                player:deliverSmuggledGoods(mode * 50)
+                drawCenteredText("Delivered up " .. tostring(mode * 50) .. "kg of smuggled goods", 30, WHITE)
+            end
+        end
+    end
 end
+
 
 function drawStarMap()
     local camera = game.camera
@@ -1076,39 +1592,138 @@ function drawStarMap()
     )
 end
 
-function drawUserHud()
 
-end
+function drawShipMassHud()
+    local player             = game.play.player
 
-function drawDebugCameraInfo()
-    local player = game.play.player
-    local camera = game.camera
+    local radius             = 14
+    local cx                 = EDGE_X_LEFT + radius + 3
+    local cy                 = EDGE_Y_BOTTOM - radius - 3
 
-    local screen_x = math.floor(player.x / SCREEN_W)
-    local screen_y = math.floor(player.y / SCREEN_H)
+    local cargo_fraction     = clamp(player:getCargoMassFraction(), 0, 1)
+    local passenger_fraction = clamp(player:getPassengerMassFraction(), 0, 1)
+    local smuggled_fraction  = clamp(player:getSmuggledMassFraction(), 0, 1)
 
-    local debug_statements = {
-        "Player X: " .. math.floor(player.x),
-        "Player Y: " .. math.floor(player.y),
-        "Camera X: " .. math.floor(camera.x),
-        "Camera Y: " .. math.floor(camera.y),
-        "MAP SCREEN: " .. screen_x .. "," .. screen_y,
-    }
-    for index, debug_msg in ipairs(debug_statements) do
-        local debug_color = WHITE
-        if index == 3 or index == 4 then
-            debug_color = CYAN
-        elseif index == 5 then
-            debug_color = YELLOW
-        end
-        local len = print(debug_msg, -10, -10, debug_color, true)
-        print(
-        debug_msg,
-        EDGE_X_RIGHT - len,
-        EDGE_Y_TOP + (index - 1) * Y_PADDING,
-        debug_color,
+    local total_fraction     = cargo_fraction + passenger_fraction + smuggled_fraction
+
+    -- If something ever exceeds max_mass, do not let the graph wrap past full.
+    if total_fraction > 1 then
+        cargo_fraction     = cargo_fraction / total_fraction
+        passenger_fraction = passenger_fraction / total_fraction
+        smuggled_fraction  = smuggled_fraction / total_fraction
+        total_fraction     = 1
+    end
+
+    -- Background / empty capacity.
+    circ(cx, cy, radius, BLACK)
+    circb(cx, cy, radius, WHITE)
+
+    local cursor = 0
+
+    -- Cargo slice.
+    drawPieSlice(
+        cx,
+        cy,
+        radius - 1,
+        cursor,
+        cursor + cargo_fraction,
+        GRAY_DARK
+    )
+    cursor = cursor + cargo_fraction
+
+    -- Passenger slice.
+    drawPieSlice(
+        cx,
+        cy,
+        radius - 1,
+        cursor,
+        cursor + passenger_fraction,
+        GRAY_MED
+    )
+    cursor = cursor + passenger_fraction
+
+    -- Smuggled goods slice.
+    drawPieSlice(
+        cx,
+        cy,
+        radius - 1,
+        cursor,
+        cursor + smuggled_fraction,
+        GRAY_LITE
+    )
+    cursor = cursor + smuggled_fraction
+
+    -- Border on top.
+    circb(cx, cy, radius, WHITE)
+
+    -- Optional tiny total mass label.
+    local percent = math.floor(total_fraction * 100)
+    local text = percent .. "%"
+    local text_w = print(text, -100, -100, WHITE, true, 1, true)
+
+    print(
+        text,
+        cx - math.floor(text_w / 2),
+        cy - 3,
+        WHITE,
+        true,
+        1,
         true
     )
+end
+
+function drawShipStatusHud()
+    local player = game.play.player
+
+    local bars = {
+        {
+            label      = "E",
+            color      = BLUE_LITE,
+            value      = player:getEnergyFraction(),
+            multiplier = player:getEnergyMultiplier(),
+        },
+        {
+            label      = "L",
+            color      = GREEN_MED,
+            value      = player:getLifeSupportFraction(),
+            multiplier = player:getLifeSupportMultiplier(),
+        },
+        {
+            label      = "S",
+            color      = RED,
+            value      = player:getShieldFraction(),
+            multiplier = player:getShieldMultiplier(),
+        },
+    }
+
+    local bar_w                 = print("E", -10, -10, WHITE, true, 1, true) + 1
+    local bottom_y              = EDGE_Y_BOTTOM - 8
+    local pixels_per_multiplier = 12
+
+    for i, bar in ipairs(bars) do
+        local bar_h  = pixels_per_multiplier * clamp(bar.multiplier, 1, 9)
+        local bar_x  = (i - 1) * bar_w
+        local bar_y  = bottom_y - bar_h
+        local value  = clamp(bar.value, 0, 1)
+        local fill_h = math.floor((bar_h - 2) * value)
+
+        -- Label
+        print(bar.label, bar_x, bottom_y, bar.color, true, 1, true)
+
+        -- Border
+        rectb(bar_x, bar_y, bar_w - 1, bar_h - 1, WHITE)
+
+        -- Empty background
+        rect(bar_x + 1, bar_y + 1, bar_w, bar_h - 1, BLACK)
+
+        -- Fill from bottom upward
+        rect(
+            bar_x + 1,
+            bar_y + bar_h - 1 - fill_h,
+            bar_w - 2,
+            fill_h,
+            bar.color
+        )
     end
 end
 
@@ -1117,9 +1732,19 @@ function drawGame()
 
     drawStarMap()
 
-    drawPlayer()
+    local player = game.play.player
+    if not player.mortality.dead and player:shouldDraw() then
+        player:drawBody()
+    end
 
-    drawUserHud()
+    -- Draw particle effects even if the ship explodes and isn't drawn anymore.
+    -- player:drawParticles(player.TYPES.EXPLOSION)
+    -- player:drawParticles(player.TYPES.SMOKE)
+    -- player:drawParticles(player.TYPES.SPARK)
+    -- player:drawParticles(player.TYPES.THRUST)
+
+    drawShipMassHud()
+    -- drawShipStatusHud()
 end
 
 function drawPlay()
@@ -1127,6 +1752,44 @@ function drawPlay()
 
     if DEBUG == true then
         drawDebugCameraInfo()
+    end
+end
+
+-- For debug purposes...
+function drawDebugCameraInfo()
+    local player = game.play.player
+    local camera = game.camera
+
+    local screen_x = math.floor(player.position.x / SCREEN_W)
+    local screen_y = math.floor(player.position.y / SCREEN_H)
+
+    local debug_statements = {
+        -- "Player X: " .. math.floor(player.position.x),
+        -- "Player Y: " .. math.floor(player.position.y),
+        -- "Player Vs: " .. string.format("%.3f", player.velocity.speed),
+        -- "Player Vd: " .. string.format("%.3f", player.velocity.direction),
+        -- "Camera X: " .. math.floor(camera.x),
+        -- "Camera Y: " .. math.floor(camera.y),
+        "MAP SCREEN: " .. screen_x .. "," .. screen_y,
+        "Energy: " .. math.floor(player.engines.energy.cur) .. "/" .. player.engines.energy.max,
+    }
+    for index, debug_msg in ipairs(debug_statements) do
+        local debug_color = BLUE_LITE
+        if index == 3 or index == 4 then
+            debug_color = CYAN
+        elseif index == 5 or index == 6 then
+            debug_color = WHITE
+        elseif index > 6 then
+            debug_color = YELLOW
+        end
+        local len = print(debug_msg, -10, -10, debug_color, true)
+        print(
+            debug_msg,
+            EDGE_X_RIGHT - len,
+            EDGE_Y_TOP + (index - 1) * Y_PADDING,
+            debug_color,
+            true
+        )
     end
 end
 
@@ -1237,6 +1900,1116 @@ states = {
 
 
 -- [/TQ-Bundler: src.state_machine]
+
+-- [TQ-Bundler: src.classes.KeplerObj]
+
+-- ==========================================
+-- KEPLEROBJ OBJECT
+-- ==========================================
+
+KeplerObj = {}
+KeplerObj.__index = KeplerObj
+
+function KeplerObj.new(params)
+    params = params or {}
+    local self = setmetatable({}, KeplerObj)
+
+    self.colors = {
+        primary   = params.primary_color   or BLUE_MED,
+        secondary = params.secondary_color or WHITE,
+        tertiary  = params.tertiary_color  or YELLOW,
+    }
+    self.color = self.colors.primary    -- In case it's a one-color object.
+
+    self.mass   = params.mass or 100   -- (kg)
+    self.radius = params.radius or 10  -- (m)
+
+    self.position = {
+        x = params.x or math.floor(EDGE_X_RIGHT / 2),
+        y = params.y or math.floor(EDGE_Y_BOTTOM / 2)
+    }
+    self.velocity = {
+        speed     = params.speed     or 0,
+        direction = params.direction or 0,
+    }
+    self.acceleration   = params.acceleration   or 0.05
+    self.deceleration   = params.deceleration   or 0.01
+    self.rotation       = params.rotation       or 5
+    self.rotation_speed = params.rotation_speed or 0.07
+
+    -- For deflections: 1.0 = perfectly elastic, <1.0 loses speed
+    -- More massive bodies have a higher elasticity. Smaller things like ships
+    -- have tiny elasticity.
+    self.elasticity = params.elasticity or 1.0
+
+    self.timer = params.timer or 0
+
+    return self
+end
+
+-- ==========================================
+-- KEPLEROBJ GETTERS
+-- ==========================================
+
+function KeplerObj:getTimer()
+    return self.timer
+end
+
+-- Returns true every N ticks
+function KeplerObj:everyNTicks(n)
+    return (self.timer % n) == 0
+end
+
+-- ==========================================
+-- KEPLEROBJ MATH
+-- ==========================================
+
+function KeplerObj:keepAngleInRange(angle)
+    if angle < 0 then
+        while angle < 0 do
+            angle = angle + (2 * math.pi)
+        end
+    end
+    if angle > (2 * math.pi) then
+        while angle > (2 * math.pi) do
+            angle = angle - (2 * math.pi)
+        end
+    end
+    return angle
+end
+
+-- 'rotation' parameter is in radians.
+function KeplerObj:rotatePoint(point, rotation)
+    local rotated_x = (point.x * math.cos(rotation)) - (point.y * math.sin(rotation))
+    local rotated_y = (point.y * math.cos(rotation)) + (point.x * math.sin(rotation))
+    return { x = rotated_x, y = rotated_y }
+end
+
+function KeplerObj:getVectorComponents(vector)
+    local xComp = vector.speed * math.cos(vector.direction)
+    local yComp = vector.speed * math.sin(vector.direction)
+
+    local components = {
+        xComp = xComp,
+        yComp = yComp
+    }
+
+    return components
+end
+
+function KeplerObj:addVectors(vector1, vector2)
+    v1Comp = self:getVectorComponents(vector1)
+    v2Comp = self:getVectorComponents(vector2)
+    resultantX = v1Comp.xComp + v2Comp.xComp
+    resultantY = v1Comp.yComp + v2Comp.yComp
+
+    local resVector = self:compToVector(resultantX, resultantY)
+
+    return resVector
+end
+
+function KeplerObj:compToVector(x, y)
+    local magnitude = math.sqrt((x * x) + (y * y))
+    local direction = math.atan(y, x)
+
+    direction = self:keepAngleInRange(direction)
+
+    local vector = {
+        speed = magnitude,
+        direction = direction
+    }
+
+    return vector
+end
+
+function KeplerObj:movePointByVelocity(obj)
+    if obj == nil then
+        obj = self
+    end
+
+    components = self:getVectorComponents(obj.velocity)
+
+    local newPosition = {
+        x = obj.position.x + components.xComp,
+        y = obj.position.y + components.yComp
+    }
+
+    return newPosition
+end
+
+-- ==========================================
+-- KEPLEROBJ PHYSICS
+-- ==========================================
+
+-- ==========================================
+-- KEPLEROBJ COLLISION DETECTION
+-- ==========================================
+
+-- Treat everything like a circle
+
+-- Deflection only works on objects below a certain mass, with the object of the
+-- lesser mass being deflected harder than the more massive object.
+
+-- When there's a collision, calculate the energy of the collision and destroy
+-- one or both objects depending on how massive the collision is.
+
+-- ==========================================
+-- KEPLEROBJ INPUT
+-- ==========================================
+
+-- ==========================================
+-- KEPLEROBJ UPDATE
+-- ==========================================
+
+function KeplerObj:updateTimer()
+    self.timer = (self.timer + 1) % 36000
+end
+
+function KeplerObj:move()
+end
+
+-- ==========================================
+-- KEPLEROBJ DRAW
+-- ==========================================
+
+function KeplerObj:drawBody()
+
+end
+
+function KeplerObj:draw()
+    self:drawBody()
+
+    -- Anything else to draw, like particle effects?
+end
+
+function KeplerObj:explode()
+    -- All space objects explode. How is another matter.
+end
+
+
+-- [/TQ-Bundler: src.classes.KeplerObj]
+
+-- [TQ-Bundler: src.classes.SpaceShip]
+
+-- ==========================================
+-- SPACESHIP OBJECT
+-- ==========================================
+
+SpaceShip = setmetatable({}, { __index = KeplerObj })
+SpaceShip.__index = SpaceShip
+
+function SpaceShip:new(params)
+    params = params or {}
+    local self = KeplerObj.new(params) -- build base fields
+    setmetatable(self, SpaceShip)     -- make it a SpaceShip instance
+
+    -- For regenerating the various attributes. Lower number means slower
+    -- regeneration. These also act as a multiplier for the max values.
+    self.engines = {
+        energy = {
+            cur = params.engines.energy.cur or 250,
+            max = params.engines.energy.max or 250,
+            mul = params.engines.energy.mul or 1,
+            tik = params.engines.energy.tik or 20,
+        },
+        life_support = {
+            cur = params.engines.life_support.cur or 100,
+            max = params.engines.life_support.max or 100,
+            mul = params.engines.life_support.mul or 1,
+            tik = params.engines.life_support.tik or 3600,
+        },
+        shield = {
+            cur = params.engines.shield.cur or 100,
+            max = params.engines.shield.max or 100,
+            mul = params.engines.shield.mul or 1,
+            tik = params.engines.shield.tik or 60,
+        },
+    }
+
+    -- Cargo/passenger holds. Everything is measured in kg and limited by the
+    -- max_mass property.
+    self.holds = {
+        cargo = {
+            cur = params.holds.cargo.cur or 0,   -- (kg)
+            max = params.holds.cargo.max or 500, -- (kg)
+        },
+        passengers = {
+            cur = params.holds.passengers.cur or 0,      -- (kg)
+            max = params.holds.passengers.max or 6 * PASSENGER_TOTAL_MASS, -- (individuals in kg)
+        },
+        smuggled = {
+            cur = params.holds.smuggled.cur or 0,   -- (kg)
+            max = params.holds.smuggled.max or 100, -- (kg)
+        },
+    }
+
+    self.mass       = params.mass       or 100   -- (kg)
+    self.radius     = params.radius     or 10    -- (pixels)
+    self.elasticity = params.elasticity or 0.5
+    self.max_mass   = params.max_mass   or 1300  -- (kg)
+    self.max_speed  = params.max_speed  or 2.5
+
+    -- The default SpaceShip shape
+    self.shape = params.shape or {
+        { x = 8,  y = 0 },
+        { x = -8, y = 6 },
+        { x = -4, y = 0 },
+        { x = -8, y = -6 },
+        { x = 8,  y = 0 }
+    }
+
+    local deadstop = params.deadstop or {}
+    self.deadstop  = {
+        brake = deadstop.brake or 0.35,   -- 0..1, higher = faster stop per frame
+        snap  = deadstop.snap  or 0.02   -- below this speed, just snap to 0
+    }
+
+    self.mortality = {
+        num_lives     = params.num_lives or 1,
+        invulnerable  = 0,
+        dead          = false,
+        exploded      = false,
+        respawn_timer = 0,
+    }
+
+    -- Particle Effects
+    self.particles = {
+        explosion = {
+            colors = { YELLOW, ORANGE, RED },
+            params = {
+                cooldown      = 0,
+                deceleration  = 0.015,
+                max_lifetime  = 90,
+                max_size      = 3,
+                max_speed     = 2,
+                num_particles = 100,
+                offset        = { x = 0, y = 0 },
+                type          = "explosion",
+            },
+            particles = {},
+        },
+        smoke = {
+            colors = { GRAY_LITE, GRAY_MED, GRAY_DARK },
+            params = {
+                cooldown      = 0,
+                deceleration  = 0.015,
+                max_lifetime  = 90,
+                max_size      = 3,
+                max_speed     = 2,
+                num_particles = 100,
+                offset        = { x = 0, y = 0 },
+                type          = "smoke",
+            },
+            particles = {},
+        },
+        spark = {
+            colors = { ORANGE },
+            params = {
+                cooldown      = 0,
+                deceleration  = 0.01,
+                max_lifetime  = 30,
+                max_size      = 1,
+                max_speed     = 2,
+                num_particles = 30,
+                offset        = { x = 0, y = 0 },
+                type          = "spark",
+            },
+            particles = {},
+        },
+        thrust = {
+            colors = { YELLOW, ORANGE, RED, GRAY_LITE, GRAY_MED, GRAY_DARK },
+            params = {
+                cooldown      = 0,
+                deceleration  = 0.01,
+                max_lifetime  = 30,
+                max_size      = 1,
+                max_speed     = 2,
+                num_particles = 5,
+                offset        = { x = -5, y = 0 },
+                type          = "thrust",
+            },
+            particles = {},
+        },
+    }
+
+    return self
+end
+
+-- ==========================================
+-- SPACESHIP STATUS GETTERS
+-- ==========================================
+
+function SpaceShip:getEnergy()
+    if self.engines.energy.cur < 0 then
+        self.engines.energy.cur = 0
+    end
+    return self.engines.energy.cur
+end
+
+function SpaceShip:getEnergyFraction()
+    return self:getEnergy() / self.engines.energy.max
+end
+
+function SpaceShip:getEnergyMultiplier()
+    return self.engines.energy.mul
+end
+
+function SpaceShip:getLifeSupport()
+    if self.engines.life_support.cur < 0 then
+        self.engines.life_support.cur = 0
+    end
+    return self.engines.life_support.cur
+end
+
+function SpaceShip:getLifeSupportFraction()
+    return self:getLifeSupport() / self.engines.life_support.max
+end
+
+function SpaceShip:getLifeSupportMultiplier()
+    return self.engines.life_support.mul
+end
+
+function SpaceShip:getShield()
+    if self.engines.shield.cur < 0 then
+        self.engines.shield.cur = 0
+    end
+    return self.engines.shield.cur
+end
+
+function SpaceShip:getShieldFraction()
+    return self:getShield() / self.engines.shield.max
+end
+
+function SpaceShip:getShieldMultiplier()
+    return self.engines.shield.mul
+end
+
+
+function SpaceShip:getHoldMassMax()
+    return self.holds.cargo.max + self.holds.passengers.max + self.holds.smuggled.max
+end
+
+function SpaceShip:getCargoMass()
+    return self.holds.cargo.cur
+end
+
+function SpaceShip:getCargoMassMax()
+    return self.holds.cargo.max
+end
+
+function SpaceShip:getCargoMassFraction()
+    return self:getCargoMass() / self:getHoldMassMax()
+end
+
+function SpaceShip:getPassengerMass()
+    return self.holds.passengers.cur
+end
+
+function SpaceShip:getPassengerMassMax()
+    return self.holds.passengers.max
+end
+function SpaceShip:getPassengerMassFraction()
+    return self:getPassengerMass() / self:getHoldMassMax()
+end
+
+function SpaceShip:getSmuggledMass()
+    return self.holds.smuggled.cur
+end
+
+function SpaceShip:getSmuggledMassMax()
+    return self.holds.smuggled.max
+end
+
+function SpaceShip:getSmuggledMassFraction()
+    return self:getSmuggledMass() / self:getHoldMassMax()
+end
+
+function SpaceShip:getTotalMass()
+    return self.mass + self:getCargoMass() + self:getPassengerMass() + self:getSmuggledMass()
+end
+
+function SpaceShip:getTotalMassFraction()
+    return self:getTotalMass() / self.max_mass
+end
+
+
+-- ==========================================
+-- SPACESHIP ENGINE MANAGEMENT
+-- ==========================================
+
+-- TODO:
+-- 1. Whenever one of these values regenerates, it pulls from energy. Unless
+--    energy regenerates, and that happens on its own.
+-- 2. Whenever one of these values gets upgraded, the ship's mass increases.
+
+function SpaceShip:modifyEngineMaxValue(type, upgrade)
+    if type == nil then
+        type = "energy"
+    end
+    if upgrade == nil then
+        upgrade = false
+    end
+
+    local new_engine_max = nil
+    if type == "energy" then
+        local max_chunk = math.floor(self.engines.energy.max / self.engines.energy.mul)
+        if upgrade then
+            self.engines.energy.mul = self.engines.energy.mul + 1
+        else
+            self.engines.energy.mul = self.engines.energy.mul - 1
+        end
+        if self.engines.energy.mul > 9 then
+            self.engines.energy.mul = 9
+        elseif self.engines.energy.mul < 1 then
+            self.engines.energy.mul = 1
+        end
+        self.engines.energy.max = max_chunk * self.engines.energy.mul
+        new_engine_max = self.engines.energy.mul
+    elseif type == "life_support" then
+        local max_chunk = math.floor(self.engines.life_support.max / self.engines.life_support.mul)
+        if upgrade then
+            self.engines.life_support.mul = self.engines.life_support.mul + 1
+        else
+            self.engines.life_support.mul = self.engines.life_support.mul - 1
+        end
+        if self.engines.life_support.mul > 9 then
+            self.engines.life_support.mul = 9
+        elseif self.engines.life_support.mul < 1 then
+            self.engines.life_support.mul = 1
+        end
+        self.engines.life_support.max = max_chunk * self.engines.life_support.mul
+        new_engine_max = self.engines.life_support.mul
+    elseif type == "shield" then
+        local max_chunk = math.floor(self.engines.shield.max / self.engines.shield.mul)
+        if upgrade then
+            self.engines.shield.mul = self.engines.shield.mul + 1
+        else
+            self.engines.shield.mul = self.engines.shield.mul - 1
+        end
+        if self.engines.shield.mul > 9 then
+            self.engines.shield.mul = 9
+        elseif self.engines.shield.mul < 1 then
+            self.engines.shield.mul = 1
+        end
+        self.engines.shield.max = max_chunk * self.engines.shield.mul
+        new_engine_max = self.engines.shield.mul
+    end
+    return new_engine_max
+end
+
+function SpaceShip:upgradeEnergyEngine()
+    return self:modifyEngineMaxValue("energy", true)
+end
+
+function SpaceShip:degradeEnergyEngine()
+    return self:modifyEngineMaxValue("energy", false)
+end
+
+function SpaceShip:upgradeLifeSupportEngine()
+    return self:modifyEngineMaxValue("life_support", true)
+end
+
+function SpaceShip:degradeLifeSupportEngine()
+    return self:modifyEngineMaxValue("life_support", false)
+end
+
+function SpaceShip:upgradeShieldEngine()
+    return self:modifyEngineMaxValue("shield", true)
+end
+
+function SpaceShip:degradeShieldEngine()
+    return self:modifyEngineMaxValue("shield", false)
+end
+
+function SpaceShip:modifyEngineCurrentValue(type, value)
+    if type == nil then
+        type = "energy"
+    end
+    if value == nil then
+        value = 10
+    end
+
+    local new_engine_cur = nil
+    if type == "energy" then
+        self.engines.energy.cur = self.engines.energy.cur + value
+        if self.engines.energy.cur > self.engines.energy.max then
+            self.engines.energy.cur = self.engines.energy.max
+        elseif self.engines.energy.cur < 0 then
+            self.engines.energy.cur = 0
+        end
+        new_engine_cur = self.engines.energy.cur
+    elseif type == "life_support" then
+        self.engines.life_support.cur = self.engines.life_support.cur + value
+        if self.engines.life_support.cur > self.engines.life_support.max then
+            self.engines.life_support.cur = self.engines.life_support.max
+        elseif self.engines.life_support.cur < 0 then
+            self.engines.life_support.cur = 0
+        end
+        new_engine_cur = self.engines.life_support.cur
+    elseif type == "shield" then
+        self.engines.shield.cur = self.engines.shield.cur + value
+        if self.engines.shield.cur > self.engines.shield.max then
+            self.engines.shield.cur = self.engines.shield.max
+        elseif self.engines.shield.cur < 0 then
+            self.engines.shield.cur = 0
+        end
+        new_engine_cur = self.engines.shield.cur
+    end
+    return new_engine_cur
+end
+
+function SpaceShip:drainEnergy()
+    return self:modifyEngineCurrentValue("energy", -1)
+end
+
+function SpaceShip:regenerateEnergy()
+    return self:modifyEngineCurrentValue("energy", 1)
+end
+
+function SpaceShip:drainLifeSupport()
+    return self:modifyEngineCurrentValue("life_support", -1)
+end
+
+function SpaceShip:regenerateLifeSupport()
+    return self:modifyEngineCurrentValue("life_support", 1)
+end
+
+function SpaceShip:drainShield()
+    return self:modifyEngineCurrentValue("shield", -1)
+end
+
+function SpaceShip:regenerateShield()
+    return self:modifyEngineCurrentValue("shield", 1)
+end
+
+function SpaceShip:regenerateEnginesOnTimer()
+    if self:everyNTicks(self.engines.energy.tik) then
+        self:regenerateEnergy()
+    end
+    if (
+        self:everyNTicks(self.engines.life_support.tik) and
+        self:getEnergyFraction() > 0.99 and
+        self:getShieldFraction() > 0.99
+    ) then
+        self:regenerateLifeSupport()
+    end
+    if self:everyNTicks(self.engines.shield.tik) then
+        self:regenerateShield()
+    end
+end
+
+-- ==========================================
+-- SPACESHIP MASS MANAGEMENT
+-- ==========================================
+
+function SpaceShip:updateHoldMass(hold_type, mass)
+    if hold_type == nil then
+        hold_type = "cargo"
+    end
+    if mass == nil then
+        mass = 100
+    end
+
+    local current_hold_mass = 0
+    if hold_type == "cargo" then
+        current_hold_mass = self:getCargoMass() + mass
+        if current_hold_mass < 0 then
+            current_hold_mass = 0
+        elseif current_hold_mass > self:getCargoMassMax() then
+            current_hold_mass = -1
+        end
+    elseif hold_type == "passengers" then
+        current_hold_mass = self:getPassengerMass() + mass
+        if current_hold_mass < 0 then
+            current_hold_mass = 0
+        elseif current_hold_mass > self:getPassengerMassMax() then
+            current_hold_mass = -1
+        end
+    elseif hold_type == "smuggled" then
+        current_hold_mass = self:getSmuggledMass() + mass
+        if current_hold_mass < 0 then
+            current_hold_mass = 0
+        elseif current_hold_mass > self:getSmuggledMassMax() then
+            current_hold_mass = -1
+        end
+    end
+    return current_hold_mass
+end
+
+function SpaceShip:pickupCargo(cargo_mass)
+    local result = false
+    if self:updateHoldMass("cargo", cargo_mass) > 0 then
+        result = true
+    end
+    return result
+end
+
+function SpaceShip:deliverCargo(cargo_mass)
+    local result = false
+    if self:updateHoldMass("cargo", -1 * cargo_mass) ~= -1 then
+        result = true
+    end
+    return result
+end
+
+function SpaceShip:pickupPassengers(num_passengers)
+    local result = false
+    if self:updateHoldMass("passengers", num_passengers * PASSENGER_TOTAL_MASS) > 0 then
+        result = true
+    end
+    return result
+end
+
+function SpaceShip:deliverPassengers(num_passengers)
+    local result = false
+    if self:updateHoldMass("passengers", -1 * num_passengers * PASSENGER_TOTAL_MASS) ~= -1 then
+        result = true
+    end
+    return result
+end
+
+function SpaceShip:pickupSmuggledGoods(smuggled_mass)
+    local result = false
+    if self:updateHoldMass("smuggled", smuggled_mass) > 0 then
+        result = true
+    end
+    return result
+end
+
+function SpaceShip:deliverSmuggledGoods(smuggled_mass)
+    local result = false
+    if self:updateHoldMass("smuggled", -1 * smuggled_mass) ~= -1 then
+        result = true
+    end
+    return result
+end
+
+
+
+-- ==========================================
+-- SPACESHIP PARTICLE EFFECTS
+-- ==========================================
+
+-- function SpaceShip:explosionEffect()
+--     self.type               = self.PARTICLE_TYPES.EXPLOSION
+--     self.deceleration       = 0.015
+--     self.max_lifetime       = 90
+--     self.max_size           = 3
+--     self.max_speed          = 2
+--     self.num_particles      = 100
+
+--     local particle_velocity = {}
+--     for particle = 1, self.num_particles do
+--         particle_velocity = {
+--             speed     = math.random() * self.max_speed,
+--             direction = math.random() * math.pi * 2
+--         }
+--         self:spawnParticle(
+--             self.position,
+--             particle_velocity,
+--             self.max_lifetime,
+--             self.EXPLOSION_COLORS,
+--             self.max_size,
+--             self.deceleration,
+--             self.type
+--         )
+--     end
+-- end
+
+-- function SpaceShip:leakingSmoke(health_fraction)
+--     -- Check cooldown - don't spawn if still cooling down
+--     if self.smoke_cooldown > 0 then
+--         self.smoke_cooldown = self.smoke_cooldown - 1
+--         return
+--     end
+
+--     self.type             = self.PARTICLE_TYPES.SMOKE
+--     self.max_lifetime     = 90
+--     self.max_size         = 1
+
+--     -- Scale particle count based on damage (more damage = more smoke)
+--     local damage_severity = 1 - (health_fraction / 0.5)
+--     self.num_particles    = math.floor(1 + damage_severity)
+
+--     -- Set cooldown based on health: more damage = shorter cooldown (more frequent smoke)
+--     -- At 50% health: cooldown ~60 frames (1 second)
+--     -- At 0% health: cooldown ~15 frames (0.25 seconds)
+--     -- Smoke cooldown attributes can be tinkered like this:
+--     --  1. Increase `attr_a` to make smoke less frequent at low damage.
+--     --  2. Decrease `attr_b` to make the frequency diff between low and high
+--     --     damage smaller.
+--     --  3. Change self.max_lifetime to control how long each puff lingers.
+--     local attr_a          = 30
+--     local attr_b          = 75
+--     self.smoke_cooldown   = math.floor(attr_a - (damage_severity * attr_b))
+
+--     -- Random offset from ship center for spawn position
+--     local spawn_offset    = {
+--         x = (math.random() * 8) - 4,
+--         y = (math.random() * 8) - 4
+--     }
+--     local rotated_offset  = self:rotatePoint(spawn_offset, self.rotation)
+--     local spawn_position  = {
+--         x = rotated_offset.x + self.position.x,
+--         y = rotated_offset.y + self.position.y,
+--     }
+
+--     for particle = 1, self.num_particles do
+--         local particle_velocity = {
+--             speed     = 0,
+--             direction = 0
+--         }
+--         self:spawnParticle(
+--             spawn_position,
+--             particle_velocity,
+--             self.max_lifetime,
+--             self.SMOKE_LEAK_COLORS,
+--             self.max_size,
+--             0,
+--             self.type
+--         )
+--     end
+-- end
+
+-- function SpaceShip:sparkEffect(position)
+--     self.type          = self.PARTICLE_TYPES.SPARK
+--     self.deceleration  = 0.01
+--     self.max_lifetime  = 30
+--     self.max_size      = 1
+--     self.max_speed     = 2
+--     self.num_particles = 30
+
+--     -- Fallback in case no position is passed
+--     position           = position or self.position
+
+--     for particle = 1, self.num_particles do
+--         local particle_velocity = {
+--             speed     = math.random() * self.max_speed,
+--             direction = math.random() * math.pi * 2
+--         }
+
+--         self:spawnParticle(
+--             position,
+--             particle_velocity,
+--             self.max_lifetime,
+--             self.SPARK_COLORS,
+--             self.max_size,
+--             self.deceleration,
+--             self.type
+--         )
+--     end
+-- end
+
+-- function SpaceShip:thrustEffect()
+--     -- Effect-specific overrides
+--     self.type                     = self.PARTICLE_TYPES.THRUST
+--     self.deceleration             = 0.01
+--     self.max_lifetime             = 30
+--     self.max_size                 = 1
+--     self.max_speed                = 2
+--     self.num_particles            = 5
+
+--     local thrust_offset           = { x = -5, y = 0 }
+--     local particle_velocity       = {}
+--     local direction               = 0
+--     local relative_spawn_position = self:rotatePoint(thrust_offset, self.rotation)
+--     local spawn_position          = {
+--         x = relative_spawn_position.x + self.position.x,
+--         y = relative_spawn_position.y + self.position.y,
+--     }
+
+--     for particle = 1, self.num_particles do
+--         direction = self.rotation + math.pi + (math.random() * math.pi / 6) - (math.pi / 12)
+--         direction = self:keepAngleInRange(direction)
+--         particle_velocity = {
+--             speed     = math.random() * self.max_speed,
+--             direction = direction
+--         }
+--         self:spawnParticle(
+--             spawn_position,
+--             particle_velocity,
+--             self.max_lifetime,
+--             self.SMOKE_COLORS,
+--             self.max_size,
+--             self.deceleration,
+--             self.type
+--         )
+--     end
+-- end
+
+-- function SpaceShip:spawnParticle(
+--     position,
+--     velocity,
+--     max_lifetime,
+--     colors,
+--     max_size,
+--     deceleration,
+--     particle_type
+-- )
+--     local particle = {
+--         position     = {
+--             x = position.x,
+--             y = position.y
+--         },
+--         velocity     = {
+--             speed     = velocity.speed,
+--             direction = velocity.direction
+--         },
+--         life_timer   = (max_lifetime / 2) + (math.random() * max_lifetime / 2),
+--         colors       = colors,
+--         size         = math.random(1, max_size),
+--         deceleration = deceleration,
+--         type         = particle_type
+--     }
+
+--     if particle_type == self.PARTICLE_TYPES.EXPLOSION then
+--         table.insert(self.explosionParticles, particle)
+--     elseif particle_type == self.PARTICLE_TYPES.LASER_HIT then
+--         table.insert(self.laserHitParticles, particle)
+--     elseif particle_type == self.PARTICLE_TYPES.SMOKE then
+--         table.insert(self.smokeParticles, particle)
+--     elseif particle_type == self.PARTICLE_TYPES.SPARK then
+--         table.insert(self.sparkParticles, particle)
+--     elseif particle_type == self.PARTICLE_TYPES.THRUST then
+--         table.insert(self.thrustParticles, particle)
+--     end
+-- end
+
+-- function SpaceShip:moveParticles(particle_type)
+--     local particles = self.explosionParticles
+
+--     if particle_type == self.PARTICLE_TYPES.LASER_HIT then
+--         particles = self.laserHitParticles
+--     elseif particle_type == self.PARTICLE_TYPES.SMOKE then
+--         particles = self.smokeParticles
+--     elseif particle_type == self.PARTICLE_TYPES.SPARK then
+--         particles = self.sparkParticles
+--     elseif particle_type == self.PARTICLE_TYPES.THRUST then
+--         particles = self.thrustParticles
+--     end
+
+--     for index = #particles, 1, -1 do
+--         local particle = particles[index]
+
+--         particle.life_timer = particle.life_timer - 1
+
+--         if particle.life_timer < 0 then
+--             table.remove(particles, index)
+--         else
+--             particle.position = self:movePointByVelocity(particle)
+
+--             particle.velocity.speed = particle.velocity.speed - particle.deceleration
+--             if particle.velocity.speed < 0 then
+--                 particle.velocity.speed = 0
+--             end
+--         end
+--     end
+-- end
+
+-- function SpaceShip:drawParticles(particle_type)
+--     local particles = self.particles.explosion
+
+--     if particle_type == self.PARTICLE_TYPES.SMOKE then
+--         particles = self.particles.smoke
+--     elseif particle_type == self.PARTICLE_TYPES.SPARK then
+--         particles = self.particles.spark
+--     elseif particle_type == self.PARTICLE_TYPES.THRUST then
+--         particles = self.particles.thrust
+--     end
+
+--     for index, particle in ipairs(particles) do
+--         local particle_color = particle.colors[math.random(1, #particle.colors)]
+
+--         if particle.type == self.PARTICLE_TYPES.EXPLOSION or particle.type == self.PARTICLE_TYPES.LASER_HIT then
+--             circ(particle.position.x, particle.position.y, particle.size, particle_color)
+--         elseif particle.type == self.PARTICLE_TYPES.THRUST then
+--             pix(particle.position.x, particle.position.y, particle_color)
+--         elseif particle.type == self.PARTICLE_TYPES.SMOKE then
+--             circ(particle.position.x, particle.position.y, particle.size, particle_color)
+--         else
+--             rect(particle.position.x, particle.position.y, particle.size, particle.size, particle_color)
+--         end
+--     end
+-- end
+
+
+
+-- ==========================================
+-- SPACESHIP INPUT
+-- ==========================================
+
+function SpaceShip:deadStop()
+    local s = self.velocity.speed
+    if self.velocity.speed <= 0 then
+        self.velocity.speed     = 0
+        self.velocity.direction = 0
+        return
+    end
+
+    -- Smoothly reduce speed; never goes negative
+    self.velocity.speed = self.velocity.speed * (1 - self.deadstop.brake)
+    if self.velocity.speed < self.deadstop.snap then
+        self.velocity.speed     = 0
+        self.velocity.direction = 0
+    end
+end
+
+function SpaceShip:thrust()
+    local acceleration = {
+        speed     = self.acceleration,
+        direction = self.rotation
+    }
+    self.velocity = self:addVectors(self.velocity, acceleration)
+    if self.velocity.speed > self.max_speed then
+        self.velocity.speed = self.max_speed
+    end
+
+    -- self:thrustEffect()
+    -- sfx(3, 10, 10, 3, -8, 1)
+end
+
+-- Need to do an energy check before doing any of the following.
+function SpaceShip:input()
+    if self.mortality.dead or self:getEnergy() <= 0 then
+        return
+    end
+
+    local used_energy = false
+
+    if btn(BTN_P1_UP) then
+        self:thrust()
+        used_energy = true
+    end
+
+    if btn(BTN_P1_DOWN) then
+        self:deadStop()
+        used_energy = true
+    end
+
+    if btn(BTN_P1_LEFT) then
+        self.rotation = self.rotation - self.rotation_speed
+        used_energy = true
+    end
+
+    if btn(BTN_P1_RIGHT) then
+        self.rotation = self.rotation + self.rotation_speed
+        used_energy = true
+    end
+
+    self.rotation = self:keepAngleInRange(self.rotation)
+
+    if used_energy then
+        self:drainEnergy()
+    end
+end
+
+-- ==========================================
+-- SPACESHIP UPDATE
+-- ==========================================
+
+function SpaceShip:move()
+    self:updateTimer()
+
+    if not self.mortality.dead then
+        -- We want to be able to coast without any deceleration....
+        -- self.velocity.speed = self.velocity.speed - self.deceleration
+        -- if self.velocity.speed < 0 then
+        --     self.velocity.speed = 0
+        -- end
+
+        -- -- Leak smoke when damaged
+        -- local health_frac = self:getHealthFraction()
+        -- if health_frac < 0.5 then
+        --     self:leakingSmoke(health_frac)
+        -- end
+
+        self.position   = self:movePointByVelocity()
+        self.position.x = clamp(self.position.x, 0, MAP_PIXELS_W - 1)
+        self.position.y = clamp(self.position.y, 0, MAP_PIXELS_H - 1)
+
+        self:regenerateEnginesOnTimer()
+    else
+        -- Dead ship body does not move, but particles still animate.
+        -- self:moveParticles(self.TYPES.EXPLOSION)
+        -- self:moveParticles(self.TYPES.SMOKE)
+        -- self:moveParticles(self.TYPES.THRUST)
+    end
+end
+
+function SpaceShip:kill()
+    if self.mortality.dead then
+        return
+    end
+    self.mortality.dead = true
+    self.mortality.num_lives = self.mortality.num_lives - 1
+    self.mortality.respawn_timer = 90
+    self:explode()
+end
+
+-- ==========================================
+-- SPACESHIP DRAW
+-- ==========================================
+
+-- This is for when the ship first starts out and is invulnerable.
+function SpaceShip:shouldDraw()
+    if self.mortality.invulnerable <= 0 then
+        return true
+    end
+    -- blink: visible 6 frames, invisible 6 frames
+    return (math.floor(self.mortality.invulnerable / 6) % 2) == 0
+end
+
+function SpaceShip:getScreenShapePoints()
+    local screen_x = math.floor(self.position.x - game.camera.x)
+    local screen_y = math.floor(self.position.y - game.camera.y)
+
+    local points = {}
+
+    for i, point in ipairs(self.shape) do
+        local rotated_point = self:rotatePoint(point, self.rotation)
+
+        points[i] = {
+            x = math.floor(rotated_point.x + screen_x),
+            y = math.floor(rotated_point.y + screen_y),
+        }
+    end
+
+    return points
+end
+
+function SpaceShip:drawBody()
+    local points = self:getScreenShapePoints()
+
+    -- Draw a ship-shaped black mask first.
+    drawFilledPolygon(points, BLACK)
+
+    -- Draw the ship outline on top.
+    drawPolygonOutline(points, self.color)
+end
+
+function SpaceShip:draw()
+    if not self.mortality.dead and self:shouldDraw() then
+        self:drawBody()
+    end
+
+    -- Draw particle effects.
+    -- self:drawParticles(self.TYPES.EXPLOSION)
+    -- self:drawParticles(self.TYPES.LASER_HIT)
+    -- self:drawParticles(self.TYPES.SPARK)
+    -- self:drawParticles(self.TYPES.THRUST)
+end
+
+function SpaceShip:explode()
+    if self.mortality.exploded then
+        return
+    end
+    self.mortality.exploded = true
+    -- self:explosionEffect()
+    -- sfx(2, 10, 30, 3, 15)
+end
+
+
+-- [/TQ-Bundler: src.classes.SpaceShip]
 
 -- ==========================================
 -- MAIN TIC FUNCTION

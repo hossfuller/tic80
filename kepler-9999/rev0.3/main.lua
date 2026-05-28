@@ -12,6 +12,7 @@
 include "src.constants_tic80"
 include "src.constants_game"
 
+include "src.presets.ships"
 include "src.generators"
 include "src.camera"
 include "src.polygons"

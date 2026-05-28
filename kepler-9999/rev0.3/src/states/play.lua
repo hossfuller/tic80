@@ -45,6 +45,44 @@ function updatePlay()
         player.mortality.invulnerable = player.mortality.invulnerable - 1
     end
 
+    -- FOR TESTING
+    if DEBUG then
+        if player:everyNTicks(60) then
+            local mode = math.random(1, 3)
+            local plus_minus = math.random(0, 1) == 1
+            if mode == 1 then
+                if plus_minus then
+                    if player:pickupCargo(mode * 10) then
+                        trace("Picked up " .. tostring(mode * 10) .. "kg of cargo")
+                    end
+                else
+                    if player:deliverCargo(mode * 10) then
+                        trace("Delivered " .. tostring(mode * 10) .. "kg of cargo")
+                    end
+                end
+            elseif mode == 2 then
+                if plus_minus then
+                    if player:pickupPassengers(mode) then
+                        trace("Picked up " .. tostring(mode) .. " passengers")
+                    end
+                else
+                    if player:deliverPassengers(mode) then
+                        trace("Delivered " .. tostring(mode) .. " passengers")
+                    end
+                end
+            elseif mode == 3 then
+                if plus_minus then
+                    if player:pickupSmuggledGoods(mode * 10) then
+                        trace("Picked up " .. tostring(mode * 10) .. "kg of smuggled goods")
+                    end
+                else
+                    if player:deliverSmuggledGoods(mode * 10) then
+                        trace("Delivered " .. tostring(mode * 10) .. "kg of smuggled goods")
+                    end
+                end
+            end
+        end
+    end
 end
 
 
@@ -75,10 +113,82 @@ function drawStarMap()
     )
 end
 
-function drawUserHud()
-    local player = game.play.player
+function drawShipMassHud()
+    local player             = game.play.player
 
-    local bars = {
+    local cargo_fraction     = clamp(player:getCargoMassFraction(), 0, 1)
+    local passenger_fraction = clamp(player:getPassengerMassFraction(), 0, 1)
+    local smuggled_fraction  = clamp(player:getSmuggledMassFraction(), 0, 1)
+
+    local total_fraction     = cargo_fraction + passenger_fraction + smuggled_fraction
+
+    if total_fraction > 1 then
+        cargo_fraction     = cargo_fraction / total_fraction
+        passenger_fraction = passenger_fraction / total_fraction
+        smuggled_fraction  = smuggled_fraction / total_fraction
+        total_fraction     = 1
+    end
+
+    local label    = "M"
+
+    -- Same width style as E/L/S bars.
+    local bar_w    = print("M", -100, -100, WHITE, true, 1, true) + 1
+    local bar_h    = 108
+    local bar_x    = EDGE_X_LEFT + 3
+    local bottom_y = EDGE_Y_BOTTOM - 8
+    local bar_y    = bottom_y - bar_h
+
+    -- Label.
+    print(label, bar_x, bottom_y, WHITE, true, 1, true)
+
+    -- Border.
+    rectb(bar_x, bar_y, bar_w - 1, bar_h - 1, WHITE)
+
+    -- Empty background.
+    rect( bar_x + 1, bar_y + 1, bar_w - 2, bar_h - 2, BLACK)
+
+    local inner_x     = bar_x + 1
+    local inner_y     = bar_y + 1
+    local inner_w     = bar_w - 2
+    local inner_h     = bar_h - 2
+
+    local cargo_h     = math.floor(inner_h * cargo_fraction)
+    local passenger_h = math.floor(inner_h * passenger_fraction)
+    local smuggled_h  = math.floor(inner_h * smuggled_fraction)
+
+    -- Fix possible rounding gap when completely full.
+    local used_h      = cargo_h + passenger_h + smuggled_h
+    if total_fraction >= 1 and used_h < inner_h then
+        cargo_h = cargo_h + (inner_h - used_h)
+    end
+
+    -- Draw from bottom upward.
+    local cursor_y = inner_y + inner_h
+
+    -- Cargo at bottom.
+    if cargo_h > 0 then
+        cursor_y = cursor_y - cargo_h
+        rect(inner_x, cursor_y, inner_w, cargo_h, GRAY_DARK)
+    end
+
+    -- Passengers above cargo.
+    if passenger_h > 0 then
+        cursor_y = cursor_y - passenger_h
+        rect(inner_x, cursor_y, inner_w, passenger_h, GRAY_MED)
+    end
+
+    -- Smuggled goods above passengers.
+    if smuggled_h > 0 then
+        cursor_y = cursor_y - smuggled_h
+        rect(inner_x, cursor_y, inner_w, smuggled_h, GRAY_LITE)
+    end
+end
+
+
+function drawShipStatusHud()
+    local player                = game.play.player
+
+    local bars                  = {
         {
             label      = "E",
             color      = BLUE_LITE,
@@ -99,27 +209,40 @@ function drawUserHud()
         },
     }
 
-    local bar_w                 = print("E", -10, -10, WHITE, true, 1, true) + 1
-    local bottom_y              = EDGE_Y_BOTTOM - 8
+    local bar_w                 = print("E", -100, -100, WHITE, true, 1, true) + 1
     local pixels_per_multiplier = 12
+
+    -- Same baseline as drawShipMassHud().
+    local bottom_y              = EDGE_Y_BOTTOM - 8
+
+    -- M bar starts at EDGE_X_LEFT + 3.
+    -- Status bars start one bar-width after M.
+    local mass_bar_x            = EDGE_X_LEFT + 3
+    local start_x               = mass_bar_x + bar_w
 
     for i, bar in ipairs(bars) do
         local bar_h  = pixels_per_multiplier * clamp(bar.multiplier, 1, 9)
-        local bar_x  = (i - 1) * bar_w
+        local bar_x  = start_x + (i - 1) * bar_w
         local bar_y  = bottom_y - bar_h
         local value  = clamp(bar.value, 0, 1)
         local fill_h = math.floor((bar_h - 2) * value)
 
-        -- Label
+        -- Label.
         print(bar.label, bar_x, bottom_y, bar.color, true, 1, true)
 
-        -- Border
+        -- Border.
         rectb(bar_x, bar_y, bar_w - 1, bar_h - 1, WHITE)
 
-        -- Empty background
-        rect(bar_x + 1, bar_y + 1, bar_w, bar_h - 1, BLACK)
+        -- Empty background.
+        rect(
+            bar_x + 1,
+            bar_y + 1,
+            bar_w - 2,
+            bar_h - 2,
+            BLACK
+        )
 
-        -- Fill from bottom upward
+        -- Fill from bottom upward.
         rect(
             bar_x + 1,
             bar_y + bar_h - 1 - fill_h,
@@ -146,7 +269,8 @@ function drawGame()
     -- player:drawParticles(player.TYPES.SPARK)
     -- player:drawParticles(player.TYPES.THRUST)
 
-    drawUserHud()
+    drawShipMassHud()
+    drawShipStatusHud()
 end
 
 function drawPlay()
@@ -174,6 +298,9 @@ function drawDebugCameraInfo()
         -- "Camera Y: " .. math.floor(camera.y),
         "MAP SCREEN: " .. screen_x .. "," .. screen_y,
         "Energy: " .. math.floor(player.engines.energy.cur) .. "/" .. player.engines.energy.max,
+        "Cargo: " .. player:getCargoMass() .. "/" .. player:getCargoMassMax(),
+        "Passengers: " .. player:getPassengerMass() .. "/" .. player:getPassengerMassMax(),
+        "Smuggled: " .. player:getSmuggledMass() .. "/" .. player:getSmuggledMassMax(),
     }
     for index, debug_msg in ipairs(debug_statements) do
         local debug_color = BLUE_LITE

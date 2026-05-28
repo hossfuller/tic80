@@ -158,82 +158,11 @@ Performance note
 For one player ship, recalculating triangulation every frame is totally fine.
 
 But if you later have many polygon ships/enemies with fixed shapes, you may want to triangulate the local shape once and then rotate/draw the triangle vertices each frame. For now, this version is simpler and reusable.
-
-TODO:
- - The default shape is good to go.
- - Draw the other spaceships out on graph paper to figure out their proper polygon shapes.
- - Get Trajan to draw some ships?
- - Implement a setting in options to pick the spaceship for the game.
 --]]
+
+
 function generatePlayer()
-    local default_shape = {
-        { x = 8,  y = 0 },
-        { x = -8, y = 6 },
-        { x = -4, y = 0 },
-        { x = -8, y = -6 },
-        { x = 8,  y = 0 }
-    }
-    local freight_shape = {
-        { x = -7, y = 0 },
-        { x = -4, y = 1 },
-        { x = -2, y = 4 },
-        { x = -4, y = 4 },
-        { x = -6, y = 6 },
-        { x = -7, y = 9 },
-        { x = -1, y = 9 },
-        { x = 2, y = 7 },
-        { x = 5, y = 4 },
-        { x = 7, y = 0 },
-        { x = 5, y = -4 },
-        { x = 2, y = -7 },
-        { x = -1, y = -9 },
-        { x = -7, y = -9 },
-        { x = -6, y = -6 },
-        { x = -4, y = -4 },
-        { x = -2, y = -4 },
-        { x = -4, y = -1 },
-        { x = -7, y = -0 },
-        { x = 5, y = 4 },
-        { x = 3, y = 1 },
-        { x = 2, y = 0 },
-        { x = 3, y = -1 },
-        { x = 5, y = -4 },
-
-    }
-    local smuggler_shape = {
-        { x = -5, y = -5 },
-        { x = 0, y = -4 },
-        { x = 5, y = 0 },
-        { x = 0, y = 4 },
-        { x = -5, y = 5 },
-        { x = -4, y = 3 },
-        { x = -3, y = 0 },
-        { x = -4, y = -3 },
-        { x = -5, y = -5 },
-    }
-    local passenger_shape = {
-        { x = -6, y = -0 },
-        { x = 8, y = -3 },
-        { x = 6, y = 0 },
-        { x = 8, y = 3 },
-        { x = -6, y = 0 },
-        { x = -4, y = 1 },
-        { x = -2, y = 6 },
-        { x = 2, y = 2 },
-        { x = -4, y = 1 },
-        { x = 0, y = 3 },
-        { x = -4, y = 1 },
-        { x = -2, y = -6 },
-        { x = 2, y = -2 },
-        { x = -4, y = -1 },
-        { x = 0, y = -3 },
-
-    }
-
-    -- local player = SpaceShip:new({ shape = default_shape })
-    -- local player = SpaceShip:new({ shape = freight_shape })
-    local player = SpaceShip:new({ shape = passenger_shape })
-    -- local player = SpaceShip:new({ shape = smuggler_shape })
-    -- Do modifications, like change shape and max_speed.
-    return player
+    local selected_ship = game.params.ship_type or 1
+    local preset = ship_presets[selected_ship] or default_ship
+    return SpaceShip:new(preset)
 end

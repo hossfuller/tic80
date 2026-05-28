@@ -14,31 +14,47 @@ function SpaceShip:new(params)
     -- regeneration. These also act as a multiplier for the max values.
     self.engines = {
         energy = {
-            cur = params.cur_energy or 250,
-            max = params.max_energy or 250,
-            mul = params.mul_energy or 1,
-            tik = params.tik_energy or 20,
+            cur = params.engines.energy.cur or 250,
+            max = params.engines.energy.max or 250,
+            mul = params.engines.energy.mul or 1,
+            tik = params.engines.energy.tik or 20,
         },
         life_support = {
-            cur = params.cur_life_support or 100,
-            max = params.max_life_support or 100,
-            mul = params.mul_life_support or 1,
-            tik = params.tik_life_support or 3600,
+            cur = params.engines.life_support.cur or 100,
+            max = params.engines.life_support.max or 100,
+            mul = params.engines.life_support.mul or 1,
+            tik = params.engines.life_support.tik or 3600,
         },
         shield = {
-            cur = params.cur_shield or 100,
-            max = params.max_shield or 100,
-            mul = params.mul_shield or 1,
-            tik = params.tik_shield or 60,
+            cur = params.engines.shield.cur or 100,
+            max = params.engines.shield.max or 100,
+            mul = params.engines.shield.mul or 1,
+            tik = params.engines.shield.tik or 60,
         },
     }
 
-    self.mass       = params.mass       or 100 -- (kg)
-    self.radius     = params.radius     or 10 -- (m)
-    self.elasticity = params.elasticity or 0.5
+    -- Cargo/passenger holds. Everything is measured in kg and limited by the
+    -- max_mass property.
+    self.holds = {
+        cargo = {
+            cur = params.holds.cargo.cur or 0,   -- (kg)
+            max = params.holds.cargo.max or 500, -- (kg)
+        },
+        passengers = {
+            cur = params.holds.passengers.cur or 0,      -- (kg)
+            max = params.holds.passengers.max or 6 * PASSENGER_TOTAL_MASS, -- (individuals in kg)
+        },
+        smuggled = {
+            cur = params.holds.smuggled.cur or 0,   -- (kg)
+            max = params.holds.smuggled.max or 100, -- (kg)
+        },
+    }
 
-    self.max_speed  = params.max_speed or 2.5
-    self.max_mass   = params.max_mass or 1000 -- (kg)
+    self.mass       = params.mass       or 100   -- (kg)
+    self.radius     = params.radius     or 10    -- (pixels)
+    self.elasticity = params.elasticity or 0.5
+    self.max_mass   = params.max_mass   or 1300  -- (kg)
+    self.max_speed  = params.max_speed  or 2.5
 
     -- The default SpaceShip shape
     self.shape = params.shape or {
@@ -49,13 +65,14 @@ function SpaceShip:new(params)
         { x = 8,  y = 0 }
     }
 
-    self.deadstop = {
-        brake = params.brake or 0.35, -- 0..1, higher = faster stop per frame
-        snap  = params.snap  or 0.02   -- below this speed, just snap to 0
+    local deadstop = params.deadstop or {}
+    self.deadstop  = {
+        brake = deadstop.brake or 0.35,   -- 0..1, higher = faster stop per frame
+        snap  = deadstop.snap  or 0.02   -- below this speed, just snap to 0
     }
 
     self.mortality = {
-        num_lives     = params.num_lives or 3,
+        num_lives     = params.num_lives or 1,
         invulnerable  = 0,
         dead          = false,
         exploded      = false,
@@ -126,7 +143,7 @@ function SpaceShip:new(params)
 end
 
 -- ==========================================
--- SPACESHIP GETTERS
+-- SPACESHIP STATUS GETTERS
 -- ==========================================
 
 function SpaceShip:getEnergy()
@@ -172,6 +189,54 @@ end
 
 function SpaceShip:getShieldMultiplier()
     return self.engines.shield.mul
+end
+
+
+function SpaceShip:getHoldMassMax()
+    return self.holds.cargo.max + self.holds.passengers.max + self.holds.smuggled.max
+end
+
+function SpaceShip:getCargoMass()
+    return self.holds.cargo.cur
+end
+
+function SpaceShip:getCargoMassMax()
+    return self.holds.cargo.max
+end
+
+function SpaceShip:getCargoMassFraction()
+    return self:getCargoMass() / self:getHoldMassMax()
+end
+
+function SpaceShip:getPassengerMass()
+    return self.holds.passengers.cur
+end
+
+function SpaceShip:getPassengerMassMax()
+    return self.holds.passengers.max
+end
+function SpaceShip:getPassengerMassFraction()
+    return self:getPassengerMass() / self:getHoldMassMax()
+end
+
+function SpaceShip:getSmuggledMass()
+    return self.holds.smuggled.cur
+end
+
+function SpaceShip:getSmuggledMassMax()
+    return self.holds.smuggled.max
+end
+
+function SpaceShip:getSmuggledMassFraction()
+    return self:getSmuggledMass() / self:getHoldMassMax()
+end
+
+function SpaceShip:getTotalMass()
+    return self.mass + self:getCargoMass() + self:getPassengerMass() + self:getSmuggledMass()
+end
+
+function SpaceShip:getTotalMassFraction()
+    return self:getTotalMass() / self.max_mass
 end
 
 
@@ -339,6 +404,58 @@ function SpaceShip:regenerateEnginesOnTimer()
         self:regenerateShield()
     end
 end
+
+-- ==========================================
+-- SPACESHIP MASS MANAGEMENT
+-- ==========================================
+
+function SpaceShip:updateHoldMass(hold_type, mass)
+    if hold_type == nil then
+        hold_type = "cargo"
+    end
+    if mass == nil then
+        mass = 100
+    end
+
+    local hold = self.holds[hold_type]
+    if hold == nil then
+        return false
+    end
+
+    local new_mass = hold.cur + mass
+    if new_mass < 0 then
+        new_mass = 0
+    elseif new_mass > hold.max then
+        return false
+    end
+    hold.cur = new_mass
+    return true
+end
+
+function SpaceShip:pickupCargo(cargo_mass)
+    return self:updateHoldMass("cargo", cargo_mass)
+end
+
+function SpaceShip:deliverCargo(cargo_mass)
+    return self:updateHoldMass("cargo", -cargo_mass)
+end
+
+function SpaceShip:pickupPassengers(num_passengers)
+    return self:updateHoldMass("passengers", num_passengers * PASSENGER_TOTAL_MASS)
+end
+
+function SpaceShip:deliverPassengers(num_passengers)
+    return self:updateHoldMass("passengers", -num_passengers * PASSENGER_TOTAL_MASS)
+end
+
+function SpaceShip:pickupSmuggledGoods(smuggled_mass)
+    return self:updateHoldMass("smuggled", smuggled_mass)
+end
+
+function SpaceShip:deliverSmuggledGoods(smuggled_mass)
+    return self:updateHoldMass("smuggled", -smuggled_mass)
+end
+
 
 
 -- ==========================================

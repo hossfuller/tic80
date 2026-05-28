@@ -31,10 +31,11 @@ The different revisions implement separate features. This list is ever changing.
     - [x] Energy for movement, health and shields for life.
     - [x] Implement the player's HUD screen.
 - [ ] **REV0.3**: User can select the ship type they want.
-    - [ ] Different space ship designs for different purposes.
-    - [ ] Different types of spaceships with max_speed/holds being inversely proportional: freight (solid/liquid?), passengers, smugglers
-    - [ ] User selects their ship type from the options screen.
-    - [ ] Ship selection dictates ships' maximum values for mass, speed, etc.
+    - [x] Different types of spaceships with max_speed/holds being inversely proportional: freight (solid/liquid?), passengers, smugglers
+    - [x] User selects their ship type from the options screen.
+    - [x] Ship selection dictates ships' maximum values for mass, speed, etc.
+    - [x] Implement cargo holds and passenger seating in spaceships. Solid cargo
+    - [ ] Different ships have different shapes.
 - [ ] **REV0.4**: Add foreground heavenly bodies.
     - [ ] Parent class for all heavenly bodies with mass, radius, color.
     - [ ] Implement keplarian orbital mechanics
@@ -42,7 +43,7 @@ The different revisions implement separate features. This list is ever changing.
 - [ ] **REV0.5**: Spaceships, modeled on the Asteroids work, get physics
     - [ ] Collision detection.
     - [ ] Can feel gravitational effects from heavenly bodies.
-    - [ ] Implement inertia and make the energy engine feel it.
+    - [ ] Implement inertia and make the energy engine feel it (more mass makes the ship expend more energy to stop).
     - [ ] Bring over Asteroids particle effects like explosions, thrust, sparks, and smoke.
 - [ ] **REV0.6**: Refined heavenly bodies.
     - [ ] Randomly generated names, colors, atmospherics for planets and moons.
@@ -51,12 +52,13 @@ The different revisions implement separate features. This list is ever changing.
 - [ ] **REV0.7**: Space docking, cargo, and passengers
     - [ ] Space stations and ships should have a way to connect to each other to exchange passengers, cargo, or energy/health.
     - [ ] Colors, effects, and sounds indicate successful docking.
-    - [ ] Implement cargo holds and passenger seating in spaceships. Solid cargo
 - [ ] **REV0.8**: Spaceship upgrades
     - [ ] Certain places will provide ways to auto-refill energy, health, and shields.
-    - [ ] Energy, health, and shields can also be upgraded to higher max values.
-    - [ ] Cargo space and passenger seating can also be increased.
+    - [ ] Energy, health, and shields can also be upgraded to higher max values at shops or just randomly floating around.
+    - [ ] Cargo space and passenger seating can also be increased?
+    - [ ] Spaceship tractor beam? Laser blaster? What are things the ship can do besides fly around and dock?
 - [ ] **REV0.9**: Game objectives
+    - [ ] Use the `pickup`/`deliver` functions to meddle with the ship's mass.
 - [ ] **REV1.0**: tbd
 - [ ] **REV1.1**: tbd
 

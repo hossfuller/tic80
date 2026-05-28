@@ -26,9 +26,14 @@ game = {
     options = {
         selected = 1,
         items = {
-            -- {name = "Sound", values = {"On", "Off"}, current = 1},
-            -- {name = "Difficulty", values = {"Easy", "Normal", "Hard"}, current = 2},
-            -- {name = "Back", values = {""}, current = 1},
+            {
+                name = "Ship Type",
+                values = { "Default", "Freight", "Passenger", "Smuggler" },
+                current = 1,
+                apply = function(current)
+                    game.params.ship_type = current
+                end,
+            },
             {
                 name = "Back",
                 values = nil, -- No values means this is an action, not a setting.
@@ -44,7 +49,9 @@ game = {
     hiscores = {},
 
     -- Game Parameters
-    params = {},
+    params = {
+        ship_type = 1, -- default ship by default
+    },
 
     -- The top-down camera
     camera = {
