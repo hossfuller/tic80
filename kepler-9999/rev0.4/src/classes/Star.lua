@@ -266,26 +266,36 @@ end
 
 function Star:drawBody()
     local screen_x, screen_y = worldToScreen(self.position.x, self.position.y)
+    local zoom = game.camera.zoom or 1
 
     screen_x = math.floor(screen_x)
     screen_y = math.floor(screen_y)
 
-    circ(screen_x, screen_y, self.radius + 2, self.colors.tertiary)  -- Outer glow.
-    circ(screen_x, screen_y, self.radius + 1, self.colors.secondary) -- Middle.
-    circ(screen_x, screen_y, self.radius, self.colors.primary)       -- Core.
+    local r = math.max(1, math.floor(self.radius * zoom))
+    local outer_extra = math.max(1, math.floor(2 * zoom))
+    local middle_extra = math.max(1, math.floor(1 * zoom))
+
+    circ(screen_x, screen_y, r + outer_extra, self.colors.tertiary)
+    circ(screen_x, screen_y, r + middle_extra, self.colors.secondary)
+    circ(screen_x, screen_y, r, self.colors.primary)
 end
 
+
 function Star:drawParticleList(particles)
+    local zoom = game.camera.zoom or 1
+
     for _, particle in ipairs(particles) do
         local screen_x, screen_y = worldToScreen(particle.x, particle.y)
 
         screen_x = math.floor(screen_x)
         screen_y = math.floor(screen_y)
 
-        if particle.size <= 1 then
+        local size = math.max(1, math.floor(particle.size * zoom))
+
+        if size <= 1 then
             pix(screen_x, screen_y, particle.color)
         else
-            circ(screen_x, screen_y, particle.size, particle.color)
+            circ(screen_x, screen_y, size, particle.color)
         end
     end
 end

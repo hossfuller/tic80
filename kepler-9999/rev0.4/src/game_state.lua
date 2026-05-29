@@ -55,11 +55,14 @@ game = {
 
     -- The top-down camera
     camera = {
-        x = 0,
-        y = 0,
-        target_x = 0,
-        target_y = 0,
-        lerp = 0.08,
+        x           = 0,
+        y           = 0,
+        target_x    = 0,
+        target_y    = 0,
+        lerp        = 0.08,
+        zoom        = 1,
+        zoom_index  = 3,
+        zoom_levels = { 0.25, 0.5, 1 },
     },
 
     -- Gameplay state

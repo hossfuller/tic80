@@ -832,8 +832,11 @@ function SpaceShip:shouldDraw()
 end
 
 function SpaceShip:getScreenShapePoints()
-    local screen_x = math.floor(self.position.x - game.camera.x)
-    local screen_y = math.floor(self.position.y - game.camera.y)
+    local screen_x, screen_y = worldToScreen(self.position.x, self.position.y)
+    local zoom = game.camera.zoom or 1
+
+    screen_x = math.floor(screen_x)
+    screen_y = math.floor(screen_y)
 
     local points = {}
 
@@ -841,8 +844,8 @@ function SpaceShip:getScreenShapePoints()
         local rotated_point = self:rotatePoint(point, self.rotation)
 
         points[i] = {
-            x = math.floor(rotated_point.x + screen_x),
-            y = math.floor(rotated_point.y + screen_y),
+            x = math.floor(screen_x + rotated_point.x * zoom),
+            y = math.floor(screen_y + rotated_point.y * zoom),
         }
     end
 
@@ -850,6 +853,23 @@ function SpaceShip:getScreenShapePoints()
 end
 
 function SpaceShip:drawBody()
+    local zoom = game.camera.zoom or 1
+
+    if zoom <= 0.25 then
+        local x, y = worldToScreen(self.position.x, self.position.y)
+
+        x = math.floor(x)
+        y = math.floor(y)
+
+        pix(x, y, self.color)
+        pix(x - 1, y, self.color)
+        pix(x + 1, y, self.color)
+        pix(x, y - 1, self.color)
+        pix(x, y + 1, self.color)
+
+        return
+    end
+
     local points = self:getScreenShapePoints()
 
     -- Draw a ship-shaped black mask first.

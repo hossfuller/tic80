@@ -31,13 +31,18 @@ function resetPlayerAndCamera()
 end
 
 function updateCamera(player, camera)
-    -- Target camera position places player in center of screen.
-    camera.target_x = player.position.x - SCREEN_W / 2
-    camera.target_y = player.position.y - SCREEN_H / 2
+    local zoom = camera.zoom or 1
+
+    local visible_w = SCREEN_W / zoom
+    local visible_h = SCREEN_H / zoom
+
+    -- Target camera position places player in center of visible world area.
+    camera.target_x = player.position.x - visible_w / 2
+    camera.target_y = player.position.y - visible_h / 2
 
     -- Clamp target so camera does not show outside the map.
-    camera.target_x = clamp(camera.target_x, 0, MAP_PIXELS_W - SCREEN_W)
-    camera.target_y = clamp(camera.target_y, 0, MAP_PIXELS_H - SCREEN_H)
+    camera.target_x = clamp(camera.target_x, 0, MAP_PIXELS_W - visible_w)
+    camera.target_y = clamp(camera.target_y, 0, MAP_PIXELS_H - visible_h)
 
     -- Smoothly move camera toward target.
     camera.x = lerp(camera.x, camera.target_x, camera.lerp)
@@ -65,5 +70,22 @@ function lerp(a, b, t)
 end
 
 function worldToScreen(world_x, world_y)
-    return world_x - game.camera.x, world_y - game.camera.y
+    local zoom = game.camera.zoom or 1
+    return
+        (world_x - game.camera.x) * zoom,
+        (world_y - game.camera.y) * zoom
+end
+
+function updateMouseWheelZoom()
+    local mx, my, left, middle, right, scroll_x, scroll_y = mouse()
+    local camera = game.camera
+
+    if scroll_y > 0 then
+        camera.zoom_index = camera.zoom_index + 1
+    elseif scroll_y < 0 then
+        camera.zoom_index = camera.zoom_index - 1
+    end
+
+    camera.zoom_index = clamp(camera.zoom_index, 1, #camera.zoom_levels)
+    camera.zoom = camera.zoom_levels[camera.zoom_index]
 end

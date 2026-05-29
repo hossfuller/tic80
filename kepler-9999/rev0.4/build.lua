@@ -756,13 +756,18 @@ function resetPlayerAndCamera()
 end
 
 function updateCamera(player, camera)
-    -- Target camera position places player in center of screen.
-    camera.target_x = player.position.x - SCREEN_W / 2
-    camera.target_y = player.position.y - SCREEN_H / 2
+    local zoom = camera.zoom or 1
+
+    local visible_w = SCREEN_W / zoom
+    local visible_h = SCREEN_H / zoom
+
+    -- Target camera position places player in center of visible world area.
+    camera.target_x = player.position.x - visible_w / 2
+    camera.target_y = player.position.y - visible_h / 2
 
     -- Clamp target so camera does not show outside the map.
-    camera.target_x = clamp(camera.target_x, 0, MAP_PIXELS_W - SCREEN_W)
-    camera.target_y = clamp(camera.target_y, 0, MAP_PIXELS_H - SCREEN_H)
+    camera.target_x = clamp(camera.target_x, 0, MAP_PIXELS_W - visible_w)
+    camera.target_y = clamp(camera.target_y, 0, MAP_PIXELS_H - visible_h)
 
     -- Smoothly move camera toward target.
     camera.x = lerp(camera.x, camera.target_x, camera.lerp)
@@ -790,7 +795,24 @@ function lerp(a, b, t)
 end
 
 function worldToScreen(world_x, world_y)
-    return world_x - game.camera.x, world_y - game.camera.y
+    local zoom = game.camera.zoom or 1
+    return
+        (world_x - game.camera.x) * zoom,
+        (world_y - game.camera.y) * zoom
+end
+
+function updateMouseWheelZoom()
+    local mx, my, left, middle, right, scroll_x, scroll_y = mouse()
+    local camera = game.camera
+
+    if scroll_y > 0 then
+        camera.zoom_index = camera.zoom_index + 1
+    elseif scroll_y < 0 then
+        camera.zoom_index = camera.zoom_index - 1
+    end
+
+    camera.zoom_index = clamp(camera.zoom_index, 1, #camera.zoom_levels)
+    camera.zoom = camera.zoom_levels[camera.zoom_index]
 end
 
 
@@ -1082,11 +1104,14 @@ game = {
 
     -- The top-down camera
     camera = {
-        x = 0,
-        y = 0,
-        target_x = 0,
-        target_y = 0,
-        lerp = 0.08,
+        x           = 0,
+        y           = 0,
+        target_x    = 0,
+        target_y    = 0,
+        lerp        = 0.08,
+        zoom        = 1,
+        zoom_index  = 3,
+        zoom_levels = { 0.25, 0.5, 1 },
     },
 
     -- Gameplay state
@@ -1629,6 +1654,8 @@ function inputPlay()
         changeState(STATE.PAUSE)
     end
 
+    updateMouseWheelZoom()
+
     -- Push all button monitoring off on the player class.
     game.play.player:input()
 end
@@ -1708,6 +1735,13 @@ end
 
 function drawStarMap()
     local camera = game.camera
+    local zoom = camera.zoom or 1
+
+    -- TIC-80 map() does not handle zooming out below 1x cleanly.
+    -- For zoomed-out view, leave the background black.
+    if zoom < 1 then
+        return
+    end
 
     -- Camera position in pixels.
     local cam_x = math.floor(camera.x)
@@ -1718,20 +1752,57 @@ function drawStarMap()
     local tile_y = math.floor(cam_y / TILE_SIZE)
 
     -- Pixel offset inside the first visible tile.
-    local offset_x = cam_x % TILE_SIZE
-    local offset_y = cam_y % TILE_SIZE
+    local offset_x = (cam_x % TILE_SIZE) * zoom
+    local offset_y = (cam_y % TILE_SIZE) * zoom
+
+    local visible_tiles_w = math.ceil(SCREEN_W / (TILE_SIZE * zoom)) + 1
+    local visible_tiles_h = math.ceil(SCREEN_H / (TILE_SIZE * zoom)) + 1
 
     -- Draw generated star map.
     map(
         tile_x,             -- map x/y in tiles
         tile_y,             -- map x/y in tiles
-        SCREEN_TILES_W + 1,
-        SCREEN_TILES_H + 1,
+        visible_tiles_w,
+        visible_tiles_h,
         -offset_x,          -- screen x/y in pixels
         -offset_y,          -- screen x/y in pixels
-        -1                  -- transparent color
+        -1,                 -- transparent color
+        zoom
     )
 end
+-- function drawStarMap()
+--     local camera = game.camera
+--     local zoom = camera.zoom or 1
+
+--     -- TIC-80 map() does not handle zooming out below 1x cleanly.
+--     -- For zoomed-out view, leave the background black.
+--     if zoom < 1 then
+--         return
+--     end
+
+    -- local cam_x = math.floor(camera.x)
+    -- local cam_y = math.floor(camera.y)
+
+    -- local tile_x = math.floor(cam_x / TILE_SIZE)
+    -- local tile_y = math.floor(cam_y / TILE_SIZE)
+
+    -- local offset_x = (cam_x % TILE_SIZE) * zoom
+    -- local offset_y = (cam_y % TILE_SIZE) * zoom
+
+    -- local visible_tiles_w = math.ceil(SCREEN_W / (TILE_SIZE * zoom)) + 1
+    -- local visible_tiles_h = math.ceil(SCREEN_H / (TILE_SIZE * zoom)) + 1
+
+--     map(
+--         tile_x,
+--         tile_y,
+--         visible_tiles_w,
+--         visible_tiles_h,
+--         -offset_x,
+--         -offset_y,
+--         -1,
+--         zoom
+--     )
+-- end
 
 function drawShipCargoHoldHud()
     local player             = game.play.player
@@ -1869,8 +1940,6 @@ function drawGame()
     if game.play.star then
         game.play.star:draw()
     end
-
-    game.play.star:draw()
 
     local player = game.play.player
     if not player.mortality.dead and player:shouldDraw() then
@@ -3071,8 +3140,11 @@ function SpaceShip:shouldDraw()
 end
 
 function SpaceShip:getScreenShapePoints()
-    local screen_x = math.floor(self.position.x - game.camera.x)
-    local screen_y = math.floor(self.position.y - game.camera.y)
+    local screen_x, screen_y = worldToScreen(self.position.x, self.position.y)
+    local zoom = game.camera.zoom or 1
+
+    screen_x = math.floor(screen_x)
+    screen_y = math.floor(screen_y)
 
     local points = {}
 
@@ -3080,8 +3152,8 @@ function SpaceShip:getScreenShapePoints()
         local rotated_point = self:rotatePoint(point, self.rotation)
 
         points[i] = {
-            x = math.floor(rotated_point.x + screen_x),
-            y = math.floor(rotated_point.y + screen_y),
+            x = math.floor(screen_x + rotated_point.x * zoom),
+            y = math.floor(screen_y + rotated_point.y * zoom),
         }
     end
 
@@ -3089,6 +3161,23 @@ function SpaceShip:getScreenShapePoints()
 end
 
 function SpaceShip:drawBody()
+    local zoom = game.camera.zoom or 1
+
+    if zoom <= 0.25 then
+        local x, y = worldToScreen(self.position.x, self.position.y)
+
+        x = math.floor(x)
+        y = math.floor(y)
+
+        pix(x, y, self.color)
+        pix(x - 1, y, self.color)
+        pix(x + 1, y, self.color)
+        pix(x, y - 1, self.color)
+        pix(x, y + 1, self.color)
+
+        return
+    end
+
     local points = self:getScreenShapePoints()
 
     -- Draw a ship-shaped black mask first.
@@ -3392,26 +3481,36 @@ end
 
 function Star:drawBody()
     local screen_x, screen_y = worldToScreen(self.position.x, self.position.y)
+    local zoom = game.camera.zoom or 1
 
     screen_x = math.floor(screen_x)
     screen_y = math.floor(screen_y)
 
-    circ(screen_x, screen_y, self.radius + 2, self.colors.tertiary)  -- Outer glow.
-    circ(screen_x, screen_y, self.radius + 1, self.colors.secondary) -- Middle.
-    circ(screen_x, screen_y, self.radius, self.colors.primary)       -- Core.
+    local r = math.max(1, math.floor(self.radius * zoom))
+    local outer_extra = math.max(1, math.floor(2 * zoom))
+    local middle_extra = math.max(1, math.floor(1 * zoom))
+
+    circ(screen_x, screen_y, r + outer_extra, self.colors.tertiary)
+    circ(screen_x, screen_y, r + middle_extra, self.colors.secondary)
+    circ(screen_x, screen_y, r, self.colors.primary)
 end
 
+
 function Star:drawParticleList(particles)
+    local zoom = game.camera.zoom or 1
+
     for _, particle in ipairs(particles) do
         local screen_x, screen_y = worldToScreen(particle.x, particle.y)
 
         screen_x = math.floor(screen_x)
         screen_y = math.floor(screen_y)
 
-        if particle.size <= 1 then
+        local size = math.max(1, math.floor(particle.size * zoom))
+
+        if size <= 1 then
             pix(screen_x, screen_y, particle.color)
         else
-            circ(screen_x, screen_y, particle.size, particle.color)
+            circ(screen_x, screen_y, size, particle.color)
         end
     end
 end
