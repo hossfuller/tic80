@@ -680,10 +680,6 @@ local PLANET_ATMOSPHERE_COLORS = {
     BLUE_MED,
     BLUE_LITE,
     CYAN,
-    WHITE,
-    -- GRAY_LITE,
-    -- GRAY_MED,
-    -- GRAY_DARK,
 }
 
 local PLANET_ROCKY_COLORS = {
@@ -916,9 +912,10 @@ end
 
 --[[ PLANETS ]] --
 
--- TODO: names should proceed as Kepler-9999b, Kepler-9999c, etc.
 function generatePlanetName(index)
-    return "Kepler-9999 " .. tostring(index)
+    -- 1 -> b, 2 -> c, 3 -> d, etc.
+    local letter = string.char(string.byte("b") + index - 1)
+    return "Kepler-9999" .. letter
 end
 
 function generatePlanetCandidate(index)
@@ -926,7 +923,8 @@ function generatePlanetCandidate(index)
     local radius_real    = randomFloat(EARTH_RADIUS, JUPITER_RADIUS)
 
     return Planet:new({
-        name           = generatePlanetName(index),
+        -- Temporary name. Real name gets assigned after sorting by star distance.
+        name           = "Unnamed Planet",
         x              = math.random(0, MAP_PIXELS_W - 1),
         y              = math.random(0, MAP_PIXELS_H - 1),
         mass           = randomFloat(EARTH_MASS, JUPITER_MASS),
@@ -991,6 +989,34 @@ function canPlacePlanet(candidate, planets, star)
     return true
 end
 
+function assignPlanetNamesByDistanceFromStar(planets, star)
+    if not star then
+        return
+    end
+
+    table.sort(planets, function(a, b)
+        local a_distance = distanceSquared(
+            a.position.x,
+            a.position.y,
+            star.position.x,
+            star.position.y
+        )
+
+        local b_distance = distanceSquared(
+            b.position.x,
+            b.position.y,
+            star.position.x,
+            star.position.y
+        )
+
+        return a_distance < b_distance
+    end)
+
+    for index, planet in ipairs(planets) do
+        planet.name = generatePlanetName(index)
+    end
+end
+
 function generatePlanets()
     local planets = {}
 
@@ -1013,6 +1039,8 @@ function generatePlanets()
             end
         end
     end
+
+    assignPlanetNamesByDistanceFromStar(planets, game.play.star)
 
     return planets
 end
@@ -4068,8 +4096,44 @@ function Planet:drawBody()
     end
 end
 
+function Planet:drawLabel()
+    local zoom = game.camera.zoom or 1
+
+    -- Labels are only visible when zoomed out.
+    if zoom >= 1 then
+        return
+    end
+
+    local screen_x, screen_y = worldToScreen(self.position.x, self.position.y)
+
+    screen_x = math.floor(screen_x)
+    screen_y = math.floor(screen_y)
+
+    local r = math.max(1, math.floor(self.radius * zoom))
+    local text = self.name or "Planet"
+
+    -- TIC-80 print() returns the rendered text width.
+    local text_w = print(text, 0, -100, WHITE, true, 1, true)
+
+    local label_x = math.floor(screen_x - text_w / 2)
+    local label_y = screen_y + r + 4
+
+    -- Skip labels that are clearly off-screen.
+    if label_x > SCREEN_W or label_x + text_w < 0 or
+        label_y > SCREEN_H or label_y + FIXED_CHAR_HEIGHT < 0 then
+        return
+    end
+
+    -- Shadow.
+    print(text, label_x + 1, label_y + 1, BLACK, true, 1, true)
+
+    -- Label.
+    print(text, label_x, label_y, WHITE, true, 1, true)
+end
+
 function Planet:draw()
     self:drawBody()
+    self:drawLabel()
 end
 
 

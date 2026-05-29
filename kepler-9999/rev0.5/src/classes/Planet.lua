@@ -185,6 +185,42 @@ function Planet:drawBody()
     end
 end
 
+function Planet:drawLabel()
+    local zoom = game.camera.zoom or 1
+
+    -- Labels are only visible when zoomed out.
+    if zoom >= 1 then
+        return
+    end
+
+    local screen_x, screen_y = worldToScreen(self.position.x, self.position.y)
+
+    screen_x = math.floor(screen_x)
+    screen_y = math.floor(screen_y)
+
+    local r = math.max(1, math.floor(self.radius * zoom))
+    local text = self.name or "Planet"
+
+    -- TIC-80 print() returns the rendered text width.
+    local text_w = print(text, 0, -100, WHITE, true, 1, true)
+
+    local label_x = math.floor(screen_x - text_w / 2)
+    local label_y = screen_y + r + 4
+
+    -- Skip labels that are clearly off-screen.
+    if label_x > SCREEN_W or label_x + text_w < 0 or
+        label_y > SCREEN_H or label_y + FIXED_CHAR_HEIGHT < 0 then
+        return
+    end
+
+    -- Shadow.
+    print(text, label_x + 1, label_y + 1, BLACK, true, 1, true)
+
+    -- Label.
+    print(text, label_x, label_y, WHITE, true, 1, true)
+end
+
 function Planet:draw()
     self:drawBody()
+    self:drawLabel()
 end

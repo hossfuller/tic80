@@ -43,7 +43,7 @@ The different revisions implement separate features. This list is ever changing.
     - [x] Add mouse controls that allow us to zoom in and out of map.
 - [ ] **REV0.5**: Add more heavenly bodies.
     - [x] Update HUD with dynamic Speed indicator.
-    - [ ] Add a planet class, and include rings and atmospheres.
+    - [x] Add a planet class, and include rings and atmospheres.
     - [ ] Add a moon class that is attached to a particular planet.
     - [ ] Add other minor body classes.
     - [ ] Randomly generated names, colors, atmospherics for planets and moons (AAU-style names for anything smaller than a moon).

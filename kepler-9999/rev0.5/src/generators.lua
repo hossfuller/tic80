@@ -198,9 +198,10 @@ end
 
 --[[ PLANETS ]] --
 
--- TODO: names should proceed as Kepler-9999b, Kepler-9999c, etc.
 function generatePlanetName(index)
-    return "Kepler-9999 " .. tostring(index)
+    -- 1 -> b, 2 -> c, 3 -> d, etc.
+    local letter = string.char(string.byte("b") + index - 1)
+    return "Kepler-9999" .. letter
 end
 
 function generatePlanetCandidate(index)
@@ -208,7 +209,8 @@ function generatePlanetCandidate(index)
     local radius_real    = randomFloat(EARTH_RADIUS, JUPITER_RADIUS)
 
     return Planet:new({
-        name           = generatePlanetName(index),
+        -- Temporary name. Real name gets assigned after sorting by star distance.
+        name           = "Unnamed Planet",
         x              = math.random(0, MAP_PIXELS_W - 1),
         y              = math.random(0, MAP_PIXELS_H - 1),
         mass           = randomFloat(EARTH_MASS, JUPITER_MASS),
@@ -273,6 +275,34 @@ function canPlacePlanet(candidate, planets, star)
     return true
 end
 
+function assignPlanetNamesByDistanceFromStar(planets, star)
+    if not star then
+        return
+    end
+
+    table.sort(planets, function(a, b)
+        local a_distance = distanceSquared(
+            a.position.x,
+            a.position.y,
+            star.position.x,
+            star.position.y
+        )
+
+        local b_distance = distanceSquared(
+            b.position.x,
+            b.position.y,
+            star.position.x,
+            star.position.y
+        )
+
+        return a_distance < b_distance
+    end)
+
+    for index, planet in ipairs(planets) do
+        planet.name = generatePlanetName(index)
+    end
+end
+
 function generatePlanets()
     local planets = {}
 
@@ -295,6 +325,8 @@ function generatePlanets()
             end
         end
     end
+
+    assignPlanetNamesByDistanceFromStar(planets, game.play.star)
 
     return planets
 end

@@ -19,10 +19,6 @@ local PLANET_ATMOSPHERE_COLORS = {
     BLUE_MED,
     BLUE_LITE,
     CYAN,
-    WHITE,
-    -- GRAY_LITE,
-    -- GRAY_MED,
-    -- GRAY_DARK,
 }
 
 local PLANET_ROCKY_COLORS = {
