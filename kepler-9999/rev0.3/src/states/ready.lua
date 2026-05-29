@@ -7,7 +7,7 @@ function inputReady()
 end
 
 function updateReady()
-    if btnp(BTN_P1_START) then
+    if btnp(BTN_P1_A) or btnp(BTN_P1_START) then
         changeState(STATE.PLAY)
     end
 
@@ -22,5 +22,5 @@ function drawReady()
 
     -- Draw overlay
     drawOverlayBox("READY?")
-    drawCenteredText("Press 'START' (S) to Begin", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
+    drawCenteredText("Press Z to Begin", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
 end

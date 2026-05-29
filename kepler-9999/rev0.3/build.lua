@@ -1409,7 +1409,7 @@ function inputReady()
 end
 
 function updateReady()
-    if btnp(BTN_P1_START) then
+    if btnp(BTN_P1_A) or btnp(BTN_P1_START) then
         changeState(STATE.PLAY)
     end
 
@@ -1424,7 +1424,7 @@ function drawReady()
 
     -- Draw overlay
     drawOverlayBox("READY?")
-    drawCenteredText("Press 'START' (S) to Begin", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
+    drawCenteredText("Press Z to Begin", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
 end
 
 
@@ -1547,7 +1547,7 @@ function drawStarMap()
     )
 end
 
-function drawShipMassHud()
+function drawShipCargoHoldHud()
     local player             = game.play.player
 
     local cargo_fraction     = clamp(player:getCargoMassFraction(), 0, 1)
@@ -1563,17 +1563,17 @@ function drawShipMassHud()
         total_fraction     = 1
     end
 
-    local label    = "M"
+    local label    = "C"
 
     -- Same width style as E/L/S bars.
-    local bar_w    = print("M", -100, -100, WHITE, true, 1, true) + 1
+    local bar_w    = print("C", -100, -100, WHITE, true, 1, true) + 1
     local bar_h    = 108
     local bar_x    = EDGE_X_LEFT + 3
     local bottom_y = EDGE_Y_BOTTOM - 8
     local bar_y    = bottom_y - bar_h
 
     -- Label.
-    print(label, bar_x, bottom_y, WHITE, true, 1, true)
+    print(label, bar_x, bottom_y, GRAY_MED, true, 1, true)
 
     -- Border.
     rectb(bar_x, bar_y, bar_w - 1, bar_h - 1, WHITE)
@@ -1646,7 +1646,7 @@ function drawShipStatusHud()
     local bar_w                 = print("E", -100, -100, WHITE, true, 1, true) + 1
     local pixels_per_multiplier = 12
 
-    -- Same baseline as drawShipMassHud().
+    -- Same baseline as drawShipCargoHoldHud().
     local bottom_y              = EDGE_Y_BOTTOM - 8
 
     -- M bar starts at EDGE_X_LEFT + 3.
@@ -1668,22 +1668,10 @@ function drawShipStatusHud()
         rectb(bar_x, bar_y, bar_w - 1, bar_h - 1, WHITE)
 
         -- Empty background.
-        rect(
-            bar_x + 1,
-            bar_y + 1,
-            bar_w - 2,
-            bar_h - 2,
-            BLACK
-        )
+        rect(bar_x + 1, bar_y + 1, bar_w - 2, bar_h - 2, BLACK)
 
         -- Fill from bottom upward.
-        rect(
-            bar_x + 1,
-            bar_y + bar_h - 1 - fill_h,
-            bar_w - 2,
-            fill_h,
-            bar.color
-        )
+        rect(bar_x + 1, bar_y + bar_h - 1 - fill_h, bar_w - 2, fill_h, bar.color)
     end
 end
 
@@ -1703,7 +1691,7 @@ function drawGame()
     -- player:drawParticles(player.TYPES.SPARK)
     -- player:drawParticles(player.TYPES.THRUST)
 
-    drawShipMassHud()
+    drawShipCargoHoldHud()
     drawShipStatusHud()
 end
 

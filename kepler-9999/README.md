@@ -36,7 +36,7 @@ The different revisions implement separate features. This list is ever changing.
     - [x] Ship selection dictates ships' maximum values for mass, speed, etc.
     - [x] Implement cargo holds and passenger seating in spaceships. Solid cargo
     - [x] Different ships have different shapes.
-    - [ ] Fix controls for start, options, and play screen.
+    - [x] Fix controls for start, options, and play screen.
 - [ ] **REV0.4**: Add foreground heavenly bodies.
     - [ ] Parent class for all heavenly bodies with mass, radius, color.
     - [ ] Implement keplarian orbital mechanics
@@ -45,6 +45,7 @@ The different revisions implement separate features. This list is ever changing.
     - [ ] Collision detection.
     - [ ] Can feel gravitational effects from heavenly bodies.
     - [ ] Implement inertia and make the energy engine feel it (more mass makes the ship expend more energy to stop).
+    - [ ] Update HUD with dynamic Speed indicator.
     - [ ] Bring over Asteroids particle effects like explosions, thrust, sparks, and smoke.
 - [ ] **REV0.6**: Refined heavenly bodies.
     - [ ] Randomly generated names, colors, atmospherics for planets and moons.
