@@ -412,6 +412,26 @@ local STELLAR_PROFILES = {
             secondary = BLUE_MED,
             tertiary  = WHITE,
         },
+
+        particles = {
+            wind = {
+                spawn_chance            = 0.80,
+                speed_min               = 0.35,
+                speed_max               = 0.80,
+                max_distance_multiplier = 2.8,
+            },
+            flare = {
+                spawn_chance            = 0.004,
+                particles_per_flare_min = 3,
+                particles_per_flare_max = 8,
+                speed_min               = 0.35,
+                speed_max               = 0.75,
+                angle_spread            = math.pi / 10,
+                max_distance_multiplier = 2.5,
+                evaporate_chance_min    = 0.020,
+                evaporate_chance_max    = 0.050,
+            },
+        },
     },
 
     B = {
@@ -428,6 +448,26 @@ local STELLAR_PROFILES = {
             primary   = BLUE_LITE,
             secondary = WHITE,
             tertiary  = CYAN,
+        },
+
+        particles = {
+            wind = {
+                spawn_chance            = 0.65,
+                speed_min               = 0.28,
+                speed_max               = 0.65,
+                max_distance_multiplier = 2.5,
+            },
+            flare = {
+                spawn_chance            = 0.007,
+                particles_per_flare_min = 4,
+                particles_per_flare_max = 10,
+                speed_min               = 0.40,
+                speed_max               = 0.85,
+                angle_spread            = math.pi / 9,
+                max_distance_multiplier = 2.8,
+                evaporate_chance_min    = 0.018,
+                evaporate_chance_max    = 0.045,
+            },
         },
     },
 
@@ -446,6 +486,26 @@ local STELLAR_PROFILES = {
             secondary = BLUE_LITE,
             tertiary  = CYAN,
         },
+
+        particles = {
+            wind = {
+                spawn_chance            = 0.50,
+                speed_min               = 0.22,
+                speed_max               = 0.55,
+                max_distance_multiplier = 2.2,
+            },
+            flare = {
+                spawn_chance            = 0.010,
+                particles_per_flare_min = 5,
+                particles_per_flare_max = 12,
+                speed_min               = 0.45,
+                speed_max               = 0.95,
+                angle_spread            = math.pi / 8,
+                max_distance_multiplier = 3.0,
+                evaporate_chance_min    = 0.015,
+                evaporate_chance_max    = 0.040,
+            },
+        },
     },
 
     F = {
@@ -462,6 +522,26 @@ local STELLAR_PROFILES = {
             primary   = WHITE,
             secondary = YELLOW,
             tertiary  = GRAY_LITE,
+        },
+
+        particles = {
+            wind = {
+                spawn_chance            = 0.40,
+                speed_min               = 0.18,
+                speed_max               = 0.45,
+                max_distance_multiplier = 2.0,
+            },
+            flare = {
+                spawn_chance            = 0.014,
+                particles_per_flare_min = 6,
+                particles_per_flare_max = 14,
+                speed_min               = 0.50,
+                speed_max               = 1.05,
+                angle_spread            = math.pi / 7,
+                max_distance_multiplier = 3.2,
+                evaporate_chance_min    = 0.012,
+                evaporate_chance_max    = 0.035,
+            },
         },
     },
 
@@ -480,6 +560,26 @@ local STELLAR_PROFILES = {
             secondary = ORANGE,
             tertiary  = WHITE,
         },
+
+        particles = {
+            wind = {
+                spawn_chance            = 0.30,
+                speed_min               = 0.14,
+                speed_max               = 0.38,
+                max_distance_multiplier = 1.8,
+            },
+            flare = {
+                spawn_chance            = 0.018,
+                particles_per_flare_min = 8,
+                particles_per_flare_max = 16,
+                speed_min               = 0.55,
+                speed_max               = 1.15,
+                angle_spread            = math.pi / 7,
+                max_distance_multiplier = 3.5,
+                evaporate_chance_min    = 0.010,
+                evaporate_chance_max    = 0.030,
+            },
+        },
     },
 
     K = {
@@ -497,6 +597,26 @@ local STELLAR_PROFILES = {
             secondary = RED,
             tertiary  = YELLOW,
         },
+
+        particles = {
+            wind = {
+                spawn_chance            = 0.20,
+                speed_min               = 0.10,
+                speed_max               = 0.30,
+                max_distance_multiplier = 1.6,
+            },
+            flare = {
+                spawn_chance            = 0.026,
+                particles_per_flare_min = 10,
+                particles_per_flare_max = 22,
+                speed_min               = 0.65,
+                speed_max               = 1.35,
+                angle_spread            = math.pi / 6,
+                max_distance_multiplier = 3.8,
+                evaporate_chance_min    = 0.008,
+                evaporate_chance_max    = 0.025,
+            },
+        },
     },
 
     M = {
@@ -513,6 +633,26 @@ local STELLAR_PROFILES = {
             primary   = RED,
             secondary = ORANGE,
             tertiary  = GRAY_DARK,
+        },
+
+        particles = {
+            wind = {
+                spawn_chance            = 0.10,
+                speed_min               = 0.05,
+                speed_max               = 0.18,
+                max_distance_multiplier = 1.3,
+            },
+            flare = {
+                spawn_chance            = 0.040,
+                particles_per_flare_min = 14,
+                particles_per_flare_max = 30,
+                speed_min               = 0.75,
+                speed_max               = 1.60,
+                angle_spread            = math.pi / 5,
+                max_distance_multiplier = 4.0,
+                evaporate_chance_min    = 0.005,
+                evaporate_chance_max    = 0.020,
+            },
         },
     },
 }
@@ -1147,6 +1287,13 @@ end
 -- ==========================================
 -- HELPERS
 -- ==========================================
+
+function getOrDefault(value, default)
+    if value == nil then
+        return default
+    end
+    return value
+end
 
 -- ==========================================
 -- RANDOMIZATION HELPERS
@@ -3286,29 +3433,34 @@ function Star:new(params)
     self.acceleration       = 0
     self.deceleration       = 0
 
-    self.particles          = {
+    local particle_profile  = profile.particles or {}
+    local wind_profile      = particle_profile.wind or {}
+    local flare_profile     = particle_profile.flare or {}
+
+    self.particles = {
         wind = {
-            particles = {},
-            spawn_chance = 0.45, -- Chance per update frame.
-            speed_min = 0.15,
-            speed_max = 0.45,
-            max_distance_multiplier = 2,
-            colors = {
+            particles               = {},
+            spawn_chance            = getOrDefault(wind_profile.spawn_chance, 0.30),
+            speed_min               = getOrDefault(wind_profile.speed_min, 0.15),
+            speed_max               = getOrDefault(wind_profile.speed_max, 0.45),
+            max_distance_multiplier = getOrDefault(wind_profile.max_distance_multiplier, 2),
+            colors                  = wind_profile.colors or {
                 self.colors.secondary,
                 self.colors.tertiary,
             },
         },
-
         flare = {
-            particles = {},
-            spawn_chance = 0.015, -- Much rarer than wind.
-            particles_per_flare_min = 8,
-            particles_per_flare_max = 18,
-            speed_min = 0.55,
-            speed_max = 1.25,
-            angle_spread = math.pi / 7,
-            max_distance_multiplier = 4,
-            colors = {
+            particles               = {},
+            spawn_chance            = getOrDefault(flare_profile.spawn_chance, 0.015),
+            particles_per_flare_min = getOrDefault(flare_profile.particles_per_flare_min, 8),
+            particles_per_flare_max = getOrDefault(flare_profile.particles_per_flare_max, 18),
+            speed_min               = getOrDefault(flare_profile.speed_min, 0.55),
+            speed_max               = getOrDefault(flare_profile.speed_max, 1.25),
+            angle_spread            = getOrDefault(flare_profile.angle_spread, math.pi / 7),
+            max_distance_multiplier = getOrDefault(flare_profile.max_distance_multiplier, 4),
+            evaporate_chance_min    = getOrDefault(flare_profile.evaporate_chance_min, 0.005),
+            evaporate_chance_max    = getOrDefault( flare_profile.evaporate_chance_max, 0.025),
+            colors                  = flare_profile.colors or {
                 self.colors.primary,
                 self.colors.secondary,
                 self.colors.tertiary,
@@ -3400,23 +3552,22 @@ function Star:spawnFlare()
 
         local speed = randomFloat(system.speed_min, system.speed_max)
 
-        -- Each particle can die at a different range up to 4x radius.
+        -- Each particle can die at a different range up to max_distance_multiplier.
         local max_distance = randomFloat(
             self.radius * 1.1,
             self.radius * system.max_distance_multiplier
         )
-
         local particle = {
-            x = start_x,
-            y = start_y,
-            origin_x = start_x,
-            origin_y = start_y,
-            direction = direction,
-            speed = speed,
-            max_distance = max_distance,
-            color = randomChoice(system.colors),
-            size = math.random(1, 2), -- Some flare particles are slightly larger.
-            evaporate_chance = randomFloat(0.005, 0.025), -- Random evaporation chance per frame.
+            x                = start_x,
+            y                = start_y,
+            origin_x         = start_x,
+            origin_y         = start_y,
+            direction        = direction,
+            speed            = speed,
+            max_distance     = max_distance,
+            color            = randomChoice(system.colors),
+            size             = math.random(1, 2),
+            evaporate_chance = randomFloat(system.evaporate_chance_min, system.evaporate_chance_max),
         }
         table.insert(system.particles, particle)
     end

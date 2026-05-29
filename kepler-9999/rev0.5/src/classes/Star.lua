@@ -56,29 +56,34 @@ function Star:new(params)
     self.acceleration       = 0
     self.deceleration       = 0
 
-    self.particles          = {
+    local particle_profile  = profile.particles or {}
+    local wind_profile      = particle_profile.wind or {}
+    local flare_profile     = particle_profile.flare or {}
+
+    self.particles = {
         wind = {
-            particles = {},
-            spawn_chance = 0.45, -- Chance per update frame.
-            speed_min = 0.15,
-            speed_max = 0.45,
-            max_distance_multiplier = 2,
-            colors = {
+            particles               = {},
+            spawn_chance            = getOrDefault(wind_profile.spawn_chance, 0.30),
+            speed_min               = getOrDefault(wind_profile.speed_min, 0.15),
+            speed_max               = getOrDefault(wind_profile.speed_max, 0.45),
+            max_distance_multiplier = getOrDefault(wind_profile.max_distance_multiplier, 2),
+            colors                  = wind_profile.colors or {
                 self.colors.secondary,
                 self.colors.tertiary,
             },
         },
-
         flare = {
-            particles = {},
-            spawn_chance = 0.015, -- Much rarer than wind.
-            particles_per_flare_min = 8,
-            particles_per_flare_max = 18,
-            speed_min = 0.55,
-            speed_max = 1.25,
-            angle_spread = math.pi / 7,
-            max_distance_multiplier = 4,
-            colors = {
+            particles               = {},
+            spawn_chance            = getOrDefault(flare_profile.spawn_chance, 0.015),
+            particles_per_flare_min = getOrDefault(flare_profile.particles_per_flare_min, 8),
+            particles_per_flare_max = getOrDefault(flare_profile.particles_per_flare_max, 18),
+            speed_min               = getOrDefault(flare_profile.speed_min, 0.55),
+            speed_max               = getOrDefault(flare_profile.speed_max, 1.25),
+            angle_spread            = getOrDefault(flare_profile.angle_spread, math.pi / 7),
+            max_distance_multiplier = getOrDefault(flare_profile.max_distance_multiplier, 4),
+            evaporate_chance_min    = getOrDefault(flare_profile.evaporate_chance_min, 0.005),
+            evaporate_chance_max    = getOrDefault( flare_profile.evaporate_chance_max, 0.025),
+            colors                  = flare_profile.colors or {
                 self.colors.primary,
                 self.colors.secondary,
                 self.colors.tertiary,
@@ -170,23 +175,22 @@ function Star:spawnFlare()
 
         local speed = randomFloat(system.speed_min, system.speed_max)
 
-        -- Each particle can die at a different range up to 4x radius.
+        -- Each particle can die at a different range up to max_distance_multiplier.
         local max_distance = randomFloat(
             self.radius * 1.1,
             self.radius * system.max_distance_multiplier
         )
-
         local particle = {
-            x = start_x,
-            y = start_y,
-            origin_x = start_x,
-            origin_y = start_y,
-            direction = direction,
-            speed = speed,
-            max_distance = max_distance,
-            color = randomChoice(system.colors),
-            size = math.random(1, 2), -- Some flare particles are slightly larger.
-            evaporate_chance = randomFloat(0.005, 0.025), -- Random evaporation chance per frame.
+            x                = start_x,
+            y                = start_y,
+            origin_x         = start_x,
+            origin_y         = start_y,
+            direction        = direction,
+            speed            = speed,
+            max_distance     = max_distance,
+            color            = randomChoice(system.colors),
+            size             = math.random(1, 2),
+            evaporate_chance = randomFloat(system.evaporate_chance_min, system.evaporate_chance_max),
         }
         table.insert(system.particles, particle)
     end
