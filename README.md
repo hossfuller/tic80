@@ -216,6 +216,10 @@ C:\Users\afuller\AppData\Roaming\com.nesbox.tic\TIC-80>cd spong
 
 C:\Users\afuller\AppData\Roaming\com.nesbox.tic\TIC-80\spong>..\tq-bundler.exe run game.lua main.lua --tic C:\Users\afuller\Development\TIC-80\build\bin\tic80.exe
 ```
+That last part, the `--tic` flag, points to the full path of the `tic80.exe` binary. So, depending on where it was compiled and installed, the `tq-bundler.exe` command could be, for example, this:
+```bash
+>..\tq-bundler.exe run game.lua main.lua --tic C:\TIC-80\build\bin\tic80.exe
+```
 
 
 <!-- --------------------------------------------------------------------------- -->

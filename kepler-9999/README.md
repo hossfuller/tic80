@@ -35,7 +35,8 @@ The different revisions implement separate features. This list is ever changing.
     - [x] User selects their ship type from the options screen.
     - [x] Ship selection dictates ships' maximum values for mass, speed, etc.
     - [x] Implement cargo holds and passenger seating in spaceships. Solid cargo
-    - [ ] Different ships have different shapes.
+    - [x] Different ships have different shapes.
+    - [ ] Fix controls for start, options, and play screen.
 - [ ] **REV0.4**: Add foreground heavenly bodies.
     - [ ] Parent class for all heavenly bodies with mass, radius, color.
     - [ ] Implement keplarian orbital mechanics

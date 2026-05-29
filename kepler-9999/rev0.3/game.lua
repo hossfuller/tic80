@@ -87,7 +87,7 @@ local Y_PADDING         = FIXED_CHAR_HEIGHT + 2
 -- GAME CONSTANTS
 -- ==========================================
 
-local DEBUG = true
+local DEBUG = false
 
 local TILE_EMPTY       = 0
 local TILE_STAR_DIM    = 1
@@ -124,7 +124,7 @@ local PASSENGER_TOTAL_MASS   = PASSENGER_MASS + PASSENGER_LUGGAGE_MASS
 --]]
 
 
-local default_ship = {
+local cruiser_ship = {
     shape = {
         { x = 8,  y = 0 },
         { x = -8, y = 6 },
@@ -132,7 +132,10 @@ local default_ship = {
         { x = -8, y = -6 },
         { x = 8,  y = 0 },
     },
-    engines = {
+    colors = {
+        primary = BLUE_MED,
+    },
+    engines   = {
         energy = {
             cur = 250,
             max = 250,
@@ -169,13 +172,28 @@ local default_ship = {
     max_speed = 2.5,
 }
 
-local freight_ship = {
-    shape     = {
-        { x = 8,  y = 0 },
-        { x = -8, y = 6 },
-        { x = -4, y = 0 },
-        { x = -8, y = -6 },
-        { x = 8,  y = 0 },
+local freighter_ship = {
+    shape = {
+        { x = 16, y = 0 },
+        { x = 13, y = 5 },
+        { x = 6, y = 5 },
+        { x = 4, y = 7 },
+        { x = 0, y = 8 },
+        { x = -9, y = 8 },
+        { x = -9, y = 6 },
+        { x = -6, y = 2 },
+        { x = -9, y = 0 },
+        { x = -6, y = -2 },
+        { x = -9, y = -6 },
+        { x = -9, y = -8 },
+        { x = 0, y = -8 },
+        { x = 4, y = -7 },
+        { x = 6, y = -5 },
+        { x = 13, y = -5 },
+        { x = 16, y = 0 },
+    },
+    colors = {
+        primary = GREEN_MED,
     },
     engines   = {
         energy = {
@@ -216,11 +234,40 @@ local freight_ship = {
 
 local passenger_ship = {
     shape = {
-        { x = 8,  y = 0 },
+        { x = 10, y = 0 },
+        { x = 9, y = 2 },
+        { x = 7, y = 3 },
+        { x = -1, y = 3 },
+        { x = -3, y = 6 },
+        { x = 1, y = 6 },
+        { x = 2, y = 7 },
+        { x = 1, y = 9 },
+        { x = -10, y = 9 },
+        { x = -11, y = 7 },
+        { x = -10, y = 6 },
         { x = -8, y = 6 },
-        { x = -4, y = 0 },
+        { x = -6, y = 3 },
+        { x = -8, y = 3 },
+        { x = -10, y = 2 },
+        { x = -11, y = 0 },
+        { x = -10, y = -2 },
+        { x = -8, y = -3 },
+        { x = -6, y = -3 },
         { x = -8, y = -6 },
-        { x = 8,  y = 0 },
+        { x = -10, y = -6 },
+        { x = -11, y = -7 },
+        { x = -10, y = -9 },
+        { x = 1, y = -9 },
+        { x = 2, y = -7 },
+        { x = 1, y = -6 },
+        { x = -3, y = -6 },
+        { x = -1, y = -3 },
+        { x = 7, y = -3 },
+        { x = 9, y = -2 },
+        { x = 10, y = 0 },
+    },
+    colors    = {
+        primary = WHITE,
     },
     engines   = {
         energy = {
@@ -261,11 +308,20 @@ local passenger_ship = {
 
 local smuggler_ship = {
     shape     = {
-        { x = 8,  y = 0 },
-        { x = -8, y = 6 },
-        { x = -4, y = 0 },
-        { x = -8, y = -6 },
-        { x = 8,  y = 0 },
+        { x = 3, y = 0 },
+        { x = 6, y = 3 },
+        { x = 0, y = 6 },
+        { x = -8, y = 9 },
+        { x = -6, y = 3 },
+        { x = -9, y = 0 },
+        { x = -6, y = -3 },
+        { x = -8, y = -9 },
+        { x = 0, y = -6 },
+        { x = 6, y = -3 },
+        { x = 3, y = 0 },
+    },
+    colors    = {
+        primary = RED,
     },
     engines   = {
         energy = {
@@ -306,84 +362,11 @@ local smuggler_ship = {
 
 -- Use this in `generatePlayer()`.
 ship_presets = {
-    default_ship,
-    freight_ship,
+    cruiser_ship,
+    freighter_ship,
     passenger_ship,
     smuggler_ship,
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
--- local freight_shape = {
---     { x = -7, y = 0 },
---     { x = -4, y = 1 },
---     { x = -2, y = 4 },
---     { x = -4, y = 4 },
---     { x = -6, y = 6 },
---     { x = -7, y = 9 },
---     { x = -1, y = 9 },
---     { x = 2,  y = 7 },
---     { x = 5,  y = 4 },
---     { x = 7,  y = 0 },
---     { x = 5,  y = -4 },
---     { x = 2,  y = -7 },
---     { x = -1, y = -9 },
---     { x = -7, y = -9 },
---     { x = -6, y = -6 },
---     { x = -4, y = -4 },
---     { x = -2, y = -4 },
---     { x = -4, y = -1 },
---     { x = -7, y = -0 },
---     { x = 5,  y = 4 },
---     { x = 3,  y = 1 },
---     { x = 2,  y = 0 },
---     { x = 3,  y = -1 },
---     { x = 5,  y = -4 },
-
--- }
--- local smuggler_shape = {
---     { x = -5, y = -5 },
---     { x = 0,  y = -4 },
---     { x = 5,  y = 0 },
---     { x = 0,  y = 4 },
---     { x = -5, y = 5 },
---     { x = -4, y = 3 },
---     { x = -3, y = 0 },
---     { x = -4, y = -3 },
---     { x = -5, y = -5 },
--- }
--- local passenger_shape = {
---     { x = -6, y = -0 },
---     { x = 8,  y = -3 },
---     { x = 6,  y = 0 },
---     { x = 8,  y = 3 },
---     { x = -6, y = 0 },
---     { x = -4, y = 1 },
---     { x = -2, y = 6 },
---     { x = 2,  y = 2 },
---     { x = -4, y = 1 },
---     { x = 0,  y = 3 },
---     { x = -4, y = 1 },
---     { x = -2, y = -6 },
---     { x = 2,  y = -2 },
---     { x = -4, y = -1 },
---     { x = 0,  y = -3 },
-
--- }
-
 
 -- [/TQ-Bundler: src.presets.ships]
 
@@ -554,7 +537,7 @@ But if you later have many polygon ships/enemies with fixed shapes, you may want
 
 function generatePlayer()
     local selected_ship = game.params.ship_type or 1
-    local preset = ship_presets[selected_ship] or default_ship
+    local preset = ship_presets[selected_ship] or cruiser_ship
     return SpaceShip:new(preset)
 end
 
@@ -895,7 +878,7 @@ game = {
         items = {
             {
                 name = "Ship Type",
-                values = { "Default", "Freight", "Passenger", "Smuggler" },
+                values = { "Cruiser", "Freighter", "Passenger", "Smuggler" },
                 current = 1,
                 apply = function(current)
                     game.params.ship_type = current
@@ -1001,41 +984,6 @@ function drawOverlayBox(text)
 
     -- Draw text
     drawCenteredText(text, boxY + 16, 12)
-end
-
-function drawPieSlice(cx, cy, radius, start_fraction, end_fraction, color)
-    if end_fraction <= start_fraction then
-        return
-    end
-
-    start_fraction    = clamp(start_fraction, 0, 1)
-    end_fraction      = clamp(end_fraction, 0, 1)
-
-    local start_angle = start_fraction * math.pi * 2
-    local end_angle   = end_fraction * math.pi * 2
-
-    local angle_span  = end_angle - start_angle
-
-    -- More segments = smoother circle.
-    local segments    = math.max(1, math.ceil(angle_span / (math.pi / 12)))
-
-    for i = 0, segments - 1 do
-        local a1 = start_angle + angle_span * (i / segments)
-        local a2 = start_angle + angle_span * ((i + 1) / segments)
-
-        local x1 = cx + math.cos(a1) * radius
-        local y1 = cy + math.sin(a1) * radius
-
-        local x2 = cx + math.cos(a2) * radius
-        local y2 = cy + math.sin(a2) * radius
-
-        tri(
-            cx, cy,
-            x1, y1,
-            x2, y2,
-            color
-        )
-    end
 end
 
 
@@ -1531,34 +1479,41 @@ function updatePlay()
         player.mortality.invulnerable = player.mortality.invulnerable - 1
     end
 
-
     -- FOR TESTING
-    if player:everyNTicks(60) then
-        local mode = math.random(1, 3)
-        local plus_minus = math.random(0, 1) == 1
-        if mode == 1 then
-            if plus_minus then
-                player:pickupCargo(mode * 50)
-                drawCenteredText("Picked up " .. tostring(mode * 50) .. "kg of cargo", 30, WHITE)
-            else
-                player:deliverCargo(mode * 50)
-                drawCenteredText("Delivered up " .. tostring(mode * 50) .. "kg of cargo", 30, WHITE)
-            end
-        elseif mode == 2 then
-            if plus_minus then
-                player:pickupPassengers(mode)
-                drawCenteredText("Picked up " .. tostring(mode * 50) .. " passengers", 30, WHITE)
-            else
-                player:deliverPassengers(mode)
-                drawCenteredText("Delivered up " .. tostring(mode * 50) .. " passengers", 30, WHITE)
-            end
-        elseif mode == 3 then
-            if plus_minus then
-                player:pickupSmuggledGoods(mode * 50)
-                drawCenteredText("Picked up " .. tostring(mode * 50) .. "kg of smuggled goods", 30, WHITE)
-            else
-                player:deliverSmuggledGoods(mode * 50)
-                drawCenteredText("Delivered up " .. tostring(mode * 50) .. "kg of smuggled goods", 30, WHITE)
+    if DEBUG then
+        if player:everyNTicks(60) then
+            local mode = math.random(1, 3)
+            local plus_minus = math.random(0, 1) == 1
+            if mode == 1 then
+                if plus_minus then
+                    if player:pickupCargo(mode * 10) then
+                        trace("Picked up " .. tostring(mode * 10) .. "kg of cargo")
+                    end
+                else
+                    if player:deliverCargo(mode * 10) then
+                        trace("Delivered " .. tostring(mode * 10) .. "kg of cargo")
+                    end
+                end
+            elseif mode == 2 then
+                if plus_minus then
+                    if player:pickupPassengers(mode) then
+                        trace("Picked up " .. tostring(mode) .. " passengers")
+                    end
+                else
+                    if player:deliverPassengers(mode) then
+                        trace("Delivered " .. tostring(mode) .. " passengers")
+                    end
+                end
+            elseif mode == 3 then
+                if plus_minus then
+                    if player:pickupSmuggledGoods(mode * 10) then
+                        trace("Picked up " .. tostring(mode * 10) .. "kg of smuggled goods")
+                    end
+                else
+                    if player:deliverSmuggledGoods(mode * 10) then
+                        trace("Delivered " .. tostring(mode * 10) .. "kg of smuggled goods")
+                    end
+                end
             end
         end
     end
@@ -1592,13 +1547,8 @@ function drawStarMap()
     )
 end
 
-
 function drawShipMassHud()
     local player             = game.play.player
-
-    local radius             = 14
-    local cx                 = EDGE_X_LEFT + radius + 3
-    local cy                 = EDGE_Y_BOTTOM - radius - 3
 
     local cargo_fraction     = clamp(player:getCargoMassFraction(), 0, 1)
     local passenger_fraction = clamp(player:getPassengerMassFraction(), 0, 1)
@@ -1606,7 +1556,6 @@ function drawShipMassHud()
 
     local total_fraction     = cargo_fraction + passenger_fraction + smuggled_fraction
 
-    -- If something ever exceeds max_mass, do not let the graph wrap past full.
     if total_fraction > 1 then
         cargo_fraction     = cargo_fraction / total_fraction
         passenger_fraction = passenger_fraction / total_fraction
@@ -1614,68 +1563,66 @@ function drawShipMassHud()
         total_fraction     = 1
     end
 
-    -- Background / empty capacity.
-    circ(cx, cy, radius, BLACK)
-    circb(cx, cy, radius, WHITE)
+    local label    = "M"
 
-    local cursor = 0
+    -- Same width style as E/L/S bars.
+    local bar_w    = print("M", -100, -100, WHITE, true, 1, true) + 1
+    local bar_h    = 108
+    local bar_x    = EDGE_X_LEFT + 3
+    local bottom_y = EDGE_Y_BOTTOM - 8
+    local bar_y    = bottom_y - bar_h
 
-    -- Cargo slice.
-    drawPieSlice(
-        cx,
-        cy,
-        radius - 1,
-        cursor,
-        cursor + cargo_fraction,
-        GRAY_DARK
-    )
-    cursor = cursor + cargo_fraction
+    -- Label.
+    print(label, bar_x, bottom_y, WHITE, true, 1, true)
 
-    -- Passenger slice.
-    drawPieSlice(
-        cx,
-        cy,
-        radius - 1,
-        cursor,
-        cursor + passenger_fraction,
-        GRAY_MED
-    )
-    cursor = cursor + passenger_fraction
+    -- Border.
+    rectb(bar_x, bar_y, bar_w - 1, bar_h - 1, WHITE)
 
-    -- Smuggled goods slice.
-    drawPieSlice(
-        cx,
-        cy,
-        radius - 1,
-        cursor,
-        cursor + smuggled_fraction,
-        GRAY_LITE
-    )
-    cursor = cursor + smuggled_fraction
+    -- Empty background.
+    rect( bar_x + 1, bar_y + 1, bar_w - 2, bar_h - 2, BLACK)
 
-    -- Border on top.
-    circb(cx, cy, radius, WHITE)
+    local inner_x     = bar_x + 1
+    local inner_y     = bar_y + 1
+    local inner_w     = bar_w - 2
+    local inner_h     = bar_h - 2
 
-    -- Optional tiny total mass label.
-    local percent = math.floor(total_fraction * 100)
-    local text = percent .. "%"
-    local text_w = print(text, -100, -100, WHITE, true, 1, true)
+    local cargo_h     = math.floor(inner_h * cargo_fraction)
+    local passenger_h = math.floor(inner_h * passenger_fraction)
+    local smuggled_h  = math.floor(inner_h * smuggled_fraction)
 
-    print(
-        text,
-        cx - math.floor(text_w / 2),
-        cy - 3,
-        WHITE,
-        true,
-        1,
-        true
-    )
+    -- Fix possible rounding gap when completely full.
+    local used_h      = cargo_h + passenger_h + smuggled_h
+    if total_fraction >= 1 and used_h < inner_h then
+        cargo_h = cargo_h + (inner_h - used_h)
+    end
+
+    -- Draw from bottom upward.
+    local cursor_y = inner_y + inner_h
+
+    -- Cargo at bottom.
+    if cargo_h > 0 then
+        cursor_y = cursor_y - cargo_h
+        rect(inner_x, cursor_y, inner_w, cargo_h, GRAY_DARK)
+    end
+
+    -- Passengers above cargo.
+    if passenger_h > 0 then
+        cursor_y = cursor_y - passenger_h
+        rect(inner_x, cursor_y, inner_w, passenger_h, GRAY_MED)
+    end
+
+    -- Smuggled goods above passengers.
+    if smuggled_h > 0 then
+        cursor_y = cursor_y - smuggled_h
+        rect(inner_x, cursor_y, inner_w, smuggled_h, GRAY_LITE)
+    end
 end
 
-function drawShipStatusHud()
-    local player = game.play.player
 
-    local bars = {
+function drawShipStatusHud()
+    local player                = game.play.player
+
+    local bars                  = {
         {
             label      = "E",
             color      = BLUE_LITE,
@@ -1696,27 +1643,40 @@ function drawShipStatusHud()
         },
     }
 
-    local bar_w                 = print("E", -10, -10, WHITE, true, 1, true) + 1
-    local bottom_y              = EDGE_Y_BOTTOM - 8
+    local bar_w                 = print("E", -100, -100, WHITE, true, 1, true) + 1
     local pixels_per_multiplier = 12
+
+    -- Same baseline as drawShipMassHud().
+    local bottom_y              = EDGE_Y_BOTTOM - 8
+
+    -- M bar starts at EDGE_X_LEFT + 3.
+    -- Status bars start one bar-width after M.
+    local mass_bar_x            = EDGE_X_LEFT + 3
+    local start_x               = mass_bar_x + bar_w
 
     for i, bar in ipairs(bars) do
         local bar_h  = pixels_per_multiplier * clamp(bar.multiplier, 1, 9)
-        local bar_x  = (i - 1) * bar_w
+        local bar_x  = start_x + (i - 1) * bar_w
         local bar_y  = bottom_y - bar_h
         local value  = clamp(bar.value, 0, 1)
         local fill_h = math.floor((bar_h - 2) * value)
 
-        -- Label
+        -- Label.
         print(bar.label, bar_x, bottom_y, bar.color, true, 1, true)
 
-        -- Border
+        -- Border.
         rectb(bar_x, bar_y, bar_w - 1, bar_h - 1, WHITE)
 
-        -- Empty background
-        rect(bar_x + 1, bar_y + 1, bar_w, bar_h - 1, BLACK)
+        -- Empty background.
+        rect(
+            bar_x + 1,
+            bar_y + 1,
+            bar_w - 2,
+            bar_h - 2,
+            BLACK
+        )
 
-        -- Fill from bottom upward
+        -- Fill from bottom upward.
         rect(
             bar_x + 1,
             bar_y + bar_h - 1 - fill_h,
@@ -1744,7 +1704,7 @@ function drawGame()
     -- player:drawParticles(player.TYPES.THRUST)
 
     drawShipMassHud()
-    -- drawShipStatusHud()
+    drawShipStatusHud()
 end
 
 function drawPlay()
@@ -1772,6 +1732,9 @@ function drawDebugCameraInfo()
         -- "Camera Y: " .. math.floor(camera.y),
         "MAP SCREEN: " .. screen_x .. "," .. screen_y,
         "Energy: " .. math.floor(player.engines.energy.cur) .. "/" .. player.engines.energy.max,
+        "Cargo: " .. player:getCargoMass() .. "/" .. player:getCargoMassMax(),
+        "Passengers: " .. player:getPassengerMass() .. "/" .. player:getPassengerMassMax(),
+        "Smuggled: " .. player:getSmuggledMass() .. "/" .. player:getSmuggledMassMax(),
     }
     for index, debug_msg in ipairs(debug_statements) do
         local debug_color = BLUE_LITE
@@ -1915,9 +1878,9 @@ function KeplerObj.new(params)
     local self = setmetatable({}, KeplerObj)
 
     self.colors = {
-        primary   = params.primary_color   or BLUE_MED,
-        secondary = params.secondary_color or WHITE,
-        tertiary  = params.tertiary_color  or YELLOW,
+        primary   = params.colors.primary   or BLUE_MED,
+        secondary = params.colors.secondary or WHITE,
+        tertiary  = params.colors.tertiary  or YELLOW,
     }
     self.color = self.colors.primary    -- In case it's a one-color object.
 
@@ -2510,78 +2473,43 @@ function SpaceShip:updateHoldMass(hold_type, mass)
         mass = 100
     end
 
-    local current_hold_mass = 0
-    if hold_type == "cargo" then
-        current_hold_mass = self:getCargoMass() + mass
-        if current_hold_mass < 0 then
-            current_hold_mass = 0
-        elseif current_hold_mass > self:getCargoMassMax() then
-            current_hold_mass = -1
-        end
-    elseif hold_type == "passengers" then
-        current_hold_mass = self:getPassengerMass() + mass
-        if current_hold_mass < 0 then
-            current_hold_mass = 0
-        elseif current_hold_mass > self:getPassengerMassMax() then
-            current_hold_mass = -1
-        end
-    elseif hold_type == "smuggled" then
-        current_hold_mass = self:getSmuggledMass() + mass
-        if current_hold_mass < 0 then
-            current_hold_mass = 0
-        elseif current_hold_mass > self:getSmuggledMassMax() then
-            current_hold_mass = -1
-        end
+    local hold = self.holds[hold_type]
+    if hold == nil then
+        return false
     end
-    return current_hold_mass
+
+    local new_mass = hold.cur + mass
+    if new_mass < 0 then
+        new_mass = 0
+    elseif new_mass > hold.max then
+        return false
+    end
+    hold.cur = new_mass
+    return true
 end
 
 function SpaceShip:pickupCargo(cargo_mass)
-    local result = false
-    if self:updateHoldMass("cargo", cargo_mass) > 0 then
-        result = true
-    end
-    return result
+    return self:updateHoldMass("cargo", cargo_mass)
 end
 
 function SpaceShip:deliverCargo(cargo_mass)
-    local result = false
-    if self:updateHoldMass("cargo", -1 * cargo_mass) ~= -1 then
-        result = true
-    end
-    return result
+    return self:updateHoldMass("cargo", -cargo_mass)
 end
 
 function SpaceShip:pickupPassengers(num_passengers)
-    local result = false
-    if self:updateHoldMass("passengers", num_passengers * PASSENGER_TOTAL_MASS) > 0 then
-        result = true
-    end
-    return result
+    return self:updateHoldMass("passengers", num_passengers * PASSENGER_TOTAL_MASS)
 end
 
 function SpaceShip:deliverPassengers(num_passengers)
-    local result = false
-    if self:updateHoldMass("passengers", -1 * num_passengers * PASSENGER_TOTAL_MASS) ~= -1 then
-        result = true
-    end
-    return result
+    return self:updateHoldMass("passengers", -num_passengers * PASSENGER_TOTAL_MASS)
 end
 
 function SpaceShip:pickupSmuggledGoods(smuggled_mass)
-    local result = false
-    if self:updateHoldMass("smuggled", smuggled_mass) > 0 then
-        result = true
-    end
-    return result
+    return self:updateHoldMass("smuggled", smuggled_mass)
 end
 
 function SpaceShip:deliverSmuggledGoods(smuggled_mass)
-    local result = false
-    if self:updateHoldMass("smuggled", -1 * smuggled_mass) ~= -1 then
-        result = true
-    end
-    return result
+    return self:updateHoldMass("smuggled", -smuggled_mass)
 end
 
 

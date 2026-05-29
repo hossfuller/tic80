@@ -163,6 +163,6 @@ But if you later have many polygon ships/enemies with fixed shapes, you may want
 
 function generatePlayer()
     local selected_ship = game.params.ship_type or 1
-    local preset = ship_presets[selected_ship] or default_ship
+    local preset = ship_presets[selected_ship] or cruiser_ship
     return SpaceShip:new(preset)
 end

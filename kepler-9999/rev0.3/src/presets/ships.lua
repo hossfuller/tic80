@@ -9,7 +9,7 @@
 --]]
 
 
-local default_ship = {
+local cruiser_ship = {
     shape = {
         { x = 8,  y = 0 },
         { x = -8, y = 6 },
@@ -17,7 +17,10 @@ local default_ship = {
         { x = -8, y = -6 },
         { x = 8,  y = 0 },
     },
-    engines = {
+    colors = {
+        primary = BLUE_MED,
+    },
+    engines   = {
         energy = {
             cur = 250,
             max = 250,
@@ -54,13 +57,28 @@ local default_ship = {
     max_speed = 2.5,
 }
 
-local freight_ship = {
-    shape     = {
-        { x = 8,  y = 0 },
-        { x = -8, y = 6 },
-        { x = -4, y = 0 },
-        { x = -8, y = -6 },
-        { x = 8,  y = 0 },
+local freighter_ship = {
+    shape = {
+        { x = 16, y = 0 },
+        { x = 13, y = 5 },
+        { x = 6, y = 5 },
+        { x = 4, y = 7 },
+        { x = 0, y = 8 },
+        { x = -9, y = 8 },
+        { x = -9, y = 6 },
+        { x = -6, y = 2 },
+        { x = -9, y = 0 },
+        { x = -6, y = -2 },
+        { x = -9, y = -6 },
+        { x = -9, y = -8 },
+        { x = 0, y = -8 },
+        { x = 4, y = -7 },
+        { x = 6, y = -5 },
+        { x = 13, y = -5 },
+        { x = 16, y = 0 },
+    },
+    colors = {
+        primary = GREEN_MED,
     },
     engines   = {
         energy = {
@@ -101,11 +119,40 @@ local freight_ship = {
 
 local passenger_ship = {
     shape = {
-        { x = 8,  y = 0 },
+        { x = 10, y = 0 },
+        { x = 9, y = 2 },
+        { x = 7, y = 3 },
+        { x = -1, y = 3 },
+        { x = -3, y = 6 },
+        { x = 1, y = 6 },
+        { x = 2, y = 7 },
+        { x = 1, y = 9 },
+        { x = -10, y = 9 },
+        { x = -11, y = 7 },
+        { x = -10, y = 6 },
         { x = -8, y = 6 },
-        { x = -4, y = 0 },
+        { x = -6, y = 3 },
+        { x = -8, y = 3 },
+        { x = -10, y = 2 },
+        { x = -11, y = 0 },
+        { x = -10, y = -2 },
+        { x = -8, y = -3 },
+        { x = -6, y = -3 },
         { x = -8, y = -6 },
-        { x = 8,  y = 0 },
+        { x = -10, y = -6 },
+        { x = -11, y = -7 },
+        { x = -10, y = -9 },
+        { x = 1, y = -9 },
+        { x = 2, y = -7 },
+        { x = 1, y = -6 },
+        { x = -3, y = -6 },
+        { x = -1, y = -3 },
+        { x = 7, y = -3 },
+        { x = 9, y = -2 },
+        { x = 10, y = 0 },
+    },
+    colors    = {
+        primary = WHITE,
     },
     engines   = {
         energy = {
@@ -146,11 +193,20 @@ local passenger_ship = {
 
 local smuggler_ship = {
     shape     = {
-        { x = 8,  y = 0 },
-        { x = -8, y = 6 },
-        { x = -4, y = 0 },
-        { x = -8, y = -6 },
-        { x = 8,  y = 0 },
+        { x = 3, y = 0 },
+        { x = 6, y = 3 },
+        { x = 0, y = 6 },
+        { x = -8, y = 9 },
+        { x = -6, y = 3 },
+        { x = -9, y = 0 },
+        { x = -6, y = -3 },
+        { x = -8, y = -9 },
+        { x = 0, y = -6 },
+        { x = 6, y = -3 },
+        { x = 3, y = 0 },
+    },
+    colors    = {
+        primary = RED,
     },
     engines   = {
         energy = {
@@ -191,80 +247,8 @@ local smuggler_ship = {
 
 -- Use this in `generatePlayer()`.
 ship_presets = {
-    default_ship,
-    freight_ship,
+    cruiser_ship,
+    freighter_ship,
     passenger_ship,
     smuggler_ship,
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
--- local freight_shape = {
---     { x = -7, y = 0 },
---     { x = -4, y = 1 },
---     { x = -2, y = 4 },
---     { x = -4, y = 4 },
---     { x = -6, y = 6 },
---     { x = -7, y = 9 },
---     { x = -1, y = 9 },
---     { x = 2,  y = 7 },
---     { x = 5,  y = 4 },
---     { x = 7,  y = 0 },
---     { x = 5,  y = -4 },
---     { x = 2,  y = -7 },
---     { x = -1, y = -9 },
---     { x = -7, y = -9 },
---     { x = -6, y = -6 },
---     { x = -4, y = -4 },
---     { x = -2, y = -4 },
---     { x = -4, y = -1 },
---     { x = -7, y = -0 },
---     { x = 5,  y = 4 },
---     { x = 3,  y = 1 },
---     { x = 2,  y = 0 },
---     { x = 3,  y = -1 },
---     { x = 5,  y = -4 },
-
--- }
--- local smuggler_shape = {
---     { x = -5, y = -5 },
---     { x = 0,  y = -4 },
---     { x = 5,  y = 0 },
---     { x = 0,  y = 4 },
---     { x = -5, y = 5 },
---     { x = -4, y = 3 },
---     { x = -3, y = 0 },
---     { x = -4, y = -3 },
---     { x = -5, y = -5 },
--- }
--- local passenger_shape = {
---     { x = -6, y = -0 },
---     { x = 8,  y = -3 },
---     { x = 6,  y = 0 },
---     { x = 8,  y = 3 },
---     { x = -6, y = 0 },
---     { x = -4, y = 1 },
---     { x = -2, y = 6 },
---     { x = 2,  y = 2 },
---     { x = -4, y = 1 },
---     { x = 0,  y = 3 },
---     { x = -4, y = 1 },
---     { x = -2, y = -6 },
---     { x = 2,  y = -2 },
---     { x = -4, y = -1 },
---     { x = 0,  y = -3 },
-
--- }

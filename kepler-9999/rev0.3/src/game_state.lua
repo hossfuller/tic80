@@ -28,7 +28,7 @@ game = {
         items = {
             {
                 name = "Ship Type",
-                values = { "Default", "Freight", "Passenger", "Smuggler" },
+                values = { "Cruiser", "Freighter", "Passenger", "Smuggler" },
                 current = 1,
                 apply = function(current)
                     game.params.ship_type = current
