@@ -228,11 +228,16 @@ function drawShipCargoHoldHud()
     end
 end
 
-
 function drawShipStatusHud()
     local player                = game.play.player
 
     local bars                  = {
+        {
+            label      = "V",
+            color      = YELLOW,
+            value      = player:getVelocityFraction(),
+            multiplier = 9,
+        },
         {
             label      = "E",
             color      = BLUE_LITE,

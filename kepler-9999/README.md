@@ -42,7 +42,7 @@ The different revisions implement separate features. This list is ever changing.
     - [x] Particle effects for stars: stellar wind and flares.
     - [x] Add mouse controls that allow us to zoom in and out of map.
 - [ ] **REV0.5**: Add more heavenly bodies and then put the heavens in motion.
-    - [ ] Update HUD with dynamic Speed indicator.
+    - [x] Update HUD with dynamic Speed indicator.
     - [ ] Add planet, moon, and other minor body classes.
     - [ ] Randomly generated names, colors, atmospherics for planets and moons (AAU-style names for anything smaller than a moon).
     - [ ] Particle effects for planets: clouds and/or bands that appear to orbit the planet.

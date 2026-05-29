@@ -35,6 +35,9 @@ function KeplerObj.new(params)
     self.rotation       = params.rotation       or 5
     self.rotation_speed = params.rotation_speed or 0.07
 
+    self.max_mass  = params.max_mass  or 1    -- (kg)
+    self.max_speed = params.max_speed or 1.0
+
     -- For deflections: 1.0 = perfectly elastic, <1.0 loses speed
     -- More massive bodies have a higher elasticity. Smaller things like ships
     -- have tiny elasticity.
@@ -56,6 +59,14 @@ end
 -- Returns true every N ticks
 function KeplerObj:everyNTicks(n)
     return (self.timer % n) == 0
+end
+
+function KeplerObj:getVelocity()
+    return self.velocity.speed
+end
+
+function KeplerObj:getVelocityFraction()
+    return self:getVelocity() / self.max_speed
 end
 
 -- ==========================================

@@ -1,6 +1,6 @@
 -- title:   Kepler-9999
 -- author:  Hoss Fuller
--- version: rev0.3
+-- version: rev0.4
 -- script:  lua
 -- input:   mouse
 -- saveid:  kepler_9999

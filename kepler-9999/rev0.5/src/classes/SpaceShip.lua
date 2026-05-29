@@ -67,8 +67,8 @@ function SpaceShip:new(params)
 
     local deadstop = params.deadstop or {}
     self.deadstop  = {
-        brake = deadstop.brake or 0.35,   -- 0..1, higher = faster stop per frame
-        snap  = deadstop.snap  or 0.02   -- below this speed, just snap to 0
+        brake = deadstop.brake or 0.05, -- 0..1, higher = faster stop per frame
+        snap  = deadstop.snap  or 0.02  -- below this speed, just snap to 0
     }
 
     self.mortality = {
@@ -238,7 +238,6 @@ end
 function SpaceShip:getTotalMassFraction()
     return self:getTotalMass() / self.max_mass
 end
-
 
 -- ==========================================
 -- SPACESHIP ENGINE MANAGEMENT

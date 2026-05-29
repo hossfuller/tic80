@@ -1,6 +1,6 @@
 -- title:   Kepler-9999
 -- author:  Hoss Fuller
--- version: rev0.3
+-- version: rev0.5
 -- script:  lua
 -- input:   mouse
 -- saveid:  kepler_9999
@@ -9,7 +9,7 @@
 -- INCLUDES
 -- ==========================================
 
-include "src.constants_tic80"
+include "src.constants_system"
 include "src.constants_game"
 
 include "src.presets.ships"
