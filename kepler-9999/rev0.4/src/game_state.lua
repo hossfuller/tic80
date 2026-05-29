@@ -65,6 +65,7 @@ game = {
     -- Gameplay state
     play = {
         player = {},
+        star   = {},
     },
 }
 
@@ -78,11 +79,10 @@ function changeState(newState)
     game.state = newState
 
     if newState == STATE.READY then
-        math.randomseed(tstamp() + time())
-
         generateBackgroundMap()
 
         game.play.player = generatePlayer()
+        game.play.star   = generateStar()
         resetPlayerAndCamera()
     end
 end

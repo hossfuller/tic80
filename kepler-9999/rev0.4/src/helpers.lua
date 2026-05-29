@@ -2,6 +2,17 @@
 -- HELPERS
 -- ==========================================
 
+-- ==========================================
+-- RANDOMIZATION HELPERS
+-- ==========================================
+
+function randomFloat(min_value, max_value)
+    return min_value + math.random() * (max_value - min_value)
+end
+
+function randomChoice(list)
+    return list[math.random(1, #list)]
+end
 
 -- ==========================================
 -- DRAWING HELPERS

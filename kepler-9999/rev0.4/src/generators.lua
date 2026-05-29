@@ -166,3 +166,30 @@ function generatePlayer()
     local preset = ship_presets[selected_ship] or cruiser_ship
     return SpaceShip:new(preset)
 end
+
+function randomStarCornerPosition()
+    local corners = {
+        { -- Bottom-left
+            x = 0,
+            y = MAP_PIXELS_H,
+        },
+        { -- Bottom-right
+            x = MAP_PIXELS_W,
+            y = MAP_PIXELS_H,
+        },
+        { -- Top-right
+            x = MAP_PIXELS_W,
+            y = 0,
+        },
+    }
+    return corners[math.random(1, #corners)]
+end
+
+function generateStar()
+    local pos = randomStarCornerPosition()
+    return Star:new({
+        stellar_type = randomChoice(STELLAR_TYPES),
+        x = pos.x,
+        y = pos.y,
+    })
+end

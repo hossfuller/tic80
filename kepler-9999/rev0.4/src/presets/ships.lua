@@ -8,8 +8,13 @@
     select which ship they want to fly around with at the options screen.
 --]]
 
+-- Quick constants to set passenger masses.
+local PASSENGER_MASS         = 75
+local PASSENGER_LUGGAGE_MASS = 25
+local PASSENGER_TOTAL_MASS   = PASSENGER_MASS + PASSENGER_LUGGAGE_MASS
 
 local cruiser_ship = {
+    name  = "Cruiser",
     shape = {
         { x = 8,  y = 0 },
         { x = -8, y = 6 },
@@ -58,6 +63,7 @@ local cruiser_ship = {
 }
 
 local freighter_ship = {
+    name  = "Freighter",
     shape = {
         { x = 16, y = 0 },
         { x = 13, y = 5 },
@@ -118,6 +124,7 @@ local freighter_ship = {
 }
 
 local passenger_ship = {
+    name  = "Passenger Ship",
     shape = {
         { x = 10, y = 0 },
         { x = 9, y = 2 },
@@ -192,7 +199,8 @@ local passenger_ship = {
 }
 
 local smuggler_ship = {
-    shape     = {
+    name  = "Smuggler",
+    shape = {
         { x = 3, y = 0 },
         { x = 6, y = 3 },
         { x = 0, y = 6 },

@@ -9,10 +9,13 @@ function KeplerObj.new(params)
     params = params or {}
     local self = setmetatable({}, KeplerObj)
 
-    self.colors = {
-        primary   = params.colors.primary   or BLUE_MED,
-        secondary = params.colors.secondary or WHITE,
-        tertiary  = params.colors.tertiary  or YELLOW,
+    self.name = params.name or "Kepler System Object"
+
+    local colors = params.colors or {}
+    self.colors  = {
+        primary   = colors.primary   or BLUE_MED,
+        secondary = colors.secondary or WHITE,
+        tertiary  = colors.tertiary  or YELLOW,
     }
     self.color = self.colors.primary    -- In case it's a one-color object.
 

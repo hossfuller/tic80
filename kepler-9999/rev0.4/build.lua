@@ -104,10 +104,6 @@ local TILE_GALAXY_ID = 80
 local TILE_GALAXY_W  = 4
 local TILE_GALAXY_H  = 4
 
-local PASSENGER_MASS         = 75
-local PASSENGER_LUGGAGE_MASS = 25
-local PASSENGER_TOTAL_MASS   = PASSENGER_MASS + PASSENGER_LUGGAGE_MASS
-
 
 -- [/TQ-Bundler: src.constants_game]
 
@@ -123,8 +119,13 @@ local PASSENGER_TOTAL_MASS   = PASSENGER_MASS + PASSENGER_LUGGAGE_MASS
     select which ship they want to fly around with at the options screen.
 --]]
 
+-- Quick constants to set passenger masses.
+local PASSENGER_MASS         = 75
+local PASSENGER_LUGGAGE_MASS = 25
+local PASSENGER_TOTAL_MASS   = PASSENGER_MASS + PASSENGER_LUGGAGE_MASS
 
 local cruiser_ship = {
+    name  = "Cruiser",
     shape = {
         { x = 8,  y = 0 },
         { x = -8, y = 6 },
@@ -173,6 +174,7 @@ local cruiser_ship = {
 }
 
 local freighter_ship = {
+    name  = "Freighter",
     shape = {
         { x = 16, y = 0 },
         { x = 13, y = 5 },
@@ -233,6 +235,7 @@ local freighter_ship = {
 }
 
 local passenger_ship = {
+    name  = "Passenger Ship",
     shape = {
         { x = 10, y = 0 },
         { x = 9, y = 2 },
@@ -307,7 +310,8 @@ local passenger_ship = {
 }
 
 local smuggler_ship = {
-    shape     = {
+    name  = "Smuggler",
+    shape = {
         { x = 3, y = 0 },
         { x = 6, y = 3 },
         { x = 0, y = 6 },
@@ -369,6 +373,152 @@ ship_presets = {
 }
 
 -- [/TQ-Bundler: src.presets.ships]
+
+-- [TQ-Bundler: src.presets.stars]
+
+-- ==========================================
+-- STAR PRESETS
+-- ==========================================
+
+--[[
+    These are presets for all the different stellar types that the Kepler-9999
+    star can be. These presets are used by the `generateStar()` function.
+    Everything is randomly generated but also constrained by real stellar facts.
+--]]
+
+-- Heavenly Body constants
+local STELLAR_TYPES  = { "O", "B", "A", "F", "G", "K", "M", }
+local SOLAR_MASS     = 1000000000000
+local JUPITER_MASS   = 1000000000
+local MOON_MASS      = 1000000
+local SOLAR_RADIUS   = 10000
+local JUPITER_RADIUS = 1000
+local MOON_RADIUS    = 100
+
+
+local STELLAR_PROFILES = {
+    O = {
+        mass_min = 16,
+        mass_max = 90,
+
+        radius_min = 6.6,
+        radius_max = 20,
+
+        temp_min = 33000,
+        temp_max = 50000,
+
+        colors = {
+            primary   = BLUE_LITE,
+            secondary = BLUE_MED,
+            tertiary  = WHITE,
+        },
+    },
+
+    B = {
+        mass_min = 2.1,
+        mass_max = 16,
+
+        radius_min = 1.8,
+        radius_max = 6.6,
+
+        temp_min = 10000,
+        temp_max = 33000,
+
+        colors = {
+            primary   = BLUE_LITE,
+            secondary = WHITE,
+            tertiary  = CYAN,
+        },
+    },
+
+    A = {
+        mass_min = 1.4,
+        mass_max = 2.1,
+
+        radius_min = 1.4,
+        radius_max = 1.8,
+
+        temp_min = 7500,
+        temp_max = 10000,
+
+        colors = {
+            primary   = WHITE,
+            secondary = BLUE_LITE,
+            tertiary  = CYAN,
+        },
+    },
+
+    F = {
+        mass_min = 1.04,
+        mass_max = 1.4,
+
+        radius_min = 1.15,
+        radius_max = 1.4,
+
+        temp_min = 6000,
+        temp_max = 7500,
+
+        colors = {
+            primary   = WHITE,
+            secondary = YELLOW,
+            tertiary  = GRAY_LITE,
+        },
+    },
+
+    G = {
+        mass_min = 0.8,
+        mass_max = 1.04,
+
+        radius_min = 0.96,
+        radius_max = 1.15,
+
+        temp_min = 5200,
+        temp_max = 6000,
+
+        colors = {
+            primary   = YELLOW,
+            secondary = ORANGE,
+            tertiary  = WHITE,
+        },
+    },
+
+    K = {
+        mass_min = 0.45,
+        mass_max = 0.8,
+
+        radius_min = 0.7,
+        radius_max = 0.96,
+
+        temp_min = 3700,
+        temp_max = 5200,
+
+        colors = {
+            primary   = ORANGE,
+            secondary = RED,
+            tertiary  = YELLOW,
+        },
+    },
+
+    M = {
+        mass_min = 0.08,
+        mass_max = 0.45,
+
+        radius_min = 0.1,
+        radius_max = 0.7,
+
+        temp_min = 2400,
+        temp_max = 3700,
+
+        colors = {
+            primary   = RED,
+            secondary = ORANGE,
+            tertiary  = GRAY_DARK,
+        },
+    },
+}
+
+
+-- [/TQ-Bundler: src.presets.stars]
 
 -- [TQ-Bundler: src.generators]
 
@@ -539,6 +689,33 @@ function generatePlayer()
     local selected_ship = game.params.ship_type or 1
     local preset = ship_presets[selected_ship] or cruiser_ship
     return SpaceShip:new(preset)
+end
+
+function randomStarCornerPosition()
+    local corners = {
+        { -- Bottom-left
+            x = 0,
+            y = MAP_PIXELS_H,
+        },
+        { -- Bottom-right
+            x = MAP_PIXELS_W,
+            y = MAP_PIXELS_H,
+        },
+        { -- Top-right
+            x = MAP_PIXELS_W,
+            y = 0,
+        },
+    }
+    return corners[math.random(1, #corners)]
+end
+
+function generateStar()
+    local pos = randomStarCornerPosition()
+    return Star:new({
+        stellar_type = randomChoice(STELLAR_TYPES),
+        x = pos.x,
+        y = pos.y,
+    })
 end
 
 
@@ -915,6 +1092,7 @@ game = {
     -- Gameplay state
     play = {
         player = {},
+        star   = {},
     },
 }
 
@@ -928,11 +1106,10 @@ function changeState(newState)
     game.state = newState
 
     if newState == STATE.READY then
-        math.randomseed(tstamp() + time())
-
         generateBackgroundMap()
 
         game.play.player = generatePlayer()
+        game.play.star   = generateStar()
         resetPlayerAndCamera()
     end
 end
@@ -946,6 +1123,17 @@ end
 -- HELPERS
 -- ==========================================
 
+-- ==========================================
+-- RANDOMIZATION HELPERS
+-- ==========================================
+
+function randomFloat(min_value, max_value)
+    return min_value + math.random() * (max_value - min_value)
+end
+
+function randomChoice(list)
+    return list[math.random(1, #list)]
+end
 
 -- ==========================================
 -- DRAWING HELPERS
@@ -1446,15 +1634,13 @@ function inputPlay()
 end
 
 function updatePlay()
+    if game.play.star then
+        game.play.star:update()
+    end
+
     local player = game.play.player
     player:move()
     updateCamera(player, game.camera)
-
-    -- Regenerate energy, life support, and shields. tik check happens within
-    -- the regenerate function.
-    -- if player:everyNTicks(90) then
-    --     player:regenerateHealth()
-    -- end
 
     -- If ship is dead, count down and respawn or gameover
     if player.mortality.dead then
@@ -1479,44 +1665,44 @@ function updatePlay()
         player.mortality.invulnerable = player.mortality.invulnerable - 1
     end
 
-    -- FOR TESTING
-    if DEBUG then
-        if player:everyNTicks(60) then
-            local mode = math.random(1, 3)
-            local plus_minus = math.random(0, 1) == 1
-            if mode == 1 then
-                if plus_minus then
-                    if player:pickupCargo(mode * 10) then
-                        trace("Picked up " .. tostring(mode * 10) .. "kg of cargo")
-                    end
-                else
-                    if player:deliverCargo(mode * 10) then
-                        trace("Delivered " .. tostring(mode * 10) .. "kg of cargo")
-                    end
-                end
-            elseif mode == 2 then
-                if plus_minus then
-                    if player:pickupPassengers(mode) then
-                        trace("Picked up " .. tostring(mode) .. " passengers")
-                    end
-                else
-                    if player:deliverPassengers(mode) then
-                        trace("Delivered " .. tostring(mode) .. " passengers")
-                    end
-                end
-            elseif mode == 3 then
-                if plus_minus then
-                    if player:pickupSmuggledGoods(mode * 10) then
-                        trace("Picked up " .. tostring(mode * 10) .. "kg of smuggled goods")
-                    end
-                else
-                    if player:deliverSmuggledGoods(mode * 10) then
-                        trace("Delivered " .. tostring(mode * 10) .. "kg of smuggled goods")
-                    end
-                end
-            end
-        end
-    end
+    -- -- FOR TESTING
+    -- if DEBUG then
+    --     if player:everyNTicks(60) then
+    --         local mode = math.random(1, 3)
+    --         local plus_minus = math.random(0, 1) == 1
+    --         if mode == 1 then
+    --             if plus_minus then
+    --                 if player:pickupCargo(mode * 10) then
+    --                     trace("Picked up " .. tostring(mode * 10) .. "kg of cargo")
+    --                 end
+    --             else
+    --                 if player:deliverCargo(mode * 10) then
+    --                     trace("Delivered " .. tostring(mode * 10) .. "kg of cargo")
+    --                 end
+    --             end
+    --         elseif mode == 2 then
+    --             if plus_minus then
+    --                 if player:pickupPassengers(mode) then
+    --                     trace("Picked up " .. tostring(mode) .. " passengers")
+    --                 end
+    --             else
+    --                 if player:deliverPassengers(mode) then
+    --                     trace("Delivered " .. tostring(mode) .. " passengers")
+    --                 end
+    --             end
+    --         elseif mode == 3 then
+    --             if plus_minus then
+    --                 if player:pickupSmuggledGoods(mode * 10) then
+    --                     trace("Picked up " .. tostring(mode * 10) .. "kg of smuggled goods")
+    --                 end
+    --             else
+    --                 if player:deliverSmuggledGoods(mode * 10) then
+    --                     trace("Delivered " .. tostring(mode * 10) .. "kg of smuggled goods")
+    --                 end
+    --             end
+    --         end
+    --     end
+    -- end
 end
 
 
@@ -1679,6 +1865,12 @@ function drawGame()
     cls(BLACK)
 
     drawStarMap()
+
+    if game.play.star then
+        game.play.star:draw()
+    end
+
+    game.play.star:draw()
 
     local player = game.play.player
     if not player.mortality.dead and player:shouldDraw() then
@@ -1865,10 +2057,13 @@ function KeplerObj.new(params)
     params = params or {}
     local self = setmetatable({}, KeplerObj)
 
-    self.colors = {
-        primary   = params.colors.primary   or BLUE_MED,
-        secondary = params.colors.secondary or WHITE,
-        tertiary  = params.colors.tertiary  or YELLOW,
+    self.name = params.name or "Kepler System Object"
+
+    local colors = params.colors or {}
+    self.colors  = {
+        primary   = colors.primary   or BLUE_MED,
+        secondary = colors.secondary or WHITE,
+        tertiary  = colors.tertiary  or YELLOW,
     }
     self.color = self.colors.primary    -- In case it's a one-color object.
 
@@ -2927,11 +3122,320 @@ end
 
 -- [/TQ-Bundler: src.classes.SpaceShip]
 
+-- [TQ-Bundler: src.classes.Star]
+
+-- ==========================================
+-- STAR OBJECT
+-- ==========================================
+
+Star = setmetatable({}, { __index = KeplerObj })
+Star.__index = Star
+
+function Star:new(params)
+    params = params or {}
+
+    -- Pick a stellar type if one was not supplied.
+    params.stellar_type = params.stellar_type or randomChoice(STELLAR_TYPES)
+
+    -- Apply stellar-profile values before calling KeplerObj.new().
+    local profile = STELLAR_PROFILES[params.stellar_type] or STELLAR_PROFILES.G
+
+    local mass_solar_units   = randomFloat(profile.mass_min, profile.mass_max)
+    local radius_solar_units = randomFloat(profile.radius_min, profile.radius_max)
+
+    params.mass        = params.mass or mass_solar_units * SOLAR_MASS
+    params.radius_real = params.radius_real or radius_solar_units * SOLAR_RADIUS
+    params.temperature = params.temperature or math.floor(randomFloat(profile.temp_min, profile.temp_max))
+
+    -- Important:
+    -- `radius` is currently used by drawBody() as a pixel radius.
+    -- A real stellar radius would be enormous, so keep drawing radius separate.
+    params.radius = params.radius or Star:getDrawRadiusForType(params.stellar_type)
+
+    params.colors = params.colors or {
+        primary   = profile.colors.primary,
+        secondary = profile.colors.secondary,
+        tertiary  = profile.colors.tertiary,
+    }
+
+    params.velocity = {
+        speed     = 0,
+        direction = 0,
+    }
+
+    params.acceleration = 0
+    params.deceleration = 0
+
+    local self = KeplerObj.new(params)
+    setmetatable(self, Star)
+
+    self.name               = params.name or "Kepler-9999"
+    self.stellar_type       = params.stellar_type
+    self.temperature        = params.temperature
+    self.radius_real        = params.radius_real
+
+    self.mass_solar         = mass_solar_units
+    self.radius_solar       = radius_solar_units
+
+    self.velocity.speed     = 0
+    self.velocity.direction = 0
+    self.acceleration       = 0
+    self.deceleration       = 0
+
+    self.particles          = {
+        wind = {
+            particles = {},
+            spawn_chance = 0.45, -- Chance per update frame.
+            speed_min = 0.15,
+            speed_max = 0.45,
+            max_distance_multiplier = 2,
+            colors = {
+                self.colors.secondary,
+                self.colors.tertiary,
+            },
+        },
+
+        flare = {
+            particles = {},
+            spawn_chance = 0.015, -- Much rarer than wind.
+            particles_per_flare_min = 8,
+            particles_per_flare_max = 18,
+            speed_min = 0.55,
+            speed_max = 1.25,
+            angle_spread = math.pi / 7,
+            max_distance_multiplier = 4,
+            colors = {
+                self.colors.primary,
+                self.colors.secondary,
+                self.colors.tertiary,
+                WHITE,
+            },
+        },
+    }
+
+    return self
+end
+
+
+-- ==========================================
+-- STAR GETTERS
+-- ==========================================
+
+-- ==========================================
+-- STAR MATH
+-- ==========================================
+
+-- ==========================================
+-- STAR PHYSICS
+-- ==========================================
+
+-- ==========================================
+-- STAR COLLISION DETECTION
+-- ==========================================
+
+-- Treat everything like a circle
+
+-- Deflection only works on objects below a certain mass, with the object of the
+-- lesser mass being deflected harder than the more massive object.
+
+-- When there's a collision, calculate the energy of the collision and destroy
+-- one or both objects depending on how massive the collision is.
+
+-- ==========================================
+-- STAR INPUT
+-- ==========================================
+
+-- ==========================================
+-- STAR UPDATE
+-- ==========================================
+
+function Star:spawnWindParticle()
+    local system = self.particles.wind
+
+    local angle = randomFloat(0, math.pi * 2)
+
+    -- Start exactly on the star surface.
+    local start_x = self.position.x + math.cos(angle) * self.radius
+    local start_y = self.position.y + math.sin(angle) * self.radius
+
+    local speed = randomFloat(system.speed_min, system.speed_max)
+    local max_distance = self.radius * system.max_distance_multiplier
+
+    local particle = {
+        x            = start_x,
+        y            = start_y,
+        origin_x     = start_x,
+        origin_y     = start_y,
+        direction    = angle,
+        speed        = speed,
+        max_distance = max_distance,
+        color        = randomChoice(system.colors),
+        size         = 1,
+    }
+
+    table.insert(system.particles, particle)
+end
+
+function Star:spawnFlare()
+    local system = self.particles.flare
+
+    -- One surface location for the whole flare clump.
+    local base_angle = randomFloat(0, math.pi * 2)
+
+    local start_x = self.position.x + math.cos(base_angle) * self.radius
+    local start_y = self.position.y + math.sin(base_angle) * self.radius
+
+    local count = math.random(
+        system.particles_per_flare_min,
+        system.particles_per_flare_max
+    )
+
+    for i = 1, count do
+        local angle_offset = randomFloat(-system.angle_spread, system.angle_spread)
+        local direction = base_angle + angle_offset
+
+        local speed = randomFloat(system.speed_min, system.speed_max)
+
+        -- Each particle can die at a different range up to 4x radius.
+        local max_distance = randomFloat(
+            self.radius * 1.1,
+            self.radius * system.max_distance_multiplier
+        )
+
+        local particle = {
+            x = start_x,
+            y = start_y,
+            origin_x = start_x,
+            origin_y = start_y,
+            direction = direction,
+            speed = speed,
+            max_distance = max_distance,
+            color = randomChoice(system.colors),
+            size = math.random(1, 2), -- Some flare particles are slightly larger.
+            evaporate_chance = randomFloat(0.005, 0.025), -- Random evaporation chance per frame.
+        }
+        table.insert(system.particles, particle)
+    end
+end
+
+function Star:updateParticleList(particles, evaporates)
+    for i = #particles, 1, -1 do
+        local particle = particles[i]
+
+        particle.x = particle.x + math.cos(particle.direction) * particle.speed
+        particle.y = particle.y + math.sin(particle.direction) * particle.speed
+
+        local dx = particle.x - particle.origin_x
+        local dy = particle.y - particle.origin_y
+        local distance = math.sqrt(dx * dx + dy * dy)
+
+        local remove_particle = false
+
+        if distance >= particle.max_distance then
+            remove_particle = true
+        end
+
+        -- Flares can randomly evaporate before reaching max distance.
+        if evaporates and particle.evaporate_chance then
+            if math.random() < particle.evaporate_chance then
+                remove_particle = true
+            end
+        end
+
+        if remove_particle then
+            table.remove(particles, i)
+        end
+    end
+end
+
+function Star:update()
+    self:updateTimer()
+
+    -- Lazy stellar wind.
+    if math.random() < self.particles.wind.spawn_chance then
+        self:spawnWindParticle()
+    end
+
+    -- Occasional flare clump.
+    if math.random() < self.particles.flare.spawn_chance then
+        self:spawnFlare()
+    end
+
+    self:updateParticleList(self.particles.wind.particles, false)
+    self:updateParticleList(self.particles.flare.particles, true)
+end
+
+-- ==========================================
+-- STAR DRAW
+-- ==========================================
+
+function Star:getDrawRadiusForType(stellar_type)
+    local multiplier = 20
+    if stellar_type == "O" then
+        return 8 * multiplier
+    elseif stellar_type == "B" then
+        return 7 * multiplier
+    elseif stellar_type == "A" then
+        return 6 * multiplier
+    elseif stellar_type == "F" then
+        return 5 * multiplier
+    elseif stellar_type == "G" then
+        return 5 * multiplier
+    elseif stellar_type == "K" then
+        return 4 * multiplier
+    elseif stellar_type == "M" then
+        return 3 * multiplier
+    end
+
+    return 5 * multiplier
+end
+
+function Star:drawBody()
+    local screen_x, screen_y = worldToScreen(self.position.x, self.position.y)
+
+    screen_x = math.floor(screen_x)
+    screen_y = math.floor(screen_y)
+
+    circ(screen_x, screen_y, self.radius + 2, self.colors.tertiary)  -- Outer glow.
+    circ(screen_x, screen_y, self.radius + 1, self.colors.secondary) -- Middle.
+    circ(screen_x, screen_y, self.radius, self.colors.primary)       -- Core.
+end
+
+function Star:drawParticleList(particles)
+    for _, particle in ipairs(particles) do
+        local screen_x, screen_y = worldToScreen(particle.x, particle.y)
+
+        screen_x = math.floor(screen_x)
+        screen_y = math.floor(screen_y)
+
+        if particle.size <= 1 then
+            pix(screen_x, screen_y, particle.color)
+        else
+            circ(screen_x, screen_y, particle.size, particle.color)
+        end
+    end
+end
+
+function Star:draw()
+    self:drawParticleList(self.particles.wind.particles)
+    self:drawBody()
+    self:drawParticleList(self.particles.flare.particles)
+end
+
+function Star:explode()
+    -- All space objects explode. How is another matter.
+end
+
+
+-- [/TQ-Bundler: src.classes.Star]
+
 -- ==========================================
 -- MAIN TIC FUNCTION
 -- ==========================================
 
 function BOOT()
+    math.randomseed(tstamp() + time())
+
     applyAllOptions()
     changeState(STATE.START)
 end
