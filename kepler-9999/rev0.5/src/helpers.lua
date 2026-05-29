@@ -22,6 +22,25 @@ function randomChoice(list)
 end
 
 -- ==========================================
+-- "DISTANCE" HELPERS
+-- ==========================================
+
+function distanceSquared(x1, y1, x2, y2)
+    local dx = x2 - x1
+    local dy = y2 - y1
+
+    return dx * dx + dy * dy
+end
+
+function objectsTooClose(a_x, a_y, a_radius, b_x, b_y, b_radius, padding)
+    padding = padding or 0
+
+    local min_distance = a_radius + b_radius + padding
+
+    return distanceSquared(a_x, a_y, b_x, b_y) < min_distance * min_distance
+end
+
+-- ==========================================
 -- DRAWING HELPERS
 -- ==========================================
 

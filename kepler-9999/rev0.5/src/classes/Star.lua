@@ -309,7 +309,3 @@ function Star:draw()
     self:drawBody()
     self:drawParticleList(self.particles.flare.particles)
 end
-
-function Star:explode()
-    -- All space objects explode. How is another matter.
-end

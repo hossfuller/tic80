@@ -11,12 +11,9 @@
 -- Heavenly Body constants
 local STELLAR_TYPES  = { "O", "B", "A", "F", "G", "K", "M", }
 local SOLAR_MASS     = 1000000000000
-local JUPITER_MASS   = 1000000000
 local MOON_MASS      = 1000000
 local SOLAR_RADIUS   = 10000
-local JUPITER_RADIUS = 1000
 local MOON_RADIUS    = 100
-
 
 local STELLAR_PROFILES = {
     O = {

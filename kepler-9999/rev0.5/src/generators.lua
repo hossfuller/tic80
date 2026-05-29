@@ -167,6 +167,8 @@ function generatePlayer()
     return SpaceShip:new(preset)
 end
 
+--[[ STARS ]]--
+
 function randomStarCornerPosition()
     local corners = {
         { -- Bottom-left
@@ -192,4 +194,107 @@ function generateStar()
         x = pos.x,
         y = pos.y,
     })
+end
+
+--[[ PLANETS ]] --
+
+-- TODO: names should proceed as Kepler-9999b, Kepler-9999c, etc.
+function generatePlanetName(index)
+    return "Kepler-9999 " .. tostring(index)
+end
+
+function generatePlanetCandidate(index)
+    local has_atmosphere = math.random(1, 100) <= 50
+    local radius_real    = randomFloat(EARTH_RADIUS, JUPITER_RADIUS)
+
+    return Planet:new({
+        name           = generatePlanetName(index),
+        x              = math.random(0, MAP_PIXELS_W - 1),
+        y              = math.random(0, MAP_PIXELS_H - 1),
+        mass           = randomFloat(EARTH_MASS, JUPITER_MASS),
+        radius_real    = radius_real,
+        has_atmosphere = has_atmosphere,
+        colors         = randomPlanetColorSet(has_atmosphere),
+    })
+end
+
+function canPlacePlanet(candidate, planets, star)
+    -- Keep away from top-left player start area.
+    local player_start_x = SCREEN_W / 2
+    local player_start_y = SCREEN_H / 2
+    local player_padding = MAP_TILES_W
+
+    if objectsTooClose(
+            candidate.position.x,
+            candidate.position.y,
+            candidate.radius,
+            player_start_x,
+            player_start_y,
+            10,
+            player_padding
+        ) then
+        return false
+    end
+
+    -- Keep away from star.
+    if star then
+        local star_padding = MAP_TILES_W
+
+        if objectsTooClose(
+                candidate.position.x,
+                candidate.position.y,
+                candidate.radius,
+                star.position.x,
+                star.position.y,
+                star.radius,
+                star_padding
+            ) then
+            return false
+        end
+    end
+
+    -- Keep away from other planets.
+    for _, planet in ipairs(planets) do
+        local planet_padding = MAP_TILES_W
+
+        if objectsTooClose(
+                candidate.position.x,
+                candidate.position.y,
+                candidate.radius,
+                planet.position.x,
+                planet.position.y,
+                planet.radius,
+                planet_padding
+            ) then
+            return false
+        end
+    end
+
+    return true
+end
+
+function generatePlanets()
+    local planets = {}
+
+    -- Tune these however you want.
+    local planet_count = math.random(3, 7)
+    local max_attempts_per_planet = 100
+
+    for i = 1, planet_count do
+        local placed = false
+        local attempts = 0
+
+        while not placed and attempts < max_attempts_per_planet do
+            attempts = attempts + 1
+
+            local candidate = generatePlanetCandidate(i)
+
+            if canPlacePlanet(candidate, planets, game.play.star) then
+                table.insert(planets, candidate)
+                placed = true
+            end
+        end
+    end
+
+    return planets
 end

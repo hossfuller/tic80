@@ -18,6 +18,10 @@ function updatePlay()
         game.play.star:update()
     end
 
+    for _, planet in ipairs(game.play.planets) do
+        planet:update()
+    end
+
     local player = game.play.player
     player:move()
     updateCamera(player, game.camera)
@@ -297,6 +301,10 @@ function drawGame()
 
     if game.play.star then
         game.play.star:draw()
+    end
+
+    for _, planet in ipairs(game.play.planets) do
+        planet:draw()
     end
 
     local player = game.play.player

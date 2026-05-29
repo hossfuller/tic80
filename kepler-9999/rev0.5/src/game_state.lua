@@ -62,13 +62,14 @@ game = {
         lerp        = 0.08,
         zoom        = 1,
         zoom_index  = 3,
-        zoom_levels = { 0.25, 0.5, 1 },
+        zoom_levels = { 0.15, 0.25, 0.5, 1 },
     },
 
     -- Gameplay state
     play = {
-        player = {},
-        star   = {},
+        player  = {},
+        star    = {},
+        planets = {},
     },
 }
 
@@ -84,8 +85,10 @@ function changeState(newState)
     if newState == STATE.READY then
         generateBackgroundMap()
 
-        game.play.player = generatePlayer()
-        game.play.star   = generateStar()
+        game.play.player  = generatePlayer()
+        game.play.star    = generateStar()
+        game.play.planets = generatePlanets()
+
         resetPlayerAndCamera()
     end
 end

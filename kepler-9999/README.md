@@ -41,22 +41,22 @@ The different revisions implement separate features. This list is ever changing.
     - [x] Parent class for all heavenly bodies with mass, radius, color.
     - [x] Particle effects for stars: stellar wind and flares.
     - [x] Add mouse controls that allow us to zoom in and out of map.
-- [ ] **REV0.5**: Add more heavenly bodies and then put the heavens in motion.
+- [ ] **REV0.5**: Add more heavenly bodies.
     - [x] Update HUD with dynamic Speed indicator.
-    - [ ] Add planet, moon, and other minor body classes.
+    - [ ] Add a planet class, and include rings and atmospheres.
+    - [ ] Add a moon class that is attached to a particular planet.
+    - [ ] Add other minor body classes.
     - [ ] Randomly generated names, colors, atmospherics for planets and moons (AAU-style names for anything smaller than a moon).
     - [ ] Particle effects for planets: clouds and/or bands that appear to orbit the planet.
-    - [ ] Implement keplarian orbital mechanics for heavenly bodies the size of moons and smaller.
 - [ ] **REV0.6**: Spaceships, modeled on the Asteroids work, get physics
     - [ ] Collision detection.
     - [ ] Particle effects from stars can damage the ship.
     - [ ] Can feel gravitational effects from heavenly bodies.
     - [ ] Implement inertia and make the energy engine feel it (more mass makes the ship expend more energy to stop).
     - [ ] Bring over Asteroids particle effects like explosions, thrust, sparks, and smoke.
-- [ ] **REV0.7**: Refined heavenly bodies.
-    - [ ] Randomly generated names, colors, atmospherics for planets and moons.
-    - [ ] AAU-style names for anything smaller than a moon.
+- [ ] **REV0.7**: Put the heavens in motion.
     - [ ] When a ship is within 2 map screens of a big-enough heavenly body, put an arrow on the screen with the body's name and current distance.
+    - [ ] Implement keplerian orbital mechanics for heavenly bodies the size of moons and smaller.
 - [ ] **REV0.8**: Space docking, cargo, and passengers
     - [ ] Space stations and ships should have a way to connect to each other to exchange passengers, cargo, or energy/health.
     - [ ] Colors, effects, and sounds indicate successful docking.

@@ -389,12 +389,9 @@ ship_presets = {
 -- Heavenly Body constants
 local STELLAR_TYPES  = { "O", "B", "A", "F", "G", "K", "M", }
 local SOLAR_MASS     = 1000000000000
-local JUPITER_MASS   = 1000000000
 local MOON_MASS      = 1000000
 local SOLAR_RADIUS   = 10000
-local JUPITER_RADIUS = 1000
 local MOON_RADIUS    = 100
-
 
 local STELLAR_PROFILES = {
     O = {
@@ -660,6 +657,63 @@ local STELLAR_PROFILES = {
 
 -- [/TQ-Bundler: src.presets.stars]
 
+-- [TQ-Bundler: src.presets.planets]
+
+-- ==========================================
+-- PLANET PRESETS / HELPERS
+-- ==========================================
+
+local JUPITER_MASS   = 1000000000
+local EARTH_MASS     = 10000000
+local JUPITER_RADIUS = 1000
+local EARTH_RADIUS   = 100
+
+local PLANET_ATMOSPHERE_COLORS = {
+    PURPLE,
+    RED,
+    ORANGE,
+    YELLOW,
+    GREEN_LITE,
+    GREEN_MED,
+    GREEN_DARK,
+    BLUE_DARK,
+    BLUE_MED,
+    BLUE_LITE,
+    CYAN,
+    WHITE,
+    -- GRAY_LITE,
+    -- GRAY_MED,
+    -- GRAY_DARK,
+}
+
+local PLANET_ROCKY_COLORS = {
+    RED,
+    ORANGE,
+    YELLOW,
+    WHITE,
+    GRAY_LITE,
+    GRAY_MED,
+    GRAY_DARK,
+}
+
+function randomPlanetColorSet(has_atmosphere)
+    local source_colors = PLANET_ROCKY_COLORS
+
+    if has_atmosphere then
+        source_colors = PLANET_ATMOSPHERE_COLORS
+    end
+
+    return {
+        primary   = randomChoice(source_colors),
+        secondary = randomChoice(source_colors),
+        tertiary  = randomChoice(source_colors),
+    }
+end
+
+
+
+-- [/TQ-Bundler: src.presets.planets]
+
 -- [TQ-Bundler: src.generators]
 
 -- ==========================================
@@ -831,6 +885,8 @@ function generatePlayer()
     return SpaceShip:new(preset)
 end
 
+--[[ STARS ]]--
+
 function randomStarCornerPosition()
     local corners = {
         { -- Bottom-left
@@ -856,6 +912,109 @@ function generateStar()
         x = pos.x,
         y = pos.y,
     })
+end
+
+--[[ PLANETS ]] --
+
+-- TODO: names should proceed as Kepler-9999b, Kepler-9999c, etc.
+function generatePlanetName(index)
+    return "Kepler-9999 " .. tostring(index)
+end
+
+function generatePlanetCandidate(index)
+    local has_atmosphere = math.random(1, 100) <= 50
+    local radius_real    = randomFloat(EARTH_RADIUS, JUPITER_RADIUS)
+
+    return Planet:new({
+        name           = generatePlanetName(index),
+        x              = math.random(0, MAP_PIXELS_W - 1),
+        y              = math.random(0, MAP_PIXELS_H - 1),
+        mass           = randomFloat(EARTH_MASS, JUPITER_MASS),
+        radius_real    = radius_real,
+        has_atmosphere = has_atmosphere,
+        colors         = randomPlanetColorSet(has_atmosphere),
+    })
+end
+
+function canPlacePlanet(candidate, planets, star)
+    -- Keep away from top-left player start area.
+    local player_start_x = SCREEN_W / 2
+    local player_start_y = SCREEN_H / 2
+    local player_padding = MAP_TILES_W
+
+    if objectsTooClose(
+            candidate.position.x,
+            candidate.position.y,
+            candidate.radius,
+            player_start_x,
+            player_start_y,
+            10,
+            player_padding
+        ) then
+        return false
+    end
+
+    -- Keep away from star.
+    if star then
+        local star_padding = MAP_TILES_W
+
+        if objectsTooClose(
+                candidate.position.x,
+                candidate.position.y,
+                candidate.radius,
+                star.position.x,
+                star.position.y,
+                star.radius,
+                star_padding
+            ) then
+            return false
+        end
+    end
+
+    -- Keep away from other planets.
+    for _, planet in ipairs(planets) do
+        local planet_padding = MAP_TILES_W
+
+        if objectsTooClose(
+                candidate.position.x,
+                candidate.position.y,
+                candidate.radius,
+                planet.position.x,
+                planet.position.y,
+                planet.radius,
+                planet_padding
+            ) then
+            return false
+        end
+    end
+
+    return true
+end
+
+function generatePlanets()
+    local planets = {}
+
+    -- Tune these however you want.
+    local planet_count = math.random(3, 7)
+    local max_attempts_per_planet = 100
+
+    for i = 1, planet_count do
+        local placed = false
+        local attempts = 0
+
+        while not placed and attempts < max_attempts_per_planet do
+            attempts = attempts + 1
+
+            local candidate = generatePlanetCandidate(i)
+
+            if canPlacePlanet(candidate, planets, game.play.star) then
+                table.insert(planets, candidate)
+                placed = true
+            end
+        end
+    end
+
+    return planets
 end
 
 
@@ -1251,13 +1410,14 @@ game = {
         lerp        = 0.08,
         zoom        = 1,
         zoom_index  = 3,
-        zoom_levels = { 0.25, 0.5, 1 },
+        zoom_levels = { 0.15, 0.25, 0.5, 1 },
     },
 
     -- Gameplay state
     play = {
-        player = {},
-        star   = {},
+        player  = {},
+        star    = {},
+        planets = {},
     },
 }
 
@@ -1273,8 +1433,10 @@ function changeState(newState)
     if newState == STATE.READY then
         generateBackgroundMap()
 
-        game.play.player = generatePlayer()
-        game.play.star   = generateStar()
+        game.play.player  = generatePlayer()
+        game.play.star    = generateStar()
+        game.play.planets = generatePlanets()
+
         resetPlayerAndCamera()
     end
 end
@@ -1305,6 +1467,25 @@ end
 
 function randomChoice(list)
     return list[math.random(1, #list)]
+end
+
+-- ==========================================
+-- "DISTANCE" HELPERS
+-- ==========================================
+
+function distanceSquared(x1, y1, x2, y2)
+    local dx = x2 - x1
+    local dy = y2 - y1
+
+    return dx * dx + dy * dy
+end
+
+function objectsTooClose(a_x, a_y, a_radius, b_x, b_y, b_radius, padding)
+    padding = padding or 0
+
+    local min_distance = a_radius + b_radius + padding
+
+    return distanceSquared(a_x, a_y, b_x, b_y) < min_distance * min_distance
 end
 
 -- ==========================================
@@ -1812,6 +1993,10 @@ function updatePlay()
         game.play.star:update()
     end
 
+    for _, planet in ipairs(game.play.planets) do
+        planet:update()
+    end
+
     local player = game.play.player
     player:move()
     updateCamera(player, game.camera)
@@ -2091,6 +2276,10 @@ function drawGame()
 
     if game.play.star then
         game.play.star:draw()
+    end
+
+    for _, planet in ipairs(game.play.planets) do
+        planet:draw()
     end
 
     local player = game.play.player
@@ -3687,12 +3876,315 @@ function Star:draw()
     self:drawParticleList(self.particles.flare.particles)
 end
 
-function Star:explode()
-    -- All space objects explode. How is another matter.
+
+-- [/TQ-Bundler: src.classes.Star]
+
+-- [TQ-Bundler: src.classes.Planet]
+
+-- ==========================================
+-- PLANET OBJECT
+-- ==========================================
+
+Planet = setmetatable({}, { __index = KeplerObj })
+Planet.__index = Planet
+
+function Planet:new(params)
+    params = params or {}
+
+    -- Random physical properties.
+    params.mass = params.mass or randomFloat(EARTH_MASS, JUPITER_MASS)
+
+    -- Keep real radius separate from draw radius, like Star does.
+    params.radius_real = params.radius_real or randomFloat(EARTH_RADIUS, JUPITER_RADIUS)
+
+    -- Atmosphere.
+    if params.has_atmosphere == nil then
+        params.has_atmosphere = math.random(1, 100) <= 50
+    end
+
+    -- Colors depend on whether atmosphere exists.
+    params.colors = params.colors or randomPlanetColorSet(params.has_atmosphere)
+
+    -- Important:
+    -- `radius` is used as the draw radius in pixels.
+    params.radius = params.radius or Planet:getDrawRadiusFromRealRadius(params.radius_real)
+
+    -- For now, planets are static.
+    params.velocity = {
+        speed = 0,
+        direction = 0,
+    }
+
+    params.acceleration = 0
+    params.deceleration = 0
+
+    local self = KeplerObj.new(params)
+    setmetatable(self, Planet)
+
+    self.name                = params.name or "Planet"
+    self.radius_real         = params.radius_real
+    self.has_atmosphere      = params.has_atmosphere
+
+    self.velocity.speed      = 0
+    self.velocity.direction  = 0
+    self.acceleration        = 0
+    self.deceleration        = 0
+
+    -- Visual details.
+    self.surface_band_offset = math.random(0, 100)
+
+    self.has_ring            = params.has_ring
+
+    if self.has_ring == nil then
+        self.has_ring = math.random(1, 100) <= 12
+    end
+
+    return self
+end
+
+-- ==========================================
+-- PLANET GETTERS
+-- ==========================================
+
+function Planet:getDrawRadiusFromRealRadius(radius_real)
+    -- Maps EARTH_RADIUS..JUPITER_RADIUS to about 4..18 pixels.
+    local min_draw_radius = 40
+    local max_draw_radius = 75
+
+    radius_real = radius_real or EARTH_RADIUS
+
+    local t = (radius_real - EARTH_RADIUS) / (JUPITER_RADIUS - EARTH_RADIUS)
+    t = clamp(t, 0, 1)
+
+    return math.floor(min_draw_radius + t * (max_draw_radius - min_draw_radius))
+end
+
+-- ==========================================
+-- PLANET UPDATE
+-- ==========================================
+
+function Planet:update()
+    self:updateTimer()
+end
+
+-- ==========================================
+-- PLANET DRAW
+-- ==========================================
+
+function Planet:drawAtmosphere(screen_x, screen_y, r, zoom)
+    if not self.has_atmosphere then
+        return
+    end
+
+    local atmosphere_extra = math.max(1, math.floor(2 * zoom))
+
+    circ(screen_x, screen_y, r + atmosphere_extra, self.colors.tertiary)
+end
+
+function Planet:drawRing(screen_x, screen_y, r, zoom)
+    if not self.has_ring then
+        return
+    end
+
+    -- Simple flattened ring.
+    local ring_w = math.max(2, math.floor(r * 2.8))
+    local ring_h = math.max(1, math.floor(r * 0.7))
+
+    ellib(screen_x, screen_y, ring_w, ring_h, self.colors.tertiary)
+end
+
+function Planet:drawSurfaceBands(screen_x, screen_y, r, zoom)
+    if r < 4 then
+        return
+    end
+
+    local band_count = 2
+
+    if r >= 10 then
+        band_count = 3
+    end
+
+    for i = 1, band_count do
+        local y_offset = math.floor(-r / 2 + i * (r / (band_count + 1)))
+        local y = screen_y + y_offset
+
+        local half_width = math.floor(
+            math.sqrt(math.max(0, r * r - y_offset * y_offset))
+        )
+
+        local color = self.colors.secondary
+
+        if i % 2 == 0 then
+            color = self.colors.tertiary
+        end
+
+        line(
+            screen_x - half_width,
+            y,
+            screen_x + half_width,
+            y,
+            color
+        )
+    end
+end
+
+function Planet:drawBody()
+    local screen_x, screen_y = worldToScreen(self.position.x, self.position.y)
+    local zoom = game.camera.zoom or 1
+
+    screen_x = math.floor(screen_x)
+    screen_y = math.floor(screen_y)
+
+    local r = math.max(1, math.floor(self.radius * zoom))
+
+    -- Skip if comfortably off-screen.
+    if screen_x < -r - 4 or screen_x > SCREEN_W + r + 4 or
+        screen_y < -r - 4 or screen_y > SCREEN_H + r + 4 then
+        return
+    end
+
+    -- Draw ring behind the planet.
+    self:drawRing(screen_x, screen_y, r, zoom)
+
+    -- Atmosphere glow.
+    self:drawAtmosphere(screen_x, screen_y, r, zoom)
+
+    -- Planet body.
+    circ(screen_x, screen_y, r, self.colors.primary)
+
+    -- Surface variation.
+    self:drawSurfaceBands(screen_x, screen_y, r, zoom)
+
+    -- Small highlight for bigger planets.
+    if r >= 5 then
+        local highlight_r = math.max(1, math.floor(r / 4))
+
+        circ(
+            screen_x - math.floor(r / 3),
+            screen_y - math.floor(r / 3),
+            highlight_r,
+            self.colors.secondary
+        )
+    end
+end
+
+function Planet:draw()
+    self:drawBody()
 end
 
 
--- [/TQ-Bundler: src.classes.Star]
+-- [/TQ-Bundler: src.classes.Planet]
+
+-- [TQ-Bundler: src.classes.Moon]
+
+-- ==========================================
+-- MOON OBJECT
+-- ==========================================
+
+Moon = setmetatable({}, { __index = KeplerObj })
+Moon.__index = Moon
+
+function Moon:new(params)
+    params = params or {}
+
+    -- -- Pick a stellar type if one was not supplied.
+    -- params.stellar_type      = params.stellar_type or randomChoice(STELLAR_TYPES)
+
+    -- -- Apply stellar-profile values before calling KeplerObj.new().
+    -- local profile            = STELLAR_PROFILES[params.stellar_type] or STELLAR_PROFILES.G
+
+    -- local mass_solar_units   = randomFloat(profile.mass_min, profile.mass_max)
+    -- local radius_solar_units = randomFloat(profile.radius_min, profile.radius_max)
+
+    -- params.mass              = params.mass or mass_solar_units * SOLAR_MASS
+    -- params.radius_real       = params.radius_real or radius_solar_units * SOLAR_RADIUS
+    -- params.temperature       = params.temperature or math.floor(randomFloat(profile.temp_min, profile.temp_max))
+
+    -- -- Important:
+    -- -- `radius` is currently used by drawBody() as a pixel radius.
+    -- -- A real stellar radius would be enormous, so keep drawing radius separate.
+    -- params.radius            = params.radius or Star:getDrawRadiusForType(params.stellar_type)
+
+    -- params.colors            = params.colors or {
+    --     primary   = profile.colors.primary,
+    --     secondary = profile.colors.secondary,
+    --     tertiary  = profile.colors.tertiary,
+    -- }
+
+    -- params.velocity          = {
+    --     speed     = 0,
+    --     direction = 0,
+    -- }
+
+    -- params.acceleration      = 0
+    -- params.deceleration      = 0
+
+    local self = KeplerObj.new(params)
+    setmetatable(self, Moon)
+
+    -- self.name               = params.name or "Kepler-9999"
+    -- self.stellar_type       = params.stellar_type
+    -- self.temperature        = params.temperature
+    -- self.radius_real        = params.radius_real
+
+    -- self.mass_solar         = mass_solar_units
+    -- self.radius_solar       = radius_solar_units
+
+    -- self.velocity.speed     = 0
+    -- self.velocity.direction = 0
+    -- self.acceleration       = 0
+    -- self.deceleration       = 0
+
+    return self
+end
+
+-- ==========================================
+-- MOON GETTERS
+-- ==========================================
+
+-- ==========================================
+-- MOON MATH
+-- ==========================================
+
+-- ==========================================
+-- MOON PHYSICS
+-- ==========================================
+
+-- ==========================================
+-- MOON COLLISION DETECTION
+-- ==========================================
+
+-- Treat everything like a circle
+
+-- Deflection only works on objects below a certain mass, with the object of the
+-- lesser mass being deflected harder than the more massive object.
+
+-- When there's a collision, calculate the energy of the collision and destroy
+-- one or both objects depending on how massive the collision is.
+
+-- ==========================================
+-- MOON INPUT
+-- ==========================================
+
+-- ==========================================
+-- MOON UPDATE
+-- ==========================================
+
+
+-- ==========================================
+-- MOON DRAW
+-- ==========================================
+
+function Moon:drawBody()
+
+end
+
+function Moon:draw()
+    self:drawBody()
+end
+
+
+-- [/TQ-Bundler: src.classes.Moon]
 
 -- ==========================================
 -- MAIN TIC FUNCTION

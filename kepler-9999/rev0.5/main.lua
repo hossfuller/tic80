@@ -14,6 +14,7 @@ include "src.constants_game"
 
 include "src.presets.ships"
 include "src.presets.stars"
+include "src.presets.planets"
 include "src.generators"
 include "src.camera"
 include "src.polygons"
@@ -32,6 +33,8 @@ include "src.state_machine"
 include "src.classes.KeplerObj"
 include "src.classes.SpaceShip"
 include "src.classes.Star"
+include "src.classes.Planet"
+include "src.classes.Moon"
 
 -- ==========================================
 -- MAIN TIC FUNCTION
