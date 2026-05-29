@@ -3961,10 +3961,13 @@ function Planet:new(params)
     -- Visual details.
     self.surface_band_offset = math.random(0, 100)
 
-    self.has_ring            = params.has_ring
-
+    self.has_ring  = params.has_ring
+    self.num_rings = params.num_rings or 0
     if self.has_ring == nil then
         self.has_ring = math.random(1, 100) <= 12
+    end
+    if self.has_ring then
+        self.num_rings = math.random(1,15)
     end
 
     return self
@@ -4003,9 +4006,7 @@ function Planet:drawAtmosphere(screen_x, screen_y, r, zoom)
     if not self.has_atmosphere then
         return
     end
-
-    local atmosphere_extra = math.max(1, math.floor(2 * zoom))
-
+    local atmosphere_extra = math.max(1, math.floor(4 * zoom))
     circ(screen_x, screen_y, r + atmosphere_extra, self.colors.tertiary)
 end
 
@@ -4018,42 +4019,38 @@ function Planet:drawRing(screen_x, screen_y, r, zoom)
     local ring_w = math.max(2, math.floor(r * 2.8))
     local ring_h = math.max(1, math.floor(r * 0.7))
 
-    ellib(screen_x, screen_y, ring_w, ring_h, self.colors.tertiary)
+    for ring_num = 0, self.num_rings, 1 do
+        ellib(screen_x, screen_y, ring_w + ring_num, ring_h + ring_num, self.colors.tertiary)
+    end
 end
 
 function Planet:drawSurfaceBands(screen_x, screen_y, r, zoom)
-    if r < 4 then
-        return
-    end
+    -- if r < 4 then
+    --     return
+    -- end
 
-    local band_count = 2
+    -- local band_count = 2
 
-    if r >= 10 then
-        band_count = 3
-    end
+    -- if r >= 10 then
+    --     band_count = 3
+    -- end
 
-    for i = 1, band_count do
-        local y_offset = math.floor(-r / 2 + i * (r / (band_count + 1)))
-        local y = screen_y + y_offset
+    -- for i = 1, band_count do
+    --     local y_offset = math.floor(-r / 2 + i * (r / (band_count + 1)))
+    --     local y = screen_y + y_offset
 
-        local half_width = math.floor(
-            math.sqrt(math.max(0, r * r - y_offset * y_offset))
-        )
+    --     local half_width = math.floor(
+    --         math.sqrt(math.max(0, r * r - y_offset * y_offset))
+    --     )
 
-        local color = self.colors.secondary
+    --     local color = self.colors.secondary
 
-        if i % 2 == 0 then
-            color = self.colors.tertiary
-        end
+    --     if i % 2 == 0 then
+    --         color = self.colors.tertiary
+    --     end
 
-        line(
-            screen_x - half_width,
-            y,
-            screen_x + half_width,
-            y,
-            color
-        )
-    end
+    --     line(screen_x - half_width, y, screen_x + half_width, y, color)
+    -- end
 end
 
 function Planet:drawBody()
@@ -4083,17 +4080,17 @@ function Planet:drawBody()
     -- Surface variation.
     self:drawSurfaceBands(screen_x, screen_y, r, zoom)
 
-    -- Small highlight for bigger planets.
-    if r >= 5 then
-        local highlight_r = math.max(1, math.floor(r / 4))
+    -- -- Small highlight for bigger planets.
+    -- if r >= 5 then
+    --     local highlight_r = math.max(1, math.floor(r / 4))
 
-        circ(
-            screen_x - math.floor(r / 3),
-            screen_y - math.floor(r / 3),
-            highlight_r,
-            self.colors.secondary
-        )
-    end
+    --     circ(
+    --         screen_x - math.floor(r / 3),
+    --         screen_y - math.floor(r / 3),
+    --         highlight_r,
+    --         self.colors.secondary
+    --     )
+    -- end
 end
 
 function Planet:drawLabel()
