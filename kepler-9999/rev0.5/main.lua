@@ -1,0 +1,55 @@
+-- title:   Kepler-9999
+-- author:  Hoss Fuller
+-- version: rev0.3
+-- script:  lua
+-- input:   mouse
+-- saveid:  kepler_9999
+
+-- ==========================================
+-- INCLUDES
+-- ==========================================
+
+include "src.constants_tic80"
+include "src.constants_game"
+
+include "src.presets.ships"
+include "src.presets.stars"
+include "src.generators"
+include "src.camera"
+include "src.polygons"
+include "src.game_state"
+include "src.helpers"
+
+include "src.states.start"
+include "src.states.options"
+include "src.states.highscores"
+include "src.states.ready"
+include "src.states.play"
+include "src.states.pause"
+include "src.states.gameover"
+include "src.state_machine"
+
+include "src.classes.KeplerObj"
+include "src.classes.SpaceShip"
+include "src.classes.Star"
+
+-- ==========================================
+-- MAIN TIC FUNCTION
+-- ==========================================
+
+function BOOT()
+    math.randomseed(tstamp() + time())
+
+    applyAllOptions()
+    changeState(STATE.START)
+end
+
+
+function TIC()
+    local currentState = states[game.state]
+    if currentState then
+        currentState.input()
+        currentState.update()
+        currentState.draw()
+    end
+end

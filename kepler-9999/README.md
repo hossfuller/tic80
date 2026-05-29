@@ -42,6 +42,7 @@ The different revisions implement separate features. This list is ever changing.
     - [x] Particle effects for stars: stellar wind and flares.
     - [x] Add mouse controls that allow us to zoom in and out of map.
 - [ ] **REV0.5**: Add more heavenly bodies and then put the heavens in motion.
+    - [ ] Update HUD with dynamic Speed indicator.
     - [ ] Add planet, moon, and other minor body classes.
     - [ ] Randomly generated names, colors, atmospherics for planets and moons (AAU-style names for anything smaller than a moon).
     - [ ] Particle effects for planets: clouds and/or bands that appear to orbit the planet.
@@ -51,7 +52,6 @@ The different revisions implement separate features. This list is ever changing.
     - [ ] Particle effects from stars can damage the ship.
     - [ ] Can feel gravitational effects from heavenly bodies.
     - [ ] Implement inertia and make the energy engine feel it (more mass makes the ship expend more energy to stop).
-    - [ ] Update HUD with dynamic Speed indicator.
     - [ ] Bring over Asteroids particle effects like explosions, thrust, sparks, and smoke.
 - [ ] **REV0.7**: Refined heavenly bodies.
     - [ ] Randomly generated names, colors, atmospherics for planets and moons.
