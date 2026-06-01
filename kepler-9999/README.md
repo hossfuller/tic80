@@ -46,8 +46,8 @@ The different revisions implement separate features. This list is ever changing.
     - [x] Add a planet class, and include rings and atmospheres.
     - [ ] Add a moon class that is attached to a particular planet.
     - [ ] Add other minor body classes.
-    - [ ] Randomly generated names, colors, atmospherics for planets and moons (AAU-style names for anything smaller than a moon).
-    - [ ] Particle effects for planets: clouds and/or bands that appear to orbit the planet.
+    - [x] Randomly generated names, colors, atmospherics for planets and moons (AAU-style names for anything smaller than a moon).
+    - [x] Particle effects for planets: clouds and/or bands that appear to orbit the planet.
 - [ ] **REV0.6**: Spaceships, modeled on the Asteroids work, get physics
     - [ ] Collision detection.
     - [ ] Particle effects from stars can damage the ship.

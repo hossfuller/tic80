@@ -682,14 +682,25 @@ local PLANET_ATMOSPHERE_COLORS = {
     CYAN,
 }
 
+local PLANET_CLOUD_COLORS = {
+    WHITE,
+    CYAN,
+    BLUE_LITE,
+    PURPLE,
+}
+
 local PLANET_ROCKY_COLORS = {
     RED,
-    ORANGE,
-    YELLOW,
-    WHITE,
     GRAY_LITE,
     GRAY_MED,
     GRAY_DARK,
+}
+
+local PLANET_CRATER_COLORS = {
+    GRAY_DARK,
+    GRAY_LITE,
+    GRAY_MED,
+    BLACK,
 }
 
 function randomPlanetColorSet(has_atmosphere)
@@ -700,9 +711,12 @@ function randomPlanetColorSet(has_atmosphere)
     end
 
     return {
-        primary   = randomChoice(source_colors),
-        secondary = randomChoice(source_colors),
-        tertiary  = randomChoice(source_colors),
+        primary    = randomChoice(source_colors),
+        secondary  = randomChoice(source_colors),
+        tertiary   = randomChoice(source_colors),
+        cloud      = randomChoice(PLANET_CLOUD_COLORS),
+        crater     = randomChoice(PLANET_CRATER_COLORS),
+        crater_rim = randomChoice(source_colors),
     }
 end
 
@@ -1045,6 +1059,10 @@ function generatePlanets()
     return planets
 end
 
+function generateMoons()
+    local moons = {}
+
+end
 
 -- [/TQ-Bundler: src.generators]
 
@@ -3949,14 +3967,43 @@ function Planet:new(params)
     local self = KeplerObj.new(params)
     setmetatable(self, Planet)
 
-    self.name                = params.name or "Planet"
-    self.radius_real         = params.radius_real
-    self.has_atmosphere      = params.has_atmosphere
+    self.name           = params.name or "Planet"
+    self.radius_real    = params.radius_real
+    self.has_atmosphere = params.has_atmosphere
 
-    self.velocity.speed      = 0
-    self.velocity.direction  = 0
-    self.acceleration        = 0
-    self.deceleration        = 0
+    if self.has_atmosphere then
+        self.colors.cloud = params.colors.cloud or PLANET_CLOUD_COLORS[math.random(1, #PLANET_CLOUD_COLORS)]
+    else
+        self.craters           = {}
+        self.colors.crater     = params.colors.crater or DARK_GREY or GREY or BLACK
+        self.colors.crater_rim = params.colors.crater_rim or self.colors.secondary
+
+        local crater_count = params.crater_count or math.random(
+            math.floor(params.radius * 0.2),
+            math.floor(params.radius * 0.45)
+        )
+
+        for i = 1, crater_count do
+            -- Generate random point inside unit circle.
+            local angle = randomFloat(0, math.pi * 2)
+            local dist = math.sqrt(randomFloat(0, 1))
+
+            -- Store normalized coordinates.
+            -- These are relative to the planet radius, so they scale with zoom.
+            local crater = {
+                x = math.cos(angle) * dist,
+                y = math.sin(angle) * dist,
+                r = randomFloat(0.04, 0.16),
+            }
+
+            table.insert(self.craters, crater)
+        end
+    end
+
+    self.velocity.speed     = 0
+    self.velocity.direction = 0
+    self.acceleration       = 0
+    self.deceleration       = 0
 
     -- Visual details.
     self.surface_band_offset = math.random(0, 100)
@@ -4002,6 +4049,44 @@ end
 -- PLANET DRAW
 -- ==========================================
 
+function Planet:drawCraters(screen_x, screen_y, r, zoom)
+    if self.has_atmosphere then
+        return
+    end
+
+    if not self.craters then
+        return
+    end
+
+    -- Too small to show useful crater detail.
+    if r < 5 then
+        return
+    end
+
+    local crater_color = self.colors.crater
+    local rim_color = self.colors.crater_rim
+
+    for i = 1, #self.craters do
+        local crater = self.craters[i]
+
+        local crater_x = math.floor(screen_x + crater.x * r)
+        local crater_y = math.floor(screen_y + crater.y * r)
+        local crater_r = math.max(1, math.floor(crater.r * r))
+
+        -- Keep the whole crater inside the planet disk.
+        local dx = crater_x - screen_x
+        local dy = crater_y - screen_y
+        local dist_from_center = math.sqrt(dx * dx + dy * dy)
+
+        if dist_from_center + crater_r <= r then
+            -- Rim/highlight.
+            circ(crater_x - 1, crater_y - 1, crater_r, self.colors.crater_rim)
+            circ(crater_x, crater_y, crater_r, crater_color)
+            circ(crater_x, crater_y, math.max(1, crater_r - 1), crater_color)
+        end
+    end
+end
+
 function Planet:drawAtmosphere(screen_x, screen_y, r, zoom)
     if not self.has_atmosphere then
         return
@@ -4024,33 +4109,94 @@ function Planet:drawRing(screen_x, screen_y, r, zoom)
     end
 end
 
-function Planet:drawSurfaceBands(screen_x, screen_y, r, zoom)
-    -- if r < 4 then
-    --     return
-    -- end
+function Planet:drawClouds(screen_x, screen_y, r, zoom)
+    if not self.has_atmosphere then
+        return
+    end
 
-    -- local band_count = 2
+    -- Too small to show useful cloud detail.
+    if r < 6 then
+        return
+    end
 
-    -- if r >= 10 then
-    --     band_count = 3
-    -- end
+    -- Cloud bands should cover almost the whole planet,
+    -- from near the north pole to near the south pole.
+    local band_spacing = math.max(4, math.floor(r * 0.18))
+    local band_count = math.max(3, math.floor((r * 2) / band_spacing))
 
-    -- for i = 1, band_count do
-    --     local y_offset = math.floor(-r / 2 + i * (r / (band_count + 1)))
-    --     local y = screen_y + y_offset
+    -- Used to make each planet's clouds look different.
+    local seed = self.surface_band_offset or 0
 
-    --     local half_width = math.floor(
-    --         math.sqrt(math.max(0, r * r - y_offset * y_offset))
-    --     )
+    for band = 1, band_count do
+        -- Place bands from near top pole to near bottom pole.
+        local t = 0
 
-    --     local color = self.colors.secondary
+        if band_count > 1 then
+            t = (band - 1) / (band_count - 1)
+        end
 
-    --     if i % 2 == 0 then
-    --         color = self.colors.tertiary
-    --     end
+        -- t = 0 gives top pole, t = 1 gives bottom pole.
+        -- Use 0.92 instead of 1.0 so the bands do not collapse to zero width.
+        local y_offset = math.floor(-r * 0.80 + t * (r * 1.84))
 
-    --     line(screen_x - half_width, y, screen_x + half_width, y, color)
-    -- end
+        -- Slight per-band wobble so they are not perfectly parallel.
+        y_offset = y_offset + math.floor(math.sin(seed + band * 2.1) * r * 0.05)
+
+        -- Clamp y_offset so it stays inside the planet.
+        y_offset = clamp(y_offset, -r + 1, r - 1)
+
+        -- Width of the planet at this y coordinate.
+        local half_width = math.floor(
+            math.sqrt(math.max(0, r * r - y_offset * y_offset))
+        )
+
+        -- Near the poles the width gets very small.
+        -- Skip if there is basically no room to draw.
+        if half_width > 1 then
+            local band_height = math.max(2, math.floor(r * 0.08))
+            local puff_step = math.max(3, math.floor(r * 0.16))
+
+            -- Offset the start position per planet/band.
+            local x_start = -half_width + ((seed + band * 7) % puff_step)
+
+            -- Make sure tiny polar bands still get at least one puff.
+            if half_width < puff_step then
+                x_start = 0
+            end
+
+            for x_offset = x_start, half_width, puff_step do
+                -- Deterministic pseudo-random value based on band/position.
+                local n = math.sin((x_offset + seed * 13 + band * 31) * 12.9898) * 43758.5453
+                n = n - math.floor(n)
+
+                -- Leave some gaps.
+                if n > 0.25 then
+                    local puff_r = math.floor(band_height * (0.7 + n * 1.2))
+
+                    -- Keep puffs mostly inside the planet disk.
+                    local max_puff_r = half_width - math.abs(x_offset)
+                    puff_r = math.floor(math.min(puff_r, max_puff_r))
+
+                    if puff_r > 0 then
+                        local puff_y = y_offset + math.floor((n - 0.5) * band_height)
+
+                        -- Final safety check: keep puff center inside planet.
+                        local dx = x_offset
+                        local dy = puff_y
+
+                        if dx * dx + dy * dy <= r * r then
+                            circ(
+                                screen_x + math.floor(x_offset),
+                                screen_y + math.floor(puff_y),
+                                puff_r,
+                                self.colors.cloud
+                            )
+                        end
+                    end
+                end
+            end
+        end
+    end
 end
 
 function Planet:drawBody()
@@ -4077,20 +4223,11 @@ function Planet:drawBody()
     -- Planet body.
     circ(screen_x, screen_y, r, self.colors.primary)
 
-    -- Surface variation.
-    self:drawSurfaceBands(screen_x, screen_y, r, zoom)
+    -- Craters for planets without atmospheres.
+    self:drawCraters(screen_x, screen_y, r, zoom)
 
-    -- -- Small highlight for bigger planets.
-    -- if r >= 5 then
-    --     local highlight_r = math.max(1, math.floor(r / 4))
-
-    --     circ(
-    --         screen_x - math.floor(r / 3),
-    --         screen_y - math.floor(r / 3),
-    --         highlight_r,
-    --         self.colors.secondary
-    --     )
-    -- end
+    -- Puffy cloud bands for planets with atmospheres.
+    self:drawClouds(screen_x, screen_y, r, zoom)
 end
 
 function Planet:drawLabel()
@@ -4142,59 +4279,14 @@ end
 -- MOON OBJECT
 -- ==========================================
 
-Moon = setmetatable({}, { __index = KeplerObj })
+Moon = setmetatable({}, { __index = Planet })
 Moon.__index = Moon
 
 function Moon:new(params)
     params = params or {}
 
-    -- -- Pick a stellar type if one was not supplied.
-    -- params.stellar_type      = params.stellar_type or randomChoice(STELLAR_TYPES)
-
-    -- -- Apply stellar-profile values before calling KeplerObj.new().
-    -- local profile            = STELLAR_PROFILES[params.stellar_type] or STELLAR_PROFILES.G
-
-    -- local mass_solar_units   = randomFloat(profile.mass_min, profile.mass_max)
-    -- local radius_solar_units = randomFloat(profile.radius_min, profile.radius_max)
-
-    -- params.mass              = params.mass or mass_solar_units * SOLAR_MASS
-    -- params.radius_real       = params.radius_real or radius_solar_units * SOLAR_RADIUS
-    -- params.temperature       = params.temperature or math.floor(randomFloat(profile.temp_min, profile.temp_max))
-
-    -- -- Important:
-    -- -- `radius` is currently used by drawBody() as a pixel radius.
-    -- -- A real stellar radius would be enormous, so keep drawing radius separate.
-    -- params.radius            = params.radius or Star:getDrawRadiusForType(params.stellar_type)
-
-    -- params.colors            = params.colors or {
-    --     primary   = profile.colors.primary,
-    --     secondary = profile.colors.secondary,
-    --     tertiary  = profile.colors.tertiary,
-    -- }
-
-    -- params.velocity          = {
-    --     speed     = 0,
-    --     direction = 0,
-    -- }
-
-    -- params.acceleration      = 0
-    -- params.deceleration      = 0
-
-    local self = KeplerObj.new(params)
+    local self = Planet.new(params)
     setmetatable(self, Moon)
-
-    -- self.name               = params.name or "Kepler-9999"
-    -- self.stellar_type       = params.stellar_type
-    -- self.temperature        = params.temperature
-    -- self.radius_real        = params.radius_real
-
-    -- self.mass_solar         = mass_solar_units
-    -- self.radius_solar       = radius_solar_units
-
-    -- self.velocity.speed     = 0
-    -- self.velocity.direction = 0
-    -- self.acceleration       = 0
-    -- self.deceleration       = 0
 
     return self
 end

@@ -21,14 +21,25 @@ local PLANET_ATMOSPHERE_COLORS = {
     CYAN,
 }
 
+local PLANET_CLOUD_COLORS = {
+    WHITE,
+    CYAN,
+    BLUE_LITE,
+    PURPLE,
+}
+
 local PLANET_ROCKY_COLORS = {
     RED,
-    ORANGE,
-    YELLOW,
-    WHITE,
     GRAY_LITE,
     GRAY_MED,
     GRAY_DARK,
+}
+
+local PLANET_CRATER_COLORS = {
+    GRAY_DARK,
+    GRAY_LITE,
+    GRAY_MED,
+    BLACK,
 }
 
 function randomPlanetColorSet(has_atmosphere)
@@ -39,9 +50,12 @@ function randomPlanetColorSet(has_atmosphere)
     end
 
     return {
-        primary   = randomChoice(source_colors),
-        secondary = randomChoice(source_colors),
-        tertiary  = randomChoice(source_colors),
+        primary    = randomChoice(source_colors),
+        secondary  = randomChoice(source_colors),
+        tertiary   = randomChoice(source_colors),
+        cloud      = randomChoice(PLANET_CLOUD_COLORS),
+        crater     = randomChoice(PLANET_CRATER_COLORS),
+        crater_rim = randomChoice(source_colors),
     }
 end
 
