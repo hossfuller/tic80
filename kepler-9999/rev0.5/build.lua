@@ -724,6 +724,50 @@ end
 
 -- [/TQ-Bundler: src.presets.planets]
 
+-- [TQ-Bundler: src.presets.moons]
+
+-- ==========================================
+-- MOON PRESETS / HELPERS
+-- ==========================================
+
+local MOON_MASS     = 1000000
+local MOON_MIN_MASS = 10000
+local MOON_RADIUS   = 100
+
+local MAX_MOONS_PER_PLANET    = 3
+local MAX_MOON_ORBIT_APOAPSIS = MAP_TILES_W
+
+local MOON_ROCKY_COLORS = {
+    RED,
+    GREEN_DARK,
+    BLUE_DARK,
+    GRAY_LITE,
+    GRAY_MED,
+    GRAY_DARK,
+}
+
+local MOON_CRATER_COLORS = {
+    GRAY_DARK,
+    GRAY_LITE,
+    GRAY_MED,
+    BLACK,
+}
+
+function randomMoonColorSet()
+    local source_colors = MOON_ROCKY_COLORS
+
+    return {
+        primary    = randomChoice(source_colors),
+        secondary  = randomChoice(source_colors),
+        tertiary   = randomChoice(source_colors),
+        crater     = randomChoice(MOON_CRATER_COLORS),
+        crater_rim = randomChoice(source_colors),
+    }
+end
+
+
+-- [/TQ-Bundler: src.presets.moons]
+
 -- [TQ-Bundler: src.generators]
 
 -- ==========================================
@@ -1059,10 +1103,184 @@ function generatePlanets()
     return planets
 end
 
-function generateMoons()
-    local moons = {}
+--[[ MOONS ]] --
 
+function getMoonCountForPlanet(planet)
+    -- Normalize planet mass from Earth-ish to Jupiter-ish.
+    local t = (planet.mass - EARTH_MASS) / (JUPITER_MASS - EARTH_MASS)
+    t = clamp(t, 0, 1)
+
+    -- More massive planets are more likely to get moons.
+    -- Small planets often get 0. Large planets often get 1-3.
+    local roll = math.random()
+
+    if roll > t then
+        return 0
+    end
+
+    if t < 0.33 then
+        return math.random(0, 1)
+    elseif t < 0.66 then
+        return math.random(1, 2)
+    end
+
+    return math.random(1, MAX_MOONS_PER_PLANET)
 end
+
+function moonOrbitIntersectsExisting(candidate_periapsis, candidate_apoapsis, existing_orbits, padding)
+    padding = padding or 0
+
+    for _, orbit in ipairs(existing_orbits) do
+        -- Since all moon orbits around a planet share the same focus, a simple
+        -- radial range overlap check is enough for generation purposes.
+        local separated =
+            candidate_apoapsis + padding < orbit.periapsis or
+            candidate_periapsis > orbit.apoapsis + padding
+
+        if not separated then
+            return true
+        end
+    end
+
+    return false
+end
+
+function calculatePlanetMoonBarycenter(planet, moons)
+    local total_mass = planet.mass
+    local weighted_x = planet.position.x * planet.mass
+    local weighted_y = planet.position.y * planet.mass
+
+    for _, moon in ipairs(moons) do
+        total_mass = total_mass + moon.mass
+        weighted_x = weighted_x + moon.position.x * moon.mass
+        weighted_y = weighted_y + moon.position.y * moon.mass
+    end
+
+    return {
+        x = weighted_x / total_mass,
+        y = weighted_y / total_mass,
+    }
+end
+
+function generateMoonName(planet, index)
+    return planet.name .. "-" .. tostring(index)
+end
+
+function generateMoonsForPlanet(planet)
+    local moons = {}
+    local existing_orbits = {}
+
+    local moon_count = getMoonCountForPlanet(planet)
+
+    local max_apoapsis = MAX_MOON_ORBIT_APOAPSIS
+    local min_periapsis = planet.radius + 30
+
+    -- If the planet is so large that this cannot work, skip moons.
+    if min_periapsis >= max_apoapsis then
+        return moons
+    end
+
+    for i = 1, moon_count do
+        local placed = false
+        local attempts = 0
+        local max_attempts = 80
+
+        while not placed and attempts < max_attempts do
+            attempts = attempts + 1
+
+            local radius_real = randomFloat(100, 900)
+            local draw_radius = Moon:getDrawRadiusFromRealRadius(radius_real)
+
+            local eccentricity = randomFloat(0.05, 0.55)
+
+            -- Constrain semi-major axis so apoapsis never exceeds max_apoapsis.
+            local max_semi_major = max_apoapsis / (1 + eccentricity)
+
+            -- Constrain semi-major axis so periapsis clears the planet.
+            local min_semi_major = (planet.radius + draw_radius + 8) / (1 - eccentricity)
+
+            -- Safety margin.
+            min_semi_major = math.max(min_semi_major, min_periapsis)
+
+            if min_semi_major < max_semi_major then
+                local semi_major    = randomFloat(min_semi_major, max_semi_major)
+
+                local periapsis     = semi_major * (1 - eccentricity)
+                local apoapsis      = semi_major * (1 + eccentricity)
+
+                local clears_planet = periapsis > planet.radius + draw_radius + 8
+                local orbit_padding = draw_radius * 2 + 12
+
+                if clears_planet and
+                    apoapsis <= max_apoapsis and
+                    not moonOrbitIntersectsExisting(
+                        periapsis,
+                        apoapsis,
+                        existing_orbits,
+                        orbit_padding
+                    ) then
+                    local moon = Moon:new({
+                        name           = generateMoonName(planet, i),
+                        host           = planet,
+
+                        x              = planet.position.x,
+                        y              = planet.position.y,
+
+                        mass           = randomFloat(MOON_MIN_MASS, MOON_MASS),
+                        radius_real    = radius_real,
+                        radius         = draw_radius,
+
+                        has_atmosphere = false,
+                        has_ring       = false,
+                        num_rings      = 0,
+
+                        colors         = randomMoonColorSet(),
+
+                        orbit          = {
+                            semi_major   = semi_major,
+                            eccentricity = eccentricity,
+                            angle        = randomFloat(0, math.pi * 2),
+                            phase        = randomFloat(0, math.pi * 2),
+                            period       = math.random(900, 3600) + math.floor(semi_major * 4),
+                        },
+                    })
+
+                    table.insert(moons, moon)
+
+                    table.insert(existing_orbits, {
+                        periapsis = periapsis,
+                        apoapsis  = apoapsis,
+                    })
+
+                    placed = true
+                end
+            end
+        end
+    end
+
+    -- First place moons around the planet position.
+    -- This lets barycenter calculation use real initial moon positions.
+    for _, moon in ipairs(moons) do
+        moon:updateOrbitPosition(planet.position)
+    end
+
+    -- Calculate barycenter after all moons are created and initially placed.
+    planet.barycenter = calculatePlanetMoonBarycenter(planet, moons)
+
+    -- Then re-place moons using the barycenter as the focus.
+    for _, moon in ipairs(moons) do
+        moon:updateOrbitPosition(planet.barycenter)
+    end
+
+    return moons
+end
+
+function generateMoons()
+    for _, planet in ipairs(game.play.planets) do
+        planet.moons = generateMoonsForPlanet(planet)
+    end
+end
+
 
 -- [/TQ-Bundler: src.generators]
 
@@ -1455,7 +1673,7 @@ game = {
         target_y    = 0,
         lerp        = 0.08,
         zoom        = 1,
-        zoom_index  = 3,
+        zoom_index  = 4,
         zoom_levels = { 0.15, 0.25, 0.5, 1 },
     },
 
@@ -1482,6 +1700,8 @@ function changeState(newState)
         game.play.player  = generatePlayer()
         game.play.star    = generateStar()
         game.play.planets = generatePlanets()
+
+        generateMoons()
 
         resetPlayerAndCamera()
     end
@@ -3975,7 +4195,7 @@ function Planet:new(params)
         self.colors.cloud = params.colors.cloud or PLANET_CLOUD_COLORS[math.random(1, #PLANET_CLOUD_COLORS)]
     else
         self.craters           = {}
-        self.colors.crater     = params.colors.crater or DARK_GREY or GREY or BLACK
+        self.colors.crater     = params.colors.crater or GRAY_DARK
         self.colors.crater_rim = params.colors.crater_rim or self.colors.secondary
 
         local crater_count = params.crater_count or math.random(
@@ -4043,6 +4263,12 @@ end
 
 function Planet:update()
     self:updateTimer()
+
+    if self.moons then
+        for _, moon in ipairs(self.moons) do
+            moon:update()
+        end
+    end
 end
 
 -- ==========================================
@@ -4199,6 +4425,30 @@ function Planet:drawClouds(screen_x, screen_y, r, zoom)
     end
 end
 
+function Planet:drawMoonsBehind()
+    if not self.moons then
+        return
+    end
+
+    for _, moon in ipairs(self.moons) do
+        if moon.orbit_depth and moon.orbit_depth < 0 then
+            moon:draw()
+        end
+    end
+end
+
+function Planet:drawMoonsInFront()
+    if not self.moons then
+        return
+    end
+
+    for _, moon in ipairs(self.moons) do
+        if not moon.orbit_depth or moon.orbit_depth >= 0 then
+            moon:draw()
+        end
+    end
+end
+
 function Planet:drawBody()
     local screen_x, screen_y = worldToScreen(self.position.x, self.position.y)
     local zoom = game.camera.zoom or 1
@@ -4243,7 +4493,7 @@ function Planet:drawLabel()
     screen_x = math.floor(screen_x)
     screen_y = math.floor(screen_y)
 
-    local r = math.max(1, math.floor(self.radius * zoom))
+    local r    = math.max(1, math.floor(self.radius * zoom))
     local text = self.name or "Planet"
 
     -- TIC-80 print() returns the rendered text width.
@@ -4266,7 +4516,16 @@ function Planet:drawLabel()
 end
 
 function Planet:draw()
+    -- Moons on the far side are drawn first, so the planet can eclipse them.
+    self:drawMoonsBehind()
+
+    -- Planet body/rings/clouds/etc.
     self:drawBody()
+
+    -- Moons on the near side are drawn after, so they can eclipse the planet.
+    self:drawMoonsInFront()
+
+    -- Labels still go on top.
     self:drawLabel()
 end
 
@@ -4285,8 +4544,42 @@ Moon.__index = Moon
 function Moon:new(params)
     params = params or {}
 
-    local self = Planet.new(params)
+    params.has_atmosphere = false
+    params.has_ring = false
+    params.num_rings = 0
+
+    params.mass = params.mass or randomFloat(MOON_MIN_MASS, MOON_MASS)
+
+    params.radius_real = params.radius_real or randomFloat(100, 900)
+    params.radius = params.radius or Moon:getDrawRadiusFromRealRadius(params.radius_real)
+
+    params.colors = params.colors or randomMoonColorSet()
+
+    -- Important:
+    -- Planet:new is defined with colon syntax, so call it using colon syntax.
+    local self = Planet:new(params)
     setmetatable(self, Moon)
+
+    self.name = params.name or "Moon"
+    self.host = params.host
+
+    self.has_atmosphere = false
+    self.has_ring = false
+    self.num_rings = 0
+
+    local orbit = params.orbit or {}
+
+    self.orbit = {
+        semi_major   = orbit.semi_major or 100,
+        eccentricity = orbit.eccentricity or randomFloat(0.05, 0.55),
+        angle        = orbit.angle or randomFloat(0, math.pi * 2),
+        phase        = orbit.phase or randomFloat(0, math.pi * 2),
+        period       = orbit.period or math.random(900, 3600),
+    }
+
+    self.orbit.semi_minor =
+        self.orbit.semi_major *
+        math.sqrt(1 - self.orbit.eccentricity * self.orbit.eccentricity)
 
     return self
 end
@@ -4296,40 +4589,113 @@ end
 -- ==========================================
 
 -- ==========================================
--- MOON MATH
--- ==========================================
-
--- ==========================================
--- MOON PHYSICS
--- ==========================================
-
--- ==========================================
--- MOON COLLISION DETECTION
--- ==========================================
-
--- Treat everything like a circle
-
--- Deflection only works on objects below a certain mass, with the object of the
--- lesser mass being deflected harder than the more massive object.
-
--- When there's a collision, calculate the energy of the collision and destroy
--- one or both objects depending on how massive the collision is.
-
--- ==========================================
--- MOON INPUT
--- ==========================================
-
--- ==========================================
 -- MOON UPDATE
 -- ==========================================
 
+function Moon:updateOrbitPosition(focus)
+    if not focus then
+        return
+    end
+
+    local orbit = self.orbit
+
+    local a = orbit.semi_major
+    local b = orbit.semi_minor
+    local e = orbit.eccentricity
+
+    -- Treat phase as eccentric anomaly.
+    local E = orbit.phase
+
+    -- Ellipse relative to one focus.
+    -- Center-relative ellipse:
+    --   x = a * cos(E)
+    --   y = b * sin(E)
+    --
+    -- Focus-relative version shifts x by -a*e.
+    local local_x = a * math.cos(E) - a * e
+    local local_y = b * math.sin(E)
+
+    -- Used only for draw order.
+    -- Negative means "behind" the planet, positive means "in front".
+    self.orbit_depth = local_y
+
+    -- Rotate ellipse.
+    local cos_a = math.cos(orbit.angle)
+    local sin_a = math.sin(orbit.angle)
+
+    local rotated_x = local_x * cos_a - local_y * sin_a
+    local rotated_y = local_x * sin_a + local_y * cos_a
+
+    self.position.x = focus.x + rotated_x
+    self.position.y = focus.y + rotated_y
+end
+
+function Moon:update()
+    self:updateTimer()
+
+    if not self.host then
+        return
+    end
+
+    local focus = self.host.barycenter or self.host.position
+
+    self.orbit.phase = self.orbit.phase + ((math.pi * 2) / self.orbit.period)
+
+    if self.orbit.phase > math.pi * 2 then
+        self.orbit.phase = self.orbit.phase - math.pi * 2
+    end
+
+    self:updateOrbitPosition(focus)
+end
 
 -- ==========================================
 -- MOON DRAW
 -- ==========================================
 
-function Moon:drawBody()
+function Moon:getDrawRadiusFromRealRadius(radius_real)
+    -- Moon real radius range: 100..900.
+    -- Draw radius range: 4..12 pixels.
+    local min_real_radius = 100
+    local max_real_radius = 900
 
+    local min_draw_radius = 4
+    local max_draw_radius = 12
+
+    radius_real = radius_real or min_real_radius
+
+    local t = (radius_real - min_real_radius) / (max_real_radius - min_real_radius)
+    t = clamp(t, 0, 1)
+
+    return math.floor(min_draw_radius + t * (max_draw_radius - min_draw_radius))
+end
+
+function Moon:drawBody()
+    local zoom = game.camera.zoom or 1
+
+    local screen_x, screen_y = worldToScreen(self.position.x, self.position.y)
+
+    screen_x = math.floor(screen_x)
+    screen_y = math.floor(screen_y)
+
+    -- Keep moons visible at low zoom.
+    local r = math.max(1, math.floor(self.radius * zoom))
+
+    -- Skip if comfortably off-screen.
+    if screen_x < -r - 4 or screen_x > SCREEN_W + r + 4 or
+        screen_y < -r - 4 or screen_y > SCREEN_H + r + 4 then
+        return
+    end
+
+    circ(screen_x, screen_y, r, self.colors.primary)
+
+    -- Only draw crater detail when the moon is large enough to show it.
+    if r >= 4 then
+        self:drawCraters(screen_x, screen_y, r, zoom)
+    end
+end
+
+function Moon:drawLabel()
+    -- No labels for moons for now.
 end
 
 function Moon:draw()

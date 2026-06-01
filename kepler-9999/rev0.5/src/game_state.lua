@@ -61,7 +61,7 @@ game = {
         target_y    = 0,
         lerp        = 0.08,
         zoom        = 1,
-        zoom_index  = 3,
+        zoom_index  = 4,
         zoom_levels = { 0.15, 0.25, 0.5, 1 },
     },
 
@@ -88,6 +88,8 @@ function changeState(newState)
         game.play.player  = generatePlayer()
         game.play.star    = generateStar()
         game.play.planets = generatePlanets()
+
+        generateMoons()
 
         resetPlayerAndCamera()
     end

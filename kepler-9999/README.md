@@ -44,7 +44,7 @@ The different revisions implement separate features. This list is ever changing.
 - [ ] **REV0.5**: Add more heavenly bodies.
     - [x] Update HUD with dynamic Speed indicator.
     - [x] Add a planet class, and include rings and atmospheres.
-    - [ ] Add a moon class that is attached to a particular planet.
+    - [x] Add a moon class that is attached to a particular planet.
     - [ ] Add other minor body classes.
     - [x] Randomly generated names, colors, atmospherics for planets and moons (AAU-style names for anything smaller than a moon).
     - [x] Particle effects for planets: clouds and/or bands that appear to orbit the planet.

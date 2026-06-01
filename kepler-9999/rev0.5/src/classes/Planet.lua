@@ -46,7 +46,7 @@ function Planet:new(params)
         self.colors.cloud = params.colors.cloud or PLANET_CLOUD_COLORS[math.random(1, #PLANET_CLOUD_COLORS)]
     else
         self.craters           = {}
-        self.colors.crater     = params.colors.crater or DARK_GREY or GREY or BLACK
+        self.colors.crater     = params.colors.crater or GRAY_DARK
         self.colors.crater_rim = params.colors.crater_rim or self.colors.secondary
 
         local crater_count = params.crater_count or math.random(
@@ -114,6 +114,12 @@ end
 
 function Planet:update()
     self:updateTimer()
+
+    if self.moons then
+        for _, moon in ipairs(self.moons) do
+            moon:update()
+        end
+    end
 end
 
 -- ==========================================
@@ -270,6 +276,30 @@ function Planet:drawClouds(screen_x, screen_y, r, zoom)
     end
 end
 
+function Planet:drawMoonsBehind()
+    if not self.moons then
+        return
+    end
+
+    for _, moon in ipairs(self.moons) do
+        if moon.orbit_depth and moon.orbit_depth < 0 then
+            moon:draw()
+        end
+    end
+end
+
+function Planet:drawMoonsInFront()
+    if not self.moons then
+        return
+    end
+
+    for _, moon in ipairs(self.moons) do
+        if not moon.orbit_depth or moon.orbit_depth >= 0 then
+            moon:draw()
+        end
+    end
+end
+
 function Planet:drawBody()
     local screen_x, screen_y = worldToScreen(self.position.x, self.position.y)
     local zoom = game.camera.zoom or 1
@@ -314,7 +344,7 @@ function Planet:drawLabel()
     screen_x = math.floor(screen_x)
     screen_y = math.floor(screen_y)
 
-    local r = math.max(1, math.floor(self.radius * zoom))
+    local r    = math.max(1, math.floor(self.radius * zoom))
     local text = self.name or "Planet"
 
     -- TIC-80 print() returns the rendered text width.
@@ -337,6 +367,15 @@ function Planet:drawLabel()
 end
 
 function Planet:draw()
+    -- Moons on the far side are drawn first, so the planet can eclipse them.
+    self:drawMoonsBehind()
+
+    -- Planet body/rings/clouds/etc.
     self:drawBody()
+
+    -- Moons on the near side are drawn after, so they can eclipse the planet.
+    self:drawMoonsInFront()
+
+    -- Labels still go on top.
     self:drawLabel()
 end
