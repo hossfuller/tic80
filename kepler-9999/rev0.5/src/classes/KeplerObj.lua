@@ -5,7 +5,7 @@
 KeplerObj = {}
 KeplerObj.__index = KeplerObj
 
-function KeplerObj.new(params)
+function KeplerObj:new(params)
     params = params or {}
     local self = setmetatable({}, KeplerObj)
 

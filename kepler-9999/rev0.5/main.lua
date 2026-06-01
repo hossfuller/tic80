@@ -16,6 +16,7 @@ include "src.presets.ships"
 include "src.presets.stars"
 include "src.presets.planets"
 include "src.presets.moons"
+include "src.presets.comets"
 include "src.generators"
 include "src.camera"
 include "src.polygons"
@@ -36,6 +37,7 @@ include "src.classes.SpaceShip"
 include "src.classes.Star"
 include "src.classes.Planet"
 include "src.classes.Moon"
+include "src.classes.Comet"
 
 -- ==========================================
 -- MAIN TIC FUNCTION

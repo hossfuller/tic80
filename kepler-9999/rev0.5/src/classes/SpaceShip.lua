@@ -7,7 +7,7 @@ SpaceShip.__index = SpaceShip
 
 function SpaceShip:new(params)
     params = params or {}
-    local self = KeplerObj.new(params) -- build base fields
+    local self = KeplerObj:new(params) -- build base fields
     setmetatable(self, SpaceShip)     -- make it a SpaceShip instance
 
     -- For regenerating the various attributes. Lower number means slower

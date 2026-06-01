@@ -35,7 +35,7 @@ function Planet:new(params)
     params.acceleration = 0
     params.deceleration = 0
 
-    local self = KeplerObj.new(params)
+    local self = KeplerObj:new(params)
     setmetatable(self, Planet)
 
     self.name           = params.name or "Planet"

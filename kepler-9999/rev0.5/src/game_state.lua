@@ -67,9 +67,11 @@ game = {
 
     -- Gameplay state
     play = {
-        player  = {},
-        star    = {},
-        planets = {},
+        player      = {},
+        star        = {},
+        planets     = {},
+        comets      = {},
+        comet_count = 0,
     },
 }
 
@@ -90,6 +92,7 @@ function changeState(newState)
         game.play.planets = generatePlanets()
 
         generateMoons()
+        generateComets()
 
         resetPlayerAndCamera()
     end

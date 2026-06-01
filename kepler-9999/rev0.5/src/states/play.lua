@@ -22,6 +22,13 @@ function updatePlay()
         planet:update()
     end
 
+    if game.play.comets then
+        for _, comet in ipairs(game.play.comets) do
+            comet:update()
+        end
+    end
+    maintainCometCount()
+
     local player = game.play.player
     player:move()
     updateCamera(player, game.camera)
@@ -127,39 +134,6 @@ function drawStarMap()
         zoom
     )
 end
--- function drawStarMap()
---     local camera = game.camera
---     local zoom = camera.zoom or 1
-
---     -- TIC-80 map() does not handle zooming out below 1x cleanly.
---     -- For zoomed-out view, leave the background black.
---     if zoom < 1 then
---         return
---     end
-
-    -- local cam_x = math.floor(camera.x)
-    -- local cam_y = math.floor(camera.y)
-
-    -- local tile_x = math.floor(cam_x / TILE_SIZE)
-    -- local tile_y = math.floor(cam_y / TILE_SIZE)
-
-    -- local offset_x = (cam_x % TILE_SIZE) * zoom
-    -- local offset_y = (cam_y % TILE_SIZE) * zoom
-
-    -- local visible_tiles_w = math.ceil(SCREEN_W / (TILE_SIZE * zoom)) + 1
-    -- local visible_tiles_h = math.ceil(SCREEN_H / (TILE_SIZE * zoom)) + 1
-
---     map(
---         tile_x,
---         tile_y,
---         visible_tiles_w,
---         visible_tiles_h,
---         -offset_x,
---         -offset_y,
---         -1,
---         zoom
---     )
--- end
 
 function drawShipCargoHoldHud()
     local player             = game.play.player
@@ -305,6 +279,12 @@ function drawGame()
 
     for _, planet in ipairs(game.play.planets) do
         planet:draw()
+    end
+
+    if game.play.comets then
+        for _, comet in ipairs(game.play.comets) do
+            comet:draw()
+        end
     end
 
     local player = game.play.player

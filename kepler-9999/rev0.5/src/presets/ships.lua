@@ -27,8 +27,8 @@ local cruiser_ship = {
     },
     engines   = {
         energy = {
-            cur = 250,
-            max = 250,
+            cur = 300,
+            max = 300,
             mul = 1,
             tik = 20,
         },
