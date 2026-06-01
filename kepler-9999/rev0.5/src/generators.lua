@@ -330,3 +330,8 @@ function generatePlanets()
 
     return planets
 end
+
+function generateMoons()
+    local moons = {}
+
+end
