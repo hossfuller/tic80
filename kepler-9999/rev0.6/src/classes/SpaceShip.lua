@@ -709,8 +709,59 @@ end
 -- ==========================================
 
 function SpaceShip:takeDamage(damage, other)
-    -- We'll get back to this shortly.
-    return KeplerObj.takeDamage(self, damage, other)
+    damage = damage or 0
+
+    if self.dead then
+        return false
+    end
+
+    if damage <= 0 then
+        return false
+    end
+
+    -- Optional: ignore damage while invulnerable.
+    if self.mortality and self.mortality.invulnerable > 0 then
+        return false
+    end
+
+    local remaining_damage = damage
+
+    -- 1. Shields absorb damage first.
+    local shield = self.engines.shield
+
+    if shield.cur > 0 then
+        local absorbed = math.min(shield.cur, remaining_damage)
+
+        shield.cur = shield.cur - absorbed
+        remaining_damage = remaining_damage - absorbed
+
+        if shield.cur < 0 then
+            shield.cur = 0
+        end
+    end
+
+    -- 2. Remaining damage hits life support.
+    local life_support = self.engines.life_support
+
+    if remaining_damage > 0 and life_support.cur > 0 then
+        local absorbed = math.min(life_support.cur, remaining_damage)
+
+        life_support.cur = life_support.cur - absorbed
+        remaining_damage = remaining_damage - absorbed
+
+        if life_support.cur < 0 then
+            life_support.cur = 0
+        end
+    end
+
+    -- 3. If life support is depleted, the ship dies.
+    if life_support.cur <= 0 then
+        life_support.cur = 0
+        self:kill()
+        return true
+    end
+
+    return false
 end
 
 -- ==========================================

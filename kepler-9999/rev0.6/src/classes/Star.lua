@@ -248,7 +248,7 @@ end
 -- ==========================================
 
 function Star:getDrawRadiusForType(stellar_type)
-    local multiplier = 20
+    local multiplier = 21
     if stellar_type == "O" then
         return 8 * multiplier
     elseif stellar_type == "B" then

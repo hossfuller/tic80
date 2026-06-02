@@ -51,9 +51,10 @@ The different revisions implement separate features. This list is ever changing.
 - [ ] **REV0.6**: Collision detection and particle effects!
     - [x] Collision detection.
     - [x] Figure out how heavy everything should hit the ship.
-    - [ ] Work out mechanics of the ships shields/energy/life when collisions happen.
-    - [ ] Bring over Asteroids particle effects like explosions, thrust, sparks, and smoke.
+    - [x] Work out mechanics of the ships shields/energy/life when collisions happen.
+    - [ ] Rebalance `SpaceShip` engine levels for all the different ships.
     - [ ] Particle effects from stars can damage the ship.
+    - [ ] Bring over Asteroids particle effects like explosions, thrust, sparks, and smoke.
 - [ ] **REV0.7**: Put the heavens in motion.
     - [ ] Gravity!
     - [ ] Implement inertia and make the energy engine feel it (more mass makes the ship expend more energy to stop).

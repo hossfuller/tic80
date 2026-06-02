@@ -283,20 +283,20 @@ local cruiser_ship           = {
     },
     engines   = {
         energy = {
-            cur = 300,
-            max = 300,
+            cur = 500,
+            max = 500,
             mul = 1,
             tik = 20,
         },
         life_support = {
-            cur = 100,
-            max = 100,
+            cur = 250,
+            max = 250,
             mul = 1,
             tik = 3600,
         },
         shield = {
-            cur = 100,
-            max = 100,
+            cur = 300,
+            max = 300,
             mul = 1,
             tik = 60,
         },
@@ -345,20 +345,20 @@ local freighter_ship         = {
     },
     engines   = {
         energy = {
-            cur = 1000,
-            max = 1000,
+            cur = 1500,
+            max = 1500,
             mul = 1,
             tik = 20,
         },
         life_support = {
-            cur = 100,
-            max = 100,
+            cur = 500,
+            max = 500,
             mul = 1,
             tik = 3600,
         },
         shield = {
-            cur = 250,
-            max = 250,
+            cur = 500,
+            max = 500,
             mul = 1,
             tik = 60,
         },
@@ -421,20 +421,20 @@ local passenger_ship         = {
     },
     engines   = {
         energy = {
-            cur = 500,
-            max = 500,
+            cur = 1000,
+            max = 1000,
             mul = 1,
             tik = 20,
         },
         life_support = {
-            cur = 500,
-            max = 500,
+            cur = 300,
+            max = 300,
             mul = 1,
             tik = 3600,
         },
         shield = {
-            cur = 100,
-            max = 100,
+            cur = 500,
+            max = 500,
             mul = 1,
             tik = 60,
         },
@@ -477,20 +477,20 @@ local smuggler_ship          = {
     },
     engines   = {
         energy = {
-            cur = 500,
-            max = 500,
+            cur = 1000,
+            max = 1000,
             mul = 1,
             tik = 20,
         },
         life_support = {
-            cur = 100,
-            max = 100,
+            cur = 250,
+            max = 250,
             mul = 1,
             tik = 3600,
         },
         shield = {
-            cur = 150,
-            max = 150,
+            cur = 300,
+            max = 300,
             mul = 1,
             tik = 60,
         },
@@ -4344,8 +4344,59 @@ end
 -- ==========================================
 
 function SpaceShip:takeDamage(damage, other)
-    -- We'll get back to this shortly.
-    return KeplerObj.takeDamage(self, damage, other)
+    damage = damage or 0
+
+    if self.dead then
+        return false
+    end
+
+    if damage <= 0 then
+        return false
+    end
+
+    -- Optional: ignore damage while invulnerable.
+    if self.mortality and self.mortality.invulnerable > 0 then
+        return false
+    end
+
+    local remaining_damage = damage
+
+    -- 1. Shields absorb damage first.
+    local shield = self.engines.shield
+
+    if shield.cur > 0 then
+        local absorbed = math.min(shield.cur, remaining_damage)
+
+        shield.cur = shield.cur - absorbed
+        remaining_damage = remaining_damage - absorbed
+
+        if shield.cur < 0 then
+            shield.cur = 0
+        end
+    end
+
+    -- 2. Remaining damage hits life support.
+    local life_support = self.engines.life_support
+
+    if remaining_damage > 0 and life_support.cur > 0 then
+        local absorbed = math.min(life_support.cur, remaining_damage)
+
+        life_support.cur = life_support.cur - absorbed
+        remaining_damage = remaining_damage - absorbed
+
+        if life_support.cur < 0 then
+            life_support.cur = 0
+        end
+    end
+
+    -- 3. If life support is depleted, the ship dies.
+    if life_support.cur <= 0 then
+        life_support.cur = 0
+        self:kill()
+        return true
+    end
+
+    return false
 end
 
 -- ==========================================
@@ -4797,7 +4848,7 @@ end
 -- ==========================================
 
 function Star:getDrawRadiusForType(stellar_type)
-    local multiplier = 20
+    local multiplier = 21
     if stellar_type == "O" then
         return 8 * multiplier
     elseif stellar_type == "B" then
