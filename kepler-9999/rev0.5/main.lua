@@ -12,12 +12,13 @@
 include "src.constants_system"
 include "src.constants_game"
 
-include "src.presets.ships"
-include "src.presets.stars"
-include "src.presets.planets"
-include "src.presets.moons"
-include "src.presets.comets"
-include "src.generators"
+include "src.generators.backgroundmap"
+include "src.generators.ships"
+include "src.generators.stars"
+include "src.generators.planets"
+include "src.generators.moons"
+include "src.generators.comets"
+include "src.generators.asteroids"
 include "src.camera"
 include "src.polygons"
 include "src.game_state"
@@ -38,6 +39,7 @@ include "src.classes.Star"
 include "src.classes.Planet"
 include "src.classes.Moon"
 include "src.classes.Comet"
+include "src.classes.Asteroid"
 
 -- ==========================================
 -- MAIN TIC FUNCTION

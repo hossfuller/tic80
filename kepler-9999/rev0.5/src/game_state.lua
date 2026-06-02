@@ -71,6 +71,7 @@ game = {
         star        = {},
         planets     = {},
         comets      = {},
+        asteroids   = {},
         comet_count = 0,
     },
 }
@@ -87,9 +88,10 @@ function changeState(newState)
     if newState == STATE.READY then
         generateBackgroundMap()
 
-        game.play.player  = generatePlayer()
-        game.play.star    = generateStar()
-        game.play.planets = generatePlanets()
+        game.play.player    = generatePlayer()
+        game.play.star      = generateStar()
+        game.play.planets   = generatePlanets()
+        game.play.asteroids = spawnAsteroids()
 
         generateMoons()
         generateComets()

@@ -107,10 +107,154 @@ local TILE_GALAXY_H  = 4
 
 -- [/TQ-Bundler: src.constants_game]
 
--- [TQ-Bundler: src.presets.ships]
+-- [TQ-Bundler: src.generators.backgroundmap]
 
 -- ==========================================
--- SPACESHIP PRESETS
+-- BACKGROUND MAP
+-- ==========================================
+
+function generateStarScreen(screen_x, screen_y)
+    local start_tile_x = screen_x * SCREEN_TILES_W
+    local start_tile_y = screen_y * SCREEN_TILES_H
+
+    local density = math.random(2, 8)
+
+    for local_y = 0, SCREEN_TILES_H - 1 do
+        for local_x = 0, SCREEN_TILES_W - 1 do
+            local map_x = start_tile_x + local_x
+            local map_y = start_tile_y + local_y
+
+            local roll = math.random(1, 100)
+
+            if roll <= density then
+                local star_roll = math.random(1, 100)
+
+                if star_roll <= 70 then
+                    mset(map_x, map_y, TILE_STAR_DIM)
+                elseif star_roll <= 95 then
+                    mset(map_x, map_y, TILE_STAR_MED)
+                else
+                    mset(map_x, map_y, TILE_STAR_BRIGHT)
+                end
+            else
+                mset(map_x, map_y, TILE_EMPTY)
+            end
+        end
+    end
+
+    local landmark_count = math.random(1, 4)
+
+    for i = 1, landmark_count do
+        local lx = start_tile_x + math.random(0, SCREEN_TILES_W - 1)
+        local ly = start_tile_y + math.random(0, SCREEN_TILES_H - 1)
+
+        mset(lx, ly, TILE_STAR_BRIGHT)
+    end
+end
+
+function tileRectsOverlap(a, b)
+    return
+        a.x < b.x + b.w and
+        a.x + a.w > b.x and
+        a.y < b.y + b.h and
+        a.y + a.h > b.y
+end
+
+function canPlaceTileObject(candidate, placed_objects)
+    for _, object in ipairs(placed_objects) do
+        if tileRectsOverlap(candidate, object) then
+            return false
+        end
+    end
+
+    return true
+end
+
+function stampTileObjectToMap(base_tile_id, tile_w, tile_h, map_tile_x, map_tile_y)
+    for y = 0, tile_h - 1 do
+        for x = 0, tile_w - 1 do
+            local tile_id = base_tile_id + x + y * SPRITESHEET_TILES_W
+            mset(map_tile_x + x, map_tile_y + y, tile_id)
+        end
+    end
+end
+
+function placeRandomTileObjectOnMap(base_tile_id, tile_w, tile_h, placed_objects)
+    local max_tile_x = MAP_TILES_W - tile_w
+    local max_tile_y = MAP_TILES_H - tile_h
+
+    local attempts = 0
+    local max_attempts = 100
+
+    while attempts < max_attempts do
+        attempts = attempts + 1
+
+        local map_tile_x = math.random(0, max_tile_x)
+        local map_tile_y = math.random(0, max_tile_y)
+
+        local candidate = {
+            x = map_tile_x,
+            y = map_tile_y,
+            w = tile_w,
+            h = tile_h,
+        }
+
+        if canPlaceTileObject(candidate, placed_objects) then
+            stampTileObjectToMap(
+                base_tile_id,
+                tile_w,
+                tile_h,
+                map_tile_x,
+                map_tile_y
+            )
+
+            table.insert(placed_objects, candidate)
+
+            return true
+        end
+    end
+
+    return false
+end
+
+function generateBackgroundMap()
+    for screen_y = 0, MAP_SCREENS_H - 1 do
+        for screen_x = 0, MAP_SCREENS_W - 1 do
+            generateStarScreen(screen_x, screen_y)
+        end
+    end
+
+    local placed_objects = {}
+
+    local black_hole_count = math.random(1, 3)
+    local galaxy_count = math.random(1, 3)
+
+    for i = 1, black_hole_count do
+        placeRandomTileObjectOnMap(
+            TILE_BLACK_HOLE_ID,
+            TILE_BLACK_HOLE_W,
+            TILE_BLACK_HOLE_H,
+            placed_objects
+        )
+    end
+
+    for i = 1, galaxy_count do
+        placeRandomTileObjectOnMap(
+            TILE_GALAXY_ID,
+            TILE_GALAXY_W,
+            TILE_GALAXY_H,
+            placed_objects
+        )
+    end
+end
+
+
+-- [/TQ-Bundler: src.generators.backgroundmap]
+
+-- [TQ-Bundler: src.generators.ships]
+
+-- ==========================================
+-- PLAYER & NPC SHIPS
 -- ==========================================
 
 --[[
@@ -124,16 +268,16 @@ local PASSENGER_MASS         = 75
 local PASSENGER_LUGGAGE_MASS = 25
 local PASSENGER_TOTAL_MASS   = PASSENGER_MASS + PASSENGER_LUGGAGE_MASS
 
-local cruiser_ship = {
-    name  = "Cruiser",
-    shape = {
+local cruiser_ship           = {
+    name      = "Cruiser",
+    shape     = {
         { x = 8,  y = 0 },
         { x = -8, y = 6 },
         { x = -4, y = 0 },
         { x = -8, y = -6 },
         { x = 8,  y = 0 },
     },
-    colors = {
+    colors    = {
         primary = BLUE_MED,
     },
     engines   = {
@@ -156,7 +300,7 @@ local cruiser_ship = {
             tik = 60,
         },
     },
-    holds = {
+    holds     = {
         cargo = {
             max = 500, -- (kg)
         },
@@ -167,20 +311,20 @@ local cruiser_ship = {
             max = 100, -- (kg)
         },
     },
-    mass      = 100,   -- (kg)
-    max_mass  = 1300,  -- (kg, includes passenger luggage)
-    radius    = 10,    -- (pixels)
+    mass      = 100,  -- (kg)
+    max_mass  = 1300, -- (kg, includes passenger luggage)
+    radius    = 10,   -- (pixels)
     max_speed = 2.5,
 }
 
-local freighter_ship = {
-    name  = "Freighter",
-    shape = {
+local freighter_ship         = {
+    name      = "Freighter",
+    shape     = {
         { x = 16, y = 0 },
         { x = 13, y = 5 },
-        { x = 6, y = 5 },
-        { x = 4, y = 7 },
-        { x = 0, y = 8 },
+        { x = 6,  y = 5 },
+        { x = 4,  y = 7 },
+        { x = 0,  y = 8 },
         { x = -9, y = 8 },
         { x = -9, y = 6 },
         { x = -6, y = 2 },
@@ -188,14 +332,14 @@ local freighter_ship = {
         { x = -6, y = -2 },
         { x = -9, y = -6 },
         { x = -9, y = -8 },
-        { x = 0, y = -8 },
-        { x = 4, y = -7 },
-        { x = 6, y = -5 },
+        { x = 0,  y = -8 },
+        { x = 4,  y = -7 },
+        { x = 6,  y = -5 },
         { x = 13, y = -5 },
         { x = 16, y = 0 },
     },
-    colors = {
-        primary = GREEN_MED,
+    colors    = {
+        primary = GREEN_DARK,
     },
     engines   = {
         energy = {
@@ -217,7 +361,7 @@ local freighter_ship = {
             tik = 60,
         },
     },
-    holds   = {
+    holds     = {
         cargo = {
             max = 2000, -- (kg)
         },
@@ -228,46 +372,46 @@ local freighter_ship = {
             max = 400, -- (kg)
         },
     },
-    mass      = 500,   -- (kg)
-    max_mass  = 3300,  -- (kg, includes passenger luggage)
-    radius    = 15,    -- (pixels)
+    mass      = 500,  -- (kg)
+    max_mass  = 3300, -- (kg, includes passenger luggage)
+    radius    = 15,   -- (pixels)
     max_speed = 1.5,
 }
 
-local passenger_ship = {
-    name  = "Passenger Ship",
-    shape = {
-        { x = 10, y = 0 },
-        { x = 9, y = 2 },
-        { x = 7, y = 3 },
-        { x = -1, y = 3 },
-        { x = -3, y = 6 },
-        { x = 1, y = 6 },
-        { x = 2, y = 7 },
-        { x = 1, y = 9 },
+local passenger_ship         = {
+    name      = "Passenger Ship",
+    shape     = {
+        { x = 10,  y = 0 },
+        { x = 9,   y = 2 },
+        { x = 7,   y = 3 },
+        { x = -1,  y = 3 },
+        { x = -3,  y = 6 },
+        { x = 1,   y = 6 },
+        { x = 2,   y = 7 },
+        { x = 1,   y = 9 },
         { x = -10, y = 9 },
         { x = -11, y = 7 },
         { x = -10, y = 6 },
-        { x = -8, y = 6 },
-        { x = -6, y = 3 },
-        { x = -8, y = 3 },
+        { x = -8,  y = 6 },
+        { x = -6,  y = 3 },
+        { x = -8,  y = 3 },
         { x = -10, y = 2 },
         { x = -11, y = 0 },
         { x = -10, y = -2 },
-        { x = -8, y = -3 },
-        { x = -6, y = -3 },
-        { x = -8, y = -6 },
+        { x = -8,  y = -3 },
+        { x = -6,  y = -3 },
+        { x = -8,  y = -6 },
         { x = -10, y = -6 },
         { x = -11, y = -7 },
         { x = -10, y = -9 },
-        { x = 1, y = -9 },
-        { x = 2, y = -7 },
-        { x = 1, y = -6 },
-        { x = -3, y = -6 },
-        { x = -1, y = -3 },
-        { x = 7, y = -3 },
-        { x = 9, y = -2 },
-        { x = 10, y = 0 },
+        { x = 1,   y = -9 },
+        { x = 2,   y = -7 },
+        { x = 1,   y = -6 },
+        { x = -3,  y = -6 },
+        { x = -1,  y = -3 },
+        { x = 7,   y = -3 },
+        { x = 9,   y = -2 },
+        { x = 10,  y = 0 },
     },
     colors    = {
         primary = WHITE,
@@ -292,7 +436,7 @@ local passenger_ship = {
             tik = 60,
         },
     },
-    holds = {
+    holds     = {
         cargo = {
             max = 500, -- (kg)
         },
@@ -309,20 +453,20 @@ local passenger_ship = {
     max_speed = 2.0,
 }
 
-local smuggler_ship = {
-    name  = "Smuggler",
-    shape = {
-        { x = 3, y = 0 },
-        { x = 6, y = 3 },
-        { x = 0, y = 6 },
+local smuggler_ship          = {
+    name      = "Smuggler",
+    shape     = {
+        { x = 3,  y = 0 },
+        { x = 6,  y = 3 },
+        { x = 0,  y = 6 },
         { x = -8, y = 9 },
         { x = -6, y = 3 },
         { x = -9, y = 0 },
         { x = -6, y = -3 },
         { x = -8, y = -9 },
-        { x = 0, y = -6 },
-        { x = 6, y = -3 },
-        { x = 3, y = 0 },
+        { x = 0,  y = -6 },
+        { x = 6,  y = -3 },
+        { x = 3,  y = 0 },
     },
     colors    = {
         primary = RED,
@@ -364,20 +508,26 @@ local smuggler_ship = {
     max_speed = 2.5,
 }
 
--- Use this in `generatePlayer()`.
-ship_presets = {
+local ship_presets = {
     cruiser_ship,
     freighter_ship,
     passenger_ship,
     smuggler_ship,
 }
 
--- [/TQ-Bundler: src.presets.ships]
+function generatePlayer()
+    local selected_ship = game.params.ship_type or 1
+    local preset = ship_presets[selected_ship] or cruiser_ship
+    return SpaceShip:new(preset)
+end
 
--- [TQ-Bundler: src.presets.stars]
+
+-- [/TQ-Bundler: src.generators.ships]
+
+-- [TQ-Bundler: src.generators.stars]
 
 -- ==========================================
--- STAR PRESETS
+-- STARS
 -- ==========================================
 
 --[[
@@ -387,11 +537,11 @@ ship_presets = {
 --]]
 
 -- Heavenly Body constants
-local STELLAR_TYPES  = { "O", "B", "A", "F", "G", "K", "M", }
-local SOLAR_MASS     = 1000000000000
-local MOON_MASS      = 1000000
-local SOLAR_RADIUS   = 10000
-local MOON_RADIUS    = 100
+local STELLAR_TYPES    = { "O", "B", "A", "F", "G", "K", "M", }
+local SOLAR_MASS       = 1000000000000
+local MOON_MASS        = 1000000
+local SOLAR_RADIUS     = 10000
+local MOON_RADIUS      = 100
 
 local STELLAR_PROFILES = {
     O = {
@@ -654,349 +804,6 @@ local STELLAR_PROFILES = {
     },
 }
 
-
--- [/TQ-Bundler: src.presets.stars]
-
--- [TQ-Bundler: src.presets.planets]
-
--- ==========================================
--- PLANET PRESETS / HELPERS
--- ==========================================
-
-local JUPITER_MASS   = 1000000000
-local EARTH_MASS     = 10000000
-local JUPITER_RADIUS = 1000
-local EARTH_RADIUS   = 100
-
-local PLANET_ATMOSPHERE_COLORS = {
-    PURPLE,
-    RED,
-    ORANGE,
-    YELLOW,
-    GREEN_LITE,
-    GREEN_MED,
-    GREEN_DARK,
-    BLUE_DARK,
-    BLUE_MED,
-    BLUE_LITE,
-    CYAN,
-}
-
-local PLANET_CLOUD_COLORS = {
-    WHITE,
-    CYAN,
-    BLUE_LITE,
-    PURPLE,
-}
-
-local PLANET_ROCKY_COLORS = {
-    RED,
-    GRAY_LITE,
-    GRAY_MED,
-    GRAY_DARK,
-}
-
-local PLANET_CRATER_COLORS = {
-    GRAY_DARK,
-    GRAY_LITE,
-    GRAY_MED,
-    BLACK,
-}
-
-function randomPlanetColorSet(has_atmosphere)
-    local source_colors = PLANET_ROCKY_COLORS
-
-    if has_atmosphere then
-        source_colors = PLANET_ATMOSPHERE_COLORS
-    end
-
-    return {
-        primary    = randomChoice(source_colors),
-        secondary  = randomChoice(source_colors),
-        tertiary   = randomChoice(source_colors),
-        cloud      = randomChoice(PLANET_CLOUD_COLORS),
-        crater     = randomChoice(PLANET_CRATER_COLORS),
-        crater_rim = randomChoice(source_colors),
-    }
-end
-
-
-
--- [/TQ-Bundler: src.presets.planets]
-
--- [TQ-Bundler: src.presets.moons]
-
--- ==========================================
--- MOON PRESETS / HELPERS
--- ==========================================
-
-local MOON_MASS     = 1000000
-local MOON_MIN_MASS = 10000
-local MOON_RADIUS   = 100
-
-local MAX_MOONS_PER_PLANET    = 3
-local MAX_MOON_ORBIT_APOAPSIS = MAP_TILES_W
-
-local MOON_ROCKY_COLORS = {
-    RED,
-    GREEN_DARK,
-    BLUE_DARK,
-    GRAY_LITE,
-    GRAY_MED,
-    GRAY_DARK,
-}
-
-local MOON_CRATER_COLORS = {
-    GRAY_DARK,
-    GRAY_LITE,
-    GRAY_MED,
-    BLACK,
-}
-
-function randomMoonColorSet()
-    local source_colors = MOON_ROCKY_COLORS
-
-    return {
-        primary    = randomChoice(source_colors),
-        secondary  = randomChoice(source_colors),
-        tertiary   = randomChoice(source_colors),
-        crater     = randomChoice(MOON_CRATER_COLORS),
-        crater_rim = randomChoice(source_colors),
-    }
-end
-
-
--- [/TQ-Bundler: src.presets.moons]
-
--- [TQ-Bundler: src.presets.comets]
-
--- ==========================================
--- COMET PRESETS / HELPERS
--- ==========================================
-
-local COMET_MAX_MASS        = 1000
-local COMET_MIN_MASS        = 10
-local COMET_RADIUS_REAL_MIN = 100
-local COMET_RADIUS_REAL_MAX = 900
-local COMET_SPEED_MIN       = 0.05
-local COMET_SPEED_MAX       = 0.5
-local COMET_NUM_MIN         = 5
-local COMET_NUM_MAX         = 10
-local COMET_EVAPORATION_MIN = 0.001
-local COMET_EVAPORATION_MAX = 0.08
-
-local COMET_TAIL_LIFE_MIN   = 8
-local COMET_TAIL_LIFE_MAX   = 160
-local COMET_TAIL_SPEED_MIN  = 0.05
-local COMET_TAIL_SPEED_MAX  = 1.25
-local COMET_TAIL_SPAWN_MIN  = 0.25
-local COMET_TAIL_SPAWN_MAX  = 8
-
-local COMET_COLORS = {
-    PURPLE,
-    BLUE_DARK ,
-    BLUE_MED,
-    BLUE_LITE,
-    CYAN,
-    GRAY_LITE,
-    GRAY_MED,
-    GRAY_DARK,
-}
-
-function randomCometColorSet()
-    return {
-        primary   = WHITE,
-        secondary = randomChoice(COMET_COLORS),
-        tertiary  = randomChoice(COMET_COLORS),
-    }
-end
-
-function randomCometColorList(colors)
-    colors = colors or randomCometColorSet()
-
-    return {
-        colors.primary,
-        colors.secondary,
-        colors.tertiary,
-    }
-end
-
-
--- [/TQ-Bundler: src.presets.comets]
-
--- [TQ-Bundler: src.generators]
-
--- ==========================================
--- GENERATORS
--- ==========================================
-
--- ==========================================
--- BACKGROUND MAP
--- ==========================================
-
-function generateStarScreen(screen_x, screen_y)
-    local start_tile_x = screen_x * SCREEN_TILES_W
-    local start_tile_y = screen_y * SCREEN_TILES_H
-
-    local density = math.random(2, 8)
-
-    for local_y = 0, SCREEN_TILES_H - 1 do
-        for local_x = 0, SCREEN_TILES_W - 1 do
-            local map_x = start_tile_x + local_x
-            local map_y = start_tile_y + local_y
-
-            local roll = math.random(1, 100)
-
-            if roll <= density then
-                local star_roll = math.random(1, 100)
-
-                if star_roll <= 70 then
-                    mset(map_x, map_y, TILE_STAR_DIM)
-                elseif star_roll <= 95 then
-                    mset(map_x, map_y, TILE_STAR_MED)
-                else
-                    mset(map_x, map_y, TILE_STAR_BRIGHT)
-                end
-            else
-                mset(map_x, map_y, TILE_EMPTY)
-            end
-        end
-    end
-
-    local landmark_count = math.random(1, 4)
-
-    for i = 1, landmark_count do
-        local lx = start_tile_x + math.random(0, SCREEN_TILES_W - 1)
-        local ly = start_tile_y + math.random(0, SCREEN_TILES_H - 1)
-
-        mset(lx, ly, TILE_STAR_BRIGHT)
-    end
-end
-
-function tileRectsOverlap(a, b)
-    return
-        a.x < b.x + b.w and
-        a.x + a.w > b.x and
-        a.y < b.y + b.h and
-        a.y + a.h > b.y
-end
-
-function canPlaceTileObject(candidate, placed_objects)
-    for _, object in ipairs(placed_objects) do
-        if tileRectsOverlap(candidate, object) then
-            return false
-        end
-    end
-
-    return true
-end
-
-function stampTileObjectToMap(base_tile_id, tile_w, tile_h, map_tile_x, map_tile_y)
-    for y = 0, tile_h - 1 do
-        for x = 0, tile_w - 1 do
-            local tile_id = base_tile_id + x + y * SPRITESHEET_TILES_W
-            mset(map_tile_x + x, map_tile_y + y, tile_id)
-        end
-    end
-end
-
-function placeRandomTileObjectOnMap(base_tile_id, tile_w, tile_h, placed_objects)
-    local max_tile_x = MAP_TILES_W - tile_w
-    local max_tile_y = MAP_TILES_H - tile_h
-
-    local attempts = 0
-    local max_attempts = 100
-
-    while attempts < max_attempts do
-        attempts = attempts + 1
-
-        local map_tile_x = math.random(0, max_tile_x)
-        local map_tile_y = math.random(0, max_tile_y)
-
-        local candidate = {
-            x = map_tile_x,
-            y = map_tile_y,
-            w = tile_w,
-            h = tile_h,
-        }
-
-        if canPlaceTileObject(candidate, placed_objects) then
-            stampTileObjectToMap(
-                base_tile_id,
-                tile_w,
-                tile_h,
-                map_tile_x,
-                map_tile_y
-            )
-
-            table.insert(placed_objects, candidate)
-
-            return true
-        end
-    end
-
-    return false
-end
-
-function generateBackgroundMap()
-    for screen_y = 0, MAP_SCREENS_H - 1 do
-        for screen_x = 0, MAP_SCREENS_W - 1 do
-            generateStarScreen(screen_x, screen_y)
-        end
-    end
-
-    local placed_objects = {}
-
-    local black_hole_count = math.random(1, 3)
-    local galaxy_count = math.random(1, 3)
-
-    for i = 1, black_hole_count do
-        placeRandomTileObjectOnMap(
-            TILE_BLACK_HOLE_ID,
-            TILE_BLACK_HOLE_W,
-            TILE_BLACK_HOLE_H,
-            placed_objects
-        )
-    end
-
-    for i = 1, galaxy_count do
-        placeRandomTileObjectOnMap(
-            TILE_GALAXY_ID,
-            TILE_GALAXY_W,
-            TILE_GALAXY_H,
-            placed_objects
-        )
-    end
-end
-
--- ==========================================
--- KEPLER OBJECTS, INCLUDING SHIPS
--- ==========================================
-
---[[
-Important shape rules
-This triangulation assumes your polygon is:
-
-- Simple — edges do not cross each other.
-- Ordered — points go around the outline in clockwise or counter-clockwise order.
-- Not full of duplicate points — except the final point may duplicate the first point.
-- Not self-intersecting.
-
-Performance note
-For one player ship, recalculating triangulation every frame is totally fine.
-
-But if you later have many polygon ships/enemies with fixed shapes, you may want to triangulate the local shape once and then rotate/draw the triangle vertices each frame. For now, this version is simpler and reusable.
---]]
-
-
-function generatePlayer()
-    local selected_ship = game.params.ship_type or 1
-    local preset = ship_presets[selected_ship] or cruiser_ship
-    return SpaceShip:new(preset)
-end
-
---[[ STARS ]]--
-
 function randomStarCornerPosition()
     local corners = {
         { -- Bottom-left
@@ -1024,7 +831,71 @@ function generateStar()
     })
 end
 
---[[ PLANETS ]] --
+
+-- [/TQ-Bundler: src.generators.stars]
+
+-- [TQ-Bundler: src.generators.planets]
+
+-- ==========================================
+-- PLANETS
+-- ==========================================
+
+local JUPITER_MASS             = 1000000000
+local EARTH_MASS               = 10000000
+local JUPITER_RADIUS           = 1000
+local EARTH_RADIUS             = 100
+
+local PLANET_ATMOSPHERE_COLORS = {
+    PURPLE,
+    RED,
+    ORANGE,
+    YELLOW,
+    GREEN_LITE,
+    GREEN_MED,
+    GREEN_DARK,
+    BLUE_DARK,
+    BLUE_MED,
+    BLUE_LITE,
+    CYAN,
+}
+
+local PLANET_CLOUD_COLORS      = {
+    WHITE,
+    CYAN,
+    BLUE_LITE,
+    PURPLE,
+}
+
+local PLANET_ROCKY_COLORS      = {
+    RED,
+    GRAY_LITE,
+    GRAY_MED,
+    GRAY_DARK,
+}
+
+local PLANET_CRATER_COLORS     = {
+    GRAY_DARK,
+    GRAY_LITE,
+    GRAY_MED,
+    BLACK,
+}
+
+function randomPlanetColorSet(has_atmosphere)
+    local source_colors = PLANET_ROCKY_COLORS
+
+    if has_atmosphere then
+        source_colors = PLANET_ATMOSPHERE_COLORS
+    end
+
+    return {
+        primary    = randomChoice(source_colors),
+        secondary  = randomChoice(source_colors),
+        tertiary   = randomChoice(source_colors),
+        cloud      = randomChoice(PLANET_CLOUD_COLORS),
+        crater     = randomChoice(PLANET_CRATER_COLORS),
+        crater_rim = randomChoice(source_colors),
+    }
+end
 
 function generatePlanetName(index)
     -- 1 -> b, 2 -> c, 3 -> d, etc.
@@ -1159,7 +1030,49 @@ function generatePlanets()
     return planets
 end
 
---[[ MOONS ]] --
+
+-- [/TQ-Bundler: src.generators.planets]
+
+-- [TQ-Bundler: src.generators.moons]
+
+-- ==========================================
+-- MOONS
+-- ==========================================
+
+local MOON_MASS               = 1000000
+local MOON_MIN_MASS           = 10000
+local MOON_RADIUS             = 100
+
+local MAX_MOONS_PER_PLANET    = 3
+local MAX_MOON_ORBIT_APOAPSIS = MAP_TILES_W
+
+local MOON_ROCKY_COLORS       = {
+    RED,
+    GREEN_DARK,
+    BLUE_DARK,
+    GRAY_LITE,
+    GRAY_MED,
+    GRAY_DARK,
+}
+
+local MOON_CRATER_COLORS      = {
+    GRAY_DARK,
+    GRAY_LITE,
+    GRAY_MED,
+    BLACK,
+}
+
+function randomMoonColorSet()
+    local source_colors = MOON_ROCKY_COLORS
+
+    return {
+        primary    = randomChoice(source_colors),
+        secondary  = randomChoice(source_colors),
+        tertiary   = randomChoice(source_colors),
+        crater     = randomChoice(MOON_CRATER_COLORS),
+        crater_rim = randomChoice(source_colors),
+    }
+end
 
 function getMoonCountForPlanet(planet)
     -- Normalize planet mass from Earth-ish to Jupiter-ish.
@@ -1337,7 +1250,61 @@ function generateMoons()
     end
 end
 
---[[ COMETS ]] --
+
+-- [/TQ-Bundler: src.generators.moons]
+
+-- [TQ-Bundler: src.generators.comets]
+
+-- ==========================================
+-- COMETS
+-- ==========================================
+
+local COMET_MAX_MASS        = 1000
+local COMET_MIN_MASS        = 10
+local COMET_RADIUS_REAL_MIN = 100
+local COMET_RADIUS_REAL_MAX = 900
+local COMET_SPEED_MIN       = 0.05
+local COMET_SPEED_MAX       = 0.5
+local COMET_NUM_MIN         = 5
+local COMET_NUM_MAX         = 10
+local COMET_EVAPORATION_MIN = 0.001
+local COMET_EVAPORATION_MAX = 0.08
+
+local COMET_TAIL_LIFE_MIN   = 8
+local COMET_TAIL_LIFE_MAX   = 160
+local COMET_TAIL_SPEED_MIN  = 0.05
+local COMET_TAIL_SPEED_MAX  = 1.25
+local COMET_TAIL_SPAWN_MIN  = 0.25
+local COMET_TAIL_SPAWN_MAX  = 8
+
+local COMET_COLORS          = {
+    PURPLE,
+    BLUE_DARK,
+    BLUE_MED,
+    BLUE_LITE,
+    CYAN,
+    GRAY_LITE,
+    GRAY_MED,
+    GRAY_DARK,
+}
+
+function randomCometColorSet()
+    return {
+        primary   = WHITE,
+        secondary = randomChoice(COMET_COLORS),
+        tertiary  = randomChoice(COMET_COLORS),
+    }
+end
+
+function randomCometColorList(colors)
+    colors = colors or randomCometColorSet()
+
+    return {
+        colors.primary,
+        colors.secondary,
+        colors.tertiary,
+    }
+end
 
 function generateCometCount()
     return math.random(COMET_NUM_MIN, COMET_NUM_MAX)
@@ -1478,7 +1445,77 @@ function maintainCometCount()
 end
 
 
--- [/TQ-Bundler: src.generators]
+-- [/TQ-Bundler: src.generators.comets]
+
+-- [TQ-Bundler: src.generators.asteroids]
+
+-- ==========================================
+-- ASTEROIDS
+-- ==========================================
+
+local ASTEROID_MIN_MASS           = 5
+local ASTEROID_MAX_MASS           = 300
+local ASTEROID_RADIUS_MIN         = 6
+local ASTEROID_RADIUS_MAX         = 22
+local ASTEROID_SPEED_MIN          = 0.05
+local ASTEROID_SPEED_MAX          = 0.45
+local ASTEROID_ROTATION_MAX       = 0.025
+local ASTEROID_RADIUS_MINUS       = 6
+local ASTEROID_RADIUS_PLUS        = 4
+local ASTEROID_VERTICES_MIN       = 7
+local ASTEROID_VERTICES_MAX       = 12
+local ASTEROID_NUM_MIN            = 20
+local ASTEROID_NUM_MAX            = 45
+local ASTEROID_MAX_FRAGMENT_SCALE = 4
+
+local ASTEROID_COLORS             = {
+    GRAY_LITE,
+    GRAY_MED,
+    GRAY_DARK,
+}
+
+function randomAsteroidName(index)
+    return "Asteroid-" .. tostring(index)
+end
+
+function randomAsteroidParams(index)
+    return {
+        name = randomAsteroidName(index),
+
+        x = randomFloat(0, MAP_PIXELS_W),
+        y = randomFloat(0, MAP_PIXELS_H),
+
+        speed = randomFloat(ASTEROID_SPEED_MIN, ASTEROID_SPEED_MAX),
+        direction = randomFloat(0, math.pi * 2),
+
+        radius = randomFloat(ASTEROID_RADIUS_MIN, ASTEROID_RADIUS_MAX),
+        mass = randomFloat(ASTEROID_MIN_MASS, ASTEROID_MAX_MASS),
+
+        color = randomChoice(ASTEROID_COLORS),
+
+        num_vertices = math.random(ASTEROID_VERTICES_MIN, ASTEROID_VERTICES_MAX),
+
+        rotation_speed = randomFloat(
+            -ASTEROID_ROTATION_MAX,
+            ASTEROID_ROTATION_MAX
+        ),
+    }
+end
+
+function spawnAsteroids(count)
+    local asteroids = {}
+
+    count = count or math.random(ASTEROID_NUM_MIN, ASTEROID_NUM_MAX)
+
+    for i = 1, count do
+        table.insert(asteroids, Asteroid:new(randomAsteroidParams(i)))
+    end
+
+    return asteroids
+end
+
+
+-- [/TQ-Bundler: src.generators.asteroids]
 
 -- [TQ-Bundler: src.camera]
 
@@ -1879,6 +1916,7 @@ game = {
         star        = {},
         planets     = {},
         comets      = {},
+        asteroids   = {},
         comet_count = 0,
     },
 }
@@ -1895,9 +1933,10 @@ function changeState(newState)
     if newState == STATE.READY then
         generateBackgroundMap()
 
-        game.play.player  = generatePlayer()
-        game.play.star    = generateStar()
-        game.play.planets = generatePlanets()
+        game.play.player    = generatePlayer()
+        game.play.star      = generateStar()
+        game.play.planets   = generatePlanets()
+        game.play.asteroids = spawnAsteroids()
 
         generateMoons()
         generateComets()
@@ -2469,6 +2508,16 @@ function updatePlay()
     end
     maintainCometCount()
 
+    for i = #game.play.asteroids, 1, -1 do
+        local asteroid = game.play.asteroids[i]
+
+        asteroid:update()
+
+        if asteroid:isFinished() or asteroid:isOffMap() then
+            table.remove(game.play.asteroids, i)
+        end
+    end
+
     local player = game.play.player
     player:move()
     updateCamera(player, game.camera)
@@ -2725,6 +2774,10 @@ function drawGame()
         for _, comet in ipairs(game.play.comets) do
             comet:draw()
         end
+    end
+
+    for _, asteroid in ipairs(game.play.asteroids) do
+        asteroid:draw()
     end
 
     local player = game.play.player
@@ -3977,7 +4030,7 @@ function SpaceShip:drawBody()
     local points = self:getScreenShapePoints()
 
     -- Draw a ship-shaped black mask first.
-    drawFilledPolygon(points, BLACK)
+    drawFilledPolygon(points, self.color)
 
     -- Draw the ship outline on top.
     drawPolygonOutline(points, self.color)
@@ -5259,6 +5312,266 @@ end
 
 
 -- [/TQ-Bundler: src.classes.Comet]
+
+-- [TQ-Bundler: src.classes.Asteroid]
+
+-- ==========================================
+-- ASTEROID OBJECT
+-- ==========================================
+
+Asteroid = setmetatable({}, { __index = KeplerObj })
+Asteroid.__index = Asteroid
+
+function Asteroid:new(params)
+    params = params or {}
+
+    params.mass   = params.mass or randomFloat(ASTEROID_MIN_MASS, ASTEROID_MAX_MASS)
+    params.radius = params.radius or randomFloat(ASTEROID_RADIUS_MIN, ASTEROID_RADIUS_MAX)
+    params.color  = params.color or randomChoice(ASTEROID_COLORS)
+
+    local direction     = params.direction or randomFloat(0, math.pi * 2)
+    local speed         = params.speed or randomFloat(ASTEROID_SPEED_MIN, ASTEROID_SPEED_MAX)
+    params.direction    = direction
+    params.speed        = speed
+    params.acceleration = params.acceleration or 0
+    params.deceleration = params.deceleration or 0
+
+    local self = KeplerObj:new(params)
+    setmetatable(self, Asteroid)
+
+    self.name = params.name or "Asteroid"
+
+    -- Asteroid-specific properties, adapted from your old class.
+    -- self.base_points    = params.base_points or 50
+    self.clumpiness   = params.clumpiness or 0.35
+    self.scale        = params.scale or 1
+    self.num_vertices = params.num_vertices or math.random(ASTEROID_VERTICES_MIN, ASTEROID_VERTICES_MAX)
+
+    self.radius       = params.radius or self.radius or 15
+    self.radius_minus = params.radius_minus or ASTEROID_RADIUS_MINUS
+    self.radius_plus  = params.radius_plus or ASTEROID_RADIUS_PLUS
+
+    self.rotation       = params.rotation or randomFloat(0, math.pi * 2)
+    self.rotation_max   = params.rotation_max or ASTEROID_ROTATION_MAX
+    self.rotation_speed = params.rotation_speed or randomFloat(
+        -self.rotation_max,
+        self.rotation_max
+    )
+
+    self.velocity_min = params.velocity_min or ASTEROID_SPEED_MIN
+    self.velocity_max = params.velocity_max or ASTEROID_SPEED_MAX
+
+    -- Stable polygon shape.
+    self.shape = params.shape or self:spawn()
+
+    self.destroyed = false
+
+    return self
+end
+
+-- ==========================================
+-- ASTEROID GETTERS
+-- ==========================================
+
+function Asteroid:getInducedDamage()
+    return self.radius * 10
+end
+
+function Asteroid:getPoints()
+    return self.base_points * self.scale
+end
+
+function Asteroid:getRadius()
+    return self.radius
+end
+
+function Asteroid:getScale()
+    return self.scale
+end
+
+function Asteroid:getRadiusPlusMinus()
+    return {
+        plus  = self.radius_plus,
+        minus = self.radius_minus,
+    }
+end
+
+function Asteroid:isFinished()
+    return self.destroyed
+end
+
+function Asteroid:isOffMap()
+    local padding = self.radius + 80
+
+    return
+        self.position.x < -padding or
+        self.position.x > MAP_PIXELS_W + padding or
+        self.position.y < -padding or
+        self.position.y > MAP_PIXELS_H + padding
+end
+
+-- ==========================================
+-- ASTEROID SHAPE
+-- ==========================================
+
+function Asteroid:spawn()
+    local vertices = {}
+
+    local baseR    = self.radius
+
+    -- Scale the "clumpiness" with size.
+    local minus    = math.min(self.radius_minus, baseR * self.clumpiness)
+    local plus     = math.min(self.radius_plus, baseR * self.clumpiness)
+
+    table.insert(vertices, { x = baseR, y = 0 })
+
+    for vertex = 1, self.num_vertices - 1 do
+        local minr = math.max(1, baseR - minus)
+        local maxr = math.max(minr + 0.01, baseR + plus)
+
+        local r = randomFloat(minr, maxr)
+        local a = (math.pi * 2 / self.num_vertices) * vertex
+
+        table.insert(vertices, {
+            x = r * math.cos(a),
+            y = r * math.sin(a),
+        })
+    end
+
+    table.insert(vertices, { x = baseR, y = 0 })
+
+    return vertices
+end
+
+-- ==========================================
+-- ASTEROID UPDATE
+-- ==========================================
+
+function Asteroid:destroy()
+    self.destroyed = true
+end
+
+function Asteroid:move()
+    local components = self:getVectorComponents(self.velocity)
+
+    self.position.x = self.position.x + components.xComp
+    self.position.y = self.position.y + components.yComp
+
+    self.rotation = self.rotation + self.rotation_speed
+end
+
+function Asteroid:update()
+    self:updateTimer()
+
+    if not self.destroyed then
+        self:move()
+    end
+end
+
+-- ==========================================
+-- ASTEROID EXPLOSION
+-- ==========================================
+
+function Asteroid:explode()
+    local asteroid_fragments = {}
+
+    local orig_scale = self.scale or 1
+
+    if orig_scale < ASTEROID_MAX_FRAGMENT_SCALE then
+        local new_scale = orig_scale * 2
+
+        for count = 1, 2 do
+            local fragment_radius = math.max(2, self.radius / new_scale)
+
+            local asteroid = Asteroid:new({
+                name           = "Asteroid Fragment",
+                color          = self.color,
+                x              = self.position.x,
+                y              = self.position.y,
+
+                speed          = randomFloat(self.velocity_min, self.velocity_max),
+                direction      = randomFloat(0, math.pi * 2),
+
+                acceleration   = self.acceleration,
+                deceleration   = self.deceleration,
+                elasticity     = self.elasticity,
+
+                scale          = new_scale,
+
+                rotation_speed = randomFloat(
+                    -self.rotation_max,
+                    self.rotation_max
+                ),
+
+                radius         = fragment_radius,
+                radius_minus   = self.radius_minus,
+                radius_plus    = self.radius_plus,
+                num_vertices   = self.num_vertices,
+
+                base_points    = self.base_points,
+                clumpiness     = self.clumpiness,
+            })
+
+            table.insert(asteroid_fragments, asteroid)
+        end
+    end
+
+    self:destroy()
+
+    return asteroid_fragments
+end
+
+-- ==========================================
+-- ASTEROID DRAW
+-- ==========================================
+
+function Asteroid:getRotatedPoint(point)
+    local cos_r = math.cos(self.rotation)
+    local sin_r = math.sin(self.rotation)
+
+    return {
+        x = point.x * cos_r - point.y * sin_r,
+        y = point.x * sin_r + point.y * cos_r,
+    }
+end
+
+function Asteroid:draw()
+    if self.destroyed then
+        return
+    end
+
+    local zoom = game.camera.zoom or 1
+
+    local screen_x, screen_y = worldToScreen(self.position.x, self.position.y)
+
+    local screen_radius = self.radius * zoom
+
+    if screen_x < -screen_radius - 8 or
+        screen_x > SCREEN_W + screen_radius + 8 or
+        screen_y < -screen_radius - 8 or
+        screen_y > SCREEN_H + screen_radius + 8 then
+        return
+    end
+
+    local cx = math.floor(screen_x)
+    local cy = math.floor(screen_y)
+
+    for i = 1, #self.shape - 1 do
+        local p1 = self:getRotatedPoint(self.shape[i])
+        local p2 = self:getRotatedPoint(self.shape[i + 1])
+
+        local x1 = math.floor(screen_x + p1.x * zoom)
+        local y1 = math.floor(screen_y + p1.y * zoom)
+        local x2 = math.floor(screen_x + p2.x * zoom)
+        local y2 = math.floor(screen_y + p2.y * zoom)
+
+        tri(cx, cy, x1, y1, x2, y2, self.color)
+        line(x1, y1, x2, y2, GRAY_LITE)
+    end
+end
+
+
+-- [/TQ-Bundler: src.classes.Asteroid]
 
 -- ==========================================
 -- MAIN TIC FUNCTION

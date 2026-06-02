@@ -29,6 +29,16 @@ function updatePlay()
     end
     maintainCometCount()
 
+    for i = #game.play.asteroids, 1, -1 do
+        local asteroid = game.play.asteroids[i]
+
+        asteroid:update()
+
+        if asteroid:isFinished() or asteroid:isOffMap() then
+            table.remove(game.play.asteroids, i)
+        end
+    end
+
     local player = game.play.player
     player:move()
     updateCamera(player, game.camera)
@@ -285,6 +295,10 @@ function drawGame()
         for _, comet in ipairs(game.play.comets) do
             comet:draw()
         end
+    end
+
+    for _, asteroid in ipairs(game.play.asteroids) do
+        asteroid:draw()
     end
 
     local player = game.play.player
