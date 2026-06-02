@@ -140,6 +140,14 @@ function Asteroid:update()
 end
 
 -- ==========================================
+-- ASTEROID COLLISION DAMAGE
+-- ==========================================
+
+function Asteroid:takeDamage(damage, other)
+    -- We'll get back to this shortly.
+end
+
+-- ==========================================
 -- ASTEROID EXPLOSION
 -- ==========================================
 

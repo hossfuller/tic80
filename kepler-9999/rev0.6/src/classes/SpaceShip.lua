@@ -704,6 +704,13 @@ end
 -- end
 
 
+-- ==========================================
+-- SPACESHIP COLLISION DAMAGE
+-- ==========================================
+
+function SpaceShip:takeDamage(damage, other)
+    -- We'll get back to this shortly.
+end
 
 -- ==========================================
 -- SPACESHIP INPUT

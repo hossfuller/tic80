@@ -2,6 +2,8 @@
 -- COLLISION SYSTEM
 -- ==========================================
 
+local COLLISION_DAMAGE_SCALE = 1
+
 function getCollisionRadius(obj)
     if not obj then
         return 0

@@ -1657,6 +1657,8 @@ end
 -- COLLISION SYSTEM
 -- ==========================================
 
+local COLLISION_DAMAGE_SCALE = 1
+
 function getCollisionRadius(obj)
     if not obj then
         return 0
@@ -3474,10 +3476,11 @@ function KeplerObj:getVectorComponents(vector)
 end
 
 function KeplerObj:addVectors(vector1, vector2)
-    v1Comp = self:getVectorComponents(vector1)
-    v2Comp = self:getVectorComponents(vector2)
-    resultantX = v1Comp.xComp + v2Comp.xComp
-    resultantY = v1Comp.yComp + v2Comp.yComp
+    local v1Comp = self:getVectorComponents(vector1)
+    local v2Comp = self:getVectorComponents(vector2)
+
+    local resultantX = v1Comp.xComp + v2Comp.xComp
+    local resultantY = v1Comp.yComp + v2Comp.yComp
 
     local resVector = self:compToVector(resultantX, resultantY)
 
@@ -3491,7 +3494,7 @@ function KeplerObj:compToVector(x, y)
     direction = self:keepAngleInRange(direction)
 
     local vector = {
-        speed = magnitude,
+        speed     = magnitude,
         direction = direction
     }
 
@@ -3525,16 +3528,85 @@ end
 -- ==========================================
 
 -- ==========================================
--- KEPLEROBJ COLLISION DETECTION
+-- KEPLEROBJ COLLISION DAMAGE
 -- ==========================================
 
--- Treat everything like a circle
+function KeplerObj:induceDamage(obj)
+    if not obj then
+        return 0
+    end
 
--- Deflection only works on objects below a certain mass, with the object of the
--- lesser mass being deflected harder than the more massive object.
+    if self.dead or obj.dead then
+        return 0
+    end
 
--- When there's a collision, calculate the energy of the collision and destroy
--- one or both objects depending on how massive the collision is.
+    if not self.velocity then
+        return 0
+    end
+
+    local self_comp = self:getVectorComponents(
+        self.velocity or { speed = 0, direction = 0 }
+    )
+
+    local self_vx = self_comp.xComp
+    local self_vy = self_comp.yComp
+
+    local obj_vx = 0
+    local obj_vy = 0
+
+    if obj.getVectorComponents then
+        local obj_comp = obj:getVectorComponents(
+            obj.velocity or { speed = 0, direction = 0 }
+        )
+
+        obj_vx = obj_comp.xComp
+        obj_vy = obj_comp.yComp
+    elseif obj.velocity then
+        obj_vx = math.cos(obj.velocity.direction or 0) * (obj.velocity.speed or 0)
+        obj_vy = math.sin(obj.velocity.direction or 0) * (obj.velocity.speed or 0)
+    end
+
+    local rel_vx = self_vx - obj_vx
+    local rel_vy = self_vy - obj_vy
+
+    -- Your getCollisionNormal(a, b) points from b toward a.
+    -- Therefore getCollisionNormal(obj, self) points from self toward obj.
+    local nx, ny = getCollisionNormal(obj, self)
+
+    -- Positive means self is moving into obj.
+    local inbound_speed = rel_vx * nx + rel_vy * ny
+
+    if inbound_speed <= 0 then
+        return 0
+    end
+
+    local mass = self.mass or 0
+
+    return 0.5 * mass * inbound_speed * inbound_speed * COLLISION_DAMAGE_SCALE
+end
+
+function KeplerObj:takeDamage(damage, other)
+    damage = damage or 0
+
+    if self.dead then
+        return false
+    end
+
+    if damage <= 0 then
+        return false
+    end
+
+    self.mass = (self.mass or 0) - damage
+
+    if self.mass <= 0 then
+        self.mass = 0
+        self:kill()
+        return true
+    end
+
+    return false
+end
+
 
 -- ==========================================
 -- KEPLEROBJ INPUT
@@ -4304,6 +4376,13 @@ end
 -- end
 
 
+-- ==========================================
+-- SPACESHIP COLLISION DAMAGE
+-- ==========================================
+
+function SpaceShip:takeDamage(damage, other)
+    -- We'll get back to this shortly.
+end
 
 -- ==========================================
 -- SPACESHIP INPUT
@@ -5895,6 +5974,14 @@ function Asteroid:update()
     end
 
     self:move()
+end
+
+-- ==========================================
+-- ASTEROID COLLISION DAMAGE
+-- ==========================================
+
+function Asteroid:takeDamage(damage, other)
+    -- We'll get back to this shortly.
 end
 
 -- ==========================================
