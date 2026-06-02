@@ -37,49 +37,6 @@ function objectsCollide(a, b)
     )
 end
 
-function isAsteroid(obj)
-    return obj and getmetatable(obj) == Asteroid
-end
-
-function killCollisionObject(obj, other)
-    if not obj or obj.dead then
-        return
-    end
-
-    if isAsteroid(obj) then
-        breakAsteroidFromCollision(obj, other)
-    else
-        obj:kill()
-    end
-end
-
-function breakAsteroidFromCollision(asteroid, other)
-    if not asteroid or asteroid.dead then
-        return
-    end
-
-    -- Direction from the thing hit toward the asteroid.
-    -- This is the "away from collision" direction.
-    local nx, ny = getCollisionNormal(asteroid, other)
-
-    asteroid.break_normal = {
-        x = nx,
-        y = ny,
-    }
-
-    asteroid.break_other = other
-
-    killAsteroidAndSpawnFragments(asteroid)
-end
-
-function destroyCollisionObject(obj)
-    if not obj or obj.dead then
-        return
-    end
-
-    obj:kill()
-end
-
 function getCollisionNormal(a, b)
     local dx = a.position.x - b.position.x
     local dy = a.position.y - b.position.y
@@ -111,9 +68,10 @@ function separateCollisionObjects(a, b)
     local dist_sq = dx * dx + dy * dy
 
     if dist_sq <= 0 then
-        dx = randomFloat(-1, 1)
-        dy = randomFloat(-1, 1)
-        dist_sq = dx * dx + dy * dy
+        local angle = randomFloat(0, math.pi * 2)
+        dx = math.cos(angle)
+        dy = math.sin(angle)
+        dist_sq = 1
     end
 
     local dist = math.sqrt(dist_sq)
@@ -185,6 +143,66 @@ function deflectCollisionPair(a, b)
     deflectObject(b, -nx, -ny)
 end
 
+--[[
+    Asteroids are a special case here because they break up into smaller
+    asteroids when they're "destroyed". So we need a lot of code to detect when
+    this is happening and then properly handle it.
+--]]
+function isAsteroid(obj)
+    return obj and getmetatable(obj) == Asteroid
+end
+
+function breakAsteroidFromCollision(asteroid, other)
+    if not asteroid or asteroid.dead then
+        return
+    end
+
+    local nx = 0
+    local ny = 0
+
+    if other and other.position and asteroid.position then
+        nx, ny = getCollisionNormal(asteroid, other)
+    else
+        local direction = asteroid.velocity and asteroid.velocity.direction or randomFloat(0, math.pi * 2)
+        nx = math.cos(direction)
+        ny = math.sin(direction)
+    end
+
+    asteroid.break_normal = {
+        x = nx,
+        y = ny,
+    }
+
+    asteroid.break_other = other
+
+    killAsteroidAndSpawnFragments(asteroid)
+end
+
+function killCollisionObject(obj, other)
+    if not obj or obj.dead then
+        return
+    end
+
+    if isAsteroid(obj) then
+        breakAsteroidFromCollision(obj, other)
+    else
+        obj:kill()
+    end
+end
+
+function destroyCollisionObject(obj)
+    if not obj or obj.dead then
+        return
+    end
+
+    obj:kill()
+end
+
+--[[
+    Now we're checking against large bodies. If the moving object hits a star,
+    planet, or moon, it's gone.
+--]]
+-- If the object hits a star, poof! it's gone.
 function checkObjectAgainstStar(obj, star)
     if not obj or not star then
         return
