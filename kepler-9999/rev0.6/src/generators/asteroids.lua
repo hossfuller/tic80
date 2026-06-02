@@ -5,7 +5,7 @@
 local ASTEROID_MIN_MASS           = 5
 local ASTEROID_MAX_MASS           = 300
 local ASTEROID_RADIUS_MIN         = 6
-local ASTEROID_RADIUS_MAX         = 22
+local ASTEROID_RADIUS_MAX         = 10
 local ASTEROID_SPEED_MIN          = 0.05
 local ASTEROID_SPEED_MAX          = 0.45
 local ASTEROID_ROTATION_MAX       = 0.025
@@ -82,4 +82,16 @@ function spawnAsteroids(count)
     end
 
     return asteroids
+end
+
+function killAsteroidAndSpawnFragments(asteroid)
+    if not asteroid then
+        return
+    end
+
+    local fragments = asteroid:kill()
+
+    for _, fragment in ipairs(fragments or {}) do
+        table.insert(game.play.asteroids, fragment)
+    end
 end

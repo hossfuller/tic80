@@ -20,7 +20,7 @@ local COMET_TAIL_SPEED_MAX  = 1.25
 local COMET_TAIL_SPAWN_MIN  = 0.25
 local COMET_TAIL_SPAWN_MAX  = 8
 
-local COMET_COLORS          = {
+local COMET_COLORS = {
     PURPLE,
     BLUE_DARK,
     BLUE_MED,

@@ -31,7 +31,6 @@ function Comet:new(params)
     self.name = params.name or "Comet"
 
     self.radius_real    = params.radius_real
-    self.destroyed      = false
     self.mass_initial   = self.mass
     self.radius_initial = self.radius
     self.draw_scale     = 1
@@ -73,7 +72,7 @@ end
 -- ==========================================
 
 function Comet:isFinished()
-    return self.destroyed and #self.tail_particles <= 0
+    return self.dead and #self.tail_particles <= 0
 end
 
 function Comet:getDrawRadiusFromRealRadius(radius_real)
@@ -150,11 +149,11 @@ end
 -- COMET UPDATE
 -- ==========================================
 
-function Comet:destroy()
-    self.destroyed = true
-end
-
 function Comet:move()
+    if self.dead then
+        return
+    end
+
     local components = self:getVectorComponents(self.velocity)
 
     self.position.x = self.position.x + components.xComp
@@ -266,7 +265,7 @@ function Comet:updateTailParticles()
 end
 
 function Comet:evaporate()
-    if self.destroyed then
+    if self.dead then
         return
     end
 
@@ -285,7 +284,7 @@ function Comet:evaporate()
 
     if self.mass <= 0 then
         self.mass = 0
-        self:destroy()
+        self:kill()
         return
     end
 
@@ -300,17 +299,17 @@ end
 function Comet:update()
     self:updateTimer()
 
-    if not self.destroyed then
+    if not self.dead then
         self:move()
         self:evaporate()
 
         -- Only living comets spawn new tail particles.
-        if not self.destroyed then
+        if not self.dead then
             self:spawnTailParticles()
         end
     end
 
-    -- Existing tail particles continue after the comet evaporates.
+    -- Existing tail particles continue after the comet dies.
     self:updateTailParticles()
 end
 
@@ -364,7 +363,7 @@ function Comet:draw()
     -- Tail can remain after body is gone.
     self:drawTailParticles()
 
-    if not self.destroyed then
+    if not self.dead then
         self:drawBody()
     end
 end

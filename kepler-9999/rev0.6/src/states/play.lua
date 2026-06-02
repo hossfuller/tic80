@@ -44,7 +44,7 @@ function updatePlay()
     updateCamera(player, game.camera)
 
     -- If ship is dead, count down and respawn or gameover
-    if player.mortality.dead then
+    if player.dead then
         player.mortality.respawn_timer = player.mortality.respawn_timer - 1
 
         if player.mortality.respawn_timer <= 0 then
@@ -302,7 +302,7 @@ function drawGame()
     end
 
     local player = game.play.player
-    if not player.mortality.dead and player:shouldDraw() then
+    if not player.dead and player:shouldDraw() then
         player:drawBody()
     end
 

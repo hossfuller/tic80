@@ -49,22 +49,12 @@ function Asteroid:new(params)
     -- Stable polygon shape.
     self.shape = params.shape or self:spawn()
 
-    self.destroyed = false
-
     return self
 end
 
 -- ==========================================
 -- ASTEROID GETTERS
 -- ==========================================
-
-function Asteroid:getInducedDamage()
-    return self.radius * 10
-end
-
--- function Asteroid:getPoints()
---     return self.base_points * self.scale
--- end
 
 function Asteroid:getRadius()
     return self.radius
@@ -79,10 +69,6 @@ function Asteroid:getRadiusPlusMinus()
         plus  = self.radius_plus,
         minus = self.radius_minus,
     }
-end
-
-function Asteroid:isFinished()
-    return self.destroyed
 end
 
 function Asteroid:isOffMap()
@@ -132,25 +118,25 @@ end
 -- ASTEROID UPDATE
 -- ==========================================
 
-function Asteroid:destroy()
-    self.destroyed = true
-end
-
 function Asteroid:move()
-    local components = self:getVectorComponents(self.velocity)
+    if self.dead then
+        return
+    end
 
+    local components = self:getVectorComponents(self.velocity)
     self.position.x = self.position.x + components.xComp
     self.position.y = self.position.y + components.yComp
-
-    self.rotation = self.rotation + self.rotation_speed
+    self.rotation   = self.rotation + self.rotation_speed
 end
 
 function Asteroid:update()
     self:updateTimer()
 
-    if not self.destroyed then
-        self:move()
+    if self.dead then
+        return
     end
+
+    self:move()
 end
 
 -- ==========================================
@@ -158,6 +144,12 @@ end
 -- ==========================================
 
 function Asteroid:explode()
+    if self.exploded then
+        return {}
+    end
+
+    self.exploded = true
+
     local asteroid_fragments = {}
 
     local orig_scale = self.scale or 1
@@ -184,17 +176,13 @@ function Asteroid:explode()
 
                 scale          = new_scale,
 
-                rotation_speed = randomFloat(
-                    -self.rotation_max,
-                    self.rotation_max
-                ),
+                rotation_speed = randomFloat(-self.rotation_max, self.rotation_max),
 
                 radius         = fragment_radius,
                 radius_minus   = self.radius_minus,
                 radius_plus    = self.radius_plus,
                 num_vertices   = self.num_vertices,
 
-                -- base_points    = self.base_points,
                 clumpiness     = self.clumpiness,
             })
 
@@ -202,7 +190,7 @@ function Asteroid:explode()
         end
     end
 
-    self:destroy()
+    self:explosionEffect()
 
     return asteroid_fragments
 end
@@ -222,7 +210,7 @@ function Asteroid:getRotatedPoint(point)
 end
 
 function Asteroid:draw()
-    if self.destroyed then
+    if self.dead then
         return
     end
 

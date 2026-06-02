@@ -1281,7 +1281,7 @@ local COMET_TAIL_SPEED_MAX  = 1.25
 local COMET_TAIL_SPAWN_MIN  = 0.25
 local COMET_TAIL_SPAWN_MAX  = 8
 
-local COMET_COLORS          = {
+local COMET_COLORS = {
     PURPLE,
     BLUE_DARK,
     BLUE_MED,
@@ -1460,7 +1460,7 @@ end
 local ASTEROID_MIN_MASS           = 5
 local ASTEROID_MAX_MASS           = 300
 local ASTEROID_RADIUS_MIN         = 6
-local ASTEROID_RADIUS_MAX         = 22
+local ASTEROID_RADIUS_MAX         = 10
 local ASTEROID_SPEED_MIN          = 0.05
 local ASTEROID_SPEED_MAX          = 0.45
 local ASTEROID_ROTATION_MAX       = 0.025
@@ -1537,6 +1537,18 @@ function spawnAsteroids(count)
     end
 
     return asteroids
+end
+
+function killAsteroidAndSpawnFragments(asteroid)
+    if not asteroid then
+        return
+    end
+
+    local fragments = asteroid:kill()
+
+    for _, fragment in ipairs(fragments or {}) do
+        table.insert(game.play.asteroids, fragment)
+    end
 end
 
 
@@ -1638,6 +1650,14 @@ end
 
 
 -- [/TQ-Bundler: src.camera]
+
+-- [TQ-Bundler: src.collisions]
+
+-- ==========================================
+-- COLLISION SYSTEM
+-- ==========================================
+
+-- [/TQ-Bundler: src.collisions]
 
 -- [TQ-Bundler: src.polygons]
 
@@ -2548,7 +2568,7 @@ function updatePlay()
     updateCamera(player, game.camera)
 
     -- If ship is dead, count down and respawn or gameover
-    if player.mortality.dead then
+    if player.dead then
         player.mortality.respawn_timer = player.mortality.respawn_timer - 1
 
         if player.mortality.respawn_timer <= 0 then
@@ -2806,7 +2826,7 @@ function drawGame()
     end
 
     local player = game.play.player
-    if not player.mortality.dead and player:shouldDraw() then
+    if not player.dead and player:shouldDraw() then
         player:drawBody()
     end
 
@@ -3024,6 +3044,12 @@ function KeplerObj:new(params)
     -- have tiny elasticity.
     self.elasticity = params.elasticity or 1.0
 
+    -- Lifecycle state.
+    -- dead:     The object should no longer update position/velocity.
+    -- exploded: The object's explosion has already been triggered.
+    self.dead     = params.dead or false
+    self.exploded = params.exploded or false
+
     self.timer = params.timer or 0
 
     return self
@@ -3048,6 +3074,10 @@ end
 
 function KeplerObj:getVelocityFraction()
     return self:getVelocity() / self.max_speed
+end
+
+function KeplerObj:isFinished()
+    return self.dead
 end
 
 -- ==========================================
@@ -3117,8 +3147,15 @@ function KeplerObj:movePointByVelocity(obj)
         obj = self
     end
 
-    components = self:getVectorComponents(obj.velocity)
+    -- Dead objects do not update position.
+    if obj.dead then
+        return {
+            x = obj.position.x,
+            y = obj.position.y,
+        }
+    end
 
+    local components  = self:getVectorComponents(obj.velocity)
     local newPosition = {
         x = obj.position.x + components.xComp,
         y = obj.position.y + components.yComp
@@ -3156,6 +3193,35 @@ function KeplerObj:updateTimer()
 end
 
 function KeplerObj:move()
+    if self.dead then
+        return
+    end
+end
+
+-- ==========================================
+-- KEPLEROBJ LIFECYCLE
+-- ==========================================
+
+function KeplerObj:kill()
+    if self.dead then
+        return
+    end
+    self.dead = true
+    return self:explode()
+end
+
+function KeplerObj:explode()
+    if self.exploded then
+        return
+    end
+    self.exploded = true
+    self:explosionEffect()
+    return self.dead and self.exploded
+end
+
+function KeplerObj:explosionEffect()
+    -- Empty stub.
+    -- Child objects can override this to spawn particles, fragments, sounds, etc.
 end
 
 -- ==========================================
@@ -3171,11 +3237,6 @@ function KeplerObj:draw()
 
     -- Anything else to draw, like particle effects?
 end
-
-function KeplerObj:explode()
-    -- All space objects explode. How is another matter.
-end
-
 
 -- [/TQ-Bundler: src.classes.KeplerObj]
 
@@ -3924,7 +3985,7 @@ end
 
 -- Need to do an energy check before doing any of the following.
 function SpaceShip:input()
-    if self.mortality.dead or self:getEnergy() <= 0 then
+    if self.dead or self:getEnergy() <= 0 then
         return
     end
 
@@ -3964,7 +4025,7 @@ end
 function SpaceShip:move()
     self:updateTimer()
 
-    if not self.mortality.dead then
+    if not self.dead then
         -- We want to be able to coast without any deceleration....
         -- self.velocity.speed = self.velocity.speed - self.deceleration
         -- if self.velocity.speed < 0 then
@@ -3991,10 +4052,10 @@ function SpaceShip:move()
 end
 
 function SpaceShip:kill()
-    if self.mortality.dead then
+    if self.dead then
         return
     end
-    self.mortality.dead = true
+    self.dead = true
     self.mortality.num_lives = self.mortality.num_lives - 1
     self.mortality.respawn_timer = 90
     self:explode()
@@ -4062,7 +4123,7 @@ function SpaceShip:drawBody()
 end
 
 function SpaceShip:draw()
-    if not self.mortality.dead and self:shouldDraw() then
+    if not self.dead and self:shouldDraw() then
         self:drawBody()
     end
 
@@ -4074,10 +4135,10 @@ function SpaceShip:draw()
 end
 
 function SpaceShip:explode()
-    if self.mortality.exploded then
+    if self.exploded then
         return
     end
-    self.mortality.exploded = true
+    self.exploded = true
     -- self:explosionEffect()
     -- sfx(2, 10, 30, 3, 15)
 end
@@ -4997,7 +5058,6 @@ function Comet:new(params)
     self.name = params.name or "Comet"
 
     self.radius_real    = params.radius_real
-    self.destroyed      = false
     self.mass_initial   = self.mass
     self.radius_initial = self.radius
     self.draw_scale     = 1
@@ -5039,7 +5099,7 @@ end
 -- ==========================================
 
 function Comet:isFinished()
-    return self.destroyed and #self.tail_particles <= 0
+    return self.dead and #self.tail_particles <= 0
 end
 
 function Comet:getDrawRadiusFromRealRadius(radius_real)
@@ -5116,11 +5176,11 @@ end
 -- COMET UPDATE
 -- ==========================================
 
-function Comet:destroy()
-    self.destroyed = true
-end
-
 function Comet:move()
+    if self.dead then
+        return
+    end
+
     local components = self:getVectorComponents(self.velocity)
 
     self.position.x = self.position.x + components.xComp
@@ -5232,7 +5292,7 @@ function Comet:updateTailParticles()
 end
 
 function Comet:evaporate()
-    if self.destroyed then
+    if self.dead then
         return
     end
 
@@ -5251,7 +5311,7 @@ function Comet:evaporate()
 
     if self.mass <= 0 then
         self.mass = 0
-        self:destroy()
+        self:kill()
         return
     end
 
@@ -5266,17 +5326,17 @@ end
 function Comet:update()
     self:updateTimer()
 
-    if not self.destroyed then
+    if not self.dead then
         self:move()
         self:evaporate()
 
         -- Only living comets spawn new tail particles.
-        if not self.destroyed then
+        if not self.dead then
             self:spawnTailParticles()
         end
     end
 
-    -- Existing tail particles continue after the comet evaporates.
+    -- Existing tail particles continue after the comet dies.
     self:updateTailParticles()
 end
 
@@ -5330,7 +5390,7 @@ function Comet:draw()
     -- Tail can remain after body is gone.
     self:drawTailParticles()
 
-    if not self.destroyed then
+    if not self.dead then
         self:drawBody()
     end
 end
@@ -5391,22 +5451,12 @@ function Asteroid:new(params)
     -- Stable polygon shape.
     self.shape = params.shape or self:spawn()
 
-    self.destroyed = false
-
     return self
 end
 
 -- ==========================================
 -- ASTEROID GETTERS
 -- ==========================================
-
-function Asteroid:getInducedDamage()
-    return self.radius * 10
-end
-
--- function Asteroid:getPoints()
---     return self.base_points * self.scale
--- end
 
 function Asteroid:getRadius()
     return self.radius
@@ -5421,10 +5471,6 @@ function Asteroid:getRadiusPlusMinus()
         plus  = self.radius_plus,
         minus = self.radius_minus,
     }
-end
-
-function Asteroid:isFinished()
-    return self.destroyed
 end
 
 function Asteroid:isOffMap()
@@ -5474,25 +5520,25 @@ end
 -- ASTEROID UPDATE
 -- ==========================================
 
-function Asteroid:destroy()
-    self.destroyed = true
-end
-
 function Asteroid:move()
-    local components = self:getVectorComponents(self.velocity)
+    if self.dead then
+        return
+    end
 
+    local components = self:getVectorComponents(self.velocity)
     self.position.x = self.position.x + components.xComp
     self.position.y = self.position.y + components.yComp
-
-    self.rotation = self.rotation + self.rotation_speed
+    self.rotation   = self.rotation + self.rotation_speed
 end
 
 function Asteroid:update()
     self:updateTimer()
 
-    if not self.destroyed then
-        self:move()
+    if self.dead then
+        return
     end
+
+    self:move()
 end
 
 -- ==========================================
@@ -5500,6 +5546,12 @@ end
 -- ==========================================
 
 function Asteroid:explode()
+    if self.exploded then
+        return {}
+    end
+
+    self.exploded = true
+
     local asteroid_fragments = {}
 
     local orig_scale = self.scale or 1
@@ -5526,17 +5578,13 @@ function Asteroid:explode()
 
                 scale          = new_scale,
 
-                rotation_speed = randomFloat(
-                    -self.rotation_max,
-                    self.rotation_max
-                ),
+                rotation_speed = randomFloat(-self.rotation_max, self.rotation_max),
 
                 radius         = fragment_radius,
                 radius_minus   = self.radius_minus,
                 radius_plus    = self.radius_plus,
                 num_vertices   = self.num_vertices,
 
-                -- base_points    = self.base_points,
                 clumpiness     = self.clumpiness,
             })
 
@@ -5544,7 +5592,7 @@ function Asteroid:explode()
         end
     end
 
-    self:destroy()
+    self:explosionEffect()
 
     return asteroid_fragments
 end
@@ -5564,7 +5612,7 @@ function Asteroid:getRotatedPoint(point)
 end
 
 function Asteroid:draw()
-    if self.destroyed then
+    if self.dead then
         return
     end
 

@@ -43,6 +43,12 @@ function KeplerObj:new(params)
     -- have tiny elasticity.
     self.elasticity = params.elasticity or 1.0
 
+    -- Lifecycle state.
+    -- dead:     The object should no longer update position/velocity.
+    -- exploded: The object's explosion has already been triggered.
+    self.dead     = params.dead or false
+    self.exploded = params.exploded or false
+
     self.timer = params.timer or 0
 
     return self
@@ -67,6 +73,10 @@ end
 
 function KeplerObj:getVelocityFraction()
     return self:getVelocity() / self.max_speed
+end
+
+function KeplerObj:isFinished()
+    return self.dead
 end
 
 -- ==========================================
@@ -136,8 +146,15 @@ function KeplerObj:movePointByVelocity(obj)
         obj = self
     end
 
-    components = self:getVectorComponents(obj.velocity)
+    -- Dead objects do not update position.
+    if obj.dead then
+        return {
+            x = obj.position.x,
+            y = obj.position.y,
+        }
+    end
 
+    local components  = self:getVectorComponents(obj.velocity)
     local newPosition = {
         x = obj.position.x + components.xComp,
         y = obj.position.y + components.yComp
@@ -175,6 +192,35 @@ function KeplerObj:updateTimer()
 end
 
 function KeplerObj:move()
+    if self.dead then
+        return
+    end
+end
+
+-- ==========================================
+-- KEPLEROBJ LIFECYCLE
+-- ==========================================
+
+function KeplerObj:kill()
+    if self.dead then
+        return
+    end
+    self.dead = true
+    return self:explode()
+end
+
+function KeplerObj:explode()
+    if self.exploded then
+        return
+    end
+    self.exploded = true
+    self:explosionEffect()
+    return self.dead and self.exploded
+end
+
+function KeplerObj:explosionEffect()
+    -- Empty stub.
+    -- Child objects can override this to spawn particles, fragments, sounds, etc.
 end
 
 -- ==========================================
@@ -189,8 +235,4 @@ function KeplerObj:draw()
     self:drawBody()
 
     -- Anything else to draw, like particle effects?
-end
-
-function KeplerObj:explode()
-    -- All space objects explode. How is another matter.
 end

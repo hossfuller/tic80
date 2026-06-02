@@ -741,7 +741,7 @@ end
 
 -- Need to do an energy check before doing any of the following.
 function SpaceShip:input()
-    if self.mortality.dead or self:getEnergy() <= 0 then
+    if self.dead or self:getEnergy() <= 0 then
         return
     end
 
@@ -781,7 +781,7 @@ end
 function SpaceShip:move()
     self:updateTimer()
 
-    if not self.mortality.dead then
+    if not self.dead then
         -- We want to be able to coast without any deceleration....
         -- self.velocity.speed = self.velocity.speed - self.deceleration
         -- if self.velocity.speed < 0 then
@@ -808,10 +808,10 @@ function SpaceShip:move()
 end
 
 function SpaceShip:kill()
-    if self.mortality.dead then
+    if self.dead then
         return
     end
-    self.mortality.dead = true
+    self.dead = true
     self.mortality.num_lives = self.mortality.num_lives - 1
     self.mortality.respawn_timer = 90
     self:explode()
@@ -879,7 +879,7 @@ function SpaceShip:drawBody()
 end
 
 function SpaceShip:draw()
-    if not self.mortality.dead and self:shouldDraw() then
+    if not self.dead and self:shouldDraw() then
         self:drawBody()
     end
 
@@ -891,10 +891,10 @@ function SpaceShip:draw()
 end
 
 function SpaceShip:explode()
-    if self.mortality.exploded then
+    if self.exploded then
         return
     end
-    self.mortality.exploded = true
+    self.exploded = true
     -- self:explosionEffect()
     -- sfx(2, 10, 30, 3, 15)
 end
