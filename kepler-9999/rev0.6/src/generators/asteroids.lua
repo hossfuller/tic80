@@ -83,15 +83,3 @@ function spawnAsteroids(count)
 
     return asteroids
 end
-
-function killAsteroidAndSpawnFragments(asteroid)
-    if not asteroid then
-        return
-    end
-
-    local fragments = asteroid:kill()
-
-    for _, fragment in ipairs(fragments or {}) do
-        table.insert(game.play.asteroids, fragment)
-    end
-end

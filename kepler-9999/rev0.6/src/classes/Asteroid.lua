@@ -144,7 +144,52 @@ end
 -- ==========================================
 
 function Asteroid:takeDamage(damage, other)
-    -- We'll get back to this shortly.
+    damage = damage or 0
+
+    if self.dead then
+        return false
+    end
+
+    if damage <= 0 then
+        return false
+    end
+
+    self.mass = (self.mass or 0) - damage
+
+    if self.mass > 0 then
+        return false
+    end
+
+    self.mass = 0
+
+    -- Store collision info for Asteroid:explode().
+    if other and other.position and self.position then
+        local nx, ny = getCollisionNormal(self, other)
+
+        self.break_normal = {
+            x = nx,
+            y = ny,
+        }
+
+        self.break_other = other
+    else
+        local direction = self.velocity and self.velocity.direction or randomFloat(0, math.pi * 2)
+
+        self.break_normal = {
+            x = math.cos(direction),
+            y = math.sin(direction),
+        }
+
+        self.break_other = other
+    end
+
+    local fragments = self:kill()
+
+    for _, fragment in ipairs(fragments or {}) do
+        table.insert(game.play.asteroids, fragment)
+    end
+
+    return true
 end
 
 -- ==========================================

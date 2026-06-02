@@ -710,6 +710,7 @@ end
 
 function SpaceShip:takeDamage(damage, other)
     -- We'll get back to this shortly.
+    return KeplerObj.takeDamage(self, damage, other)
 end
 
 -- ==========================================

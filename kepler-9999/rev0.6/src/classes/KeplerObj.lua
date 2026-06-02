@@ -181,6 +181,10 @@ function KeplerObj:induceDamage(obj)
         return 0
     end
 
+    if not self.position or not obj.position then
+        return 0
+    end
+
     if not self.velocity then
         return 0
     end
@@ -210,11 +214,10 @@ function KeplerObj:induceDamage(obj)
     local rel_vx = self_vx - obj_vx
     local rel_vy = self_vy - obj_vy
 
-    -- Your getCollisionNormal(a, b) points from b toward a.
-    -- Therefore getCollisionNormal(obj, self) points from self toward obj.
+    -- getCollisionNormal(obj, self) points from self toward obj.
     local nx, ny = getCollisionNormal(obj, self)
 
-    -- Positive means self is moving into obj.
+    -- Only the velocity component going into the collision counts.
     local inbound_speed = rel_vx * nx + rel_vy * ny
 
     if inbound_speed <= 0 then

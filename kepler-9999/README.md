@@ -50,7 +50,7 @@ The different revisions implement separate features. This list is ever changing.
     - [x] Particle effects for planets: clouds and/or bands that appear to orbit the planet.
 - [ ] **REV0.6**: Collision detection and particle effects!
     - [x] Collision detection.
-    - [ ] Figure out how heavy everything should hit the ship.
+    - [x] Figure out how heavy everything should hit the ship.
     - [ ] Work out mechanics of the ships shields/energy/life when collisions happen.
     - [ ] Bring over Asteroids particle effects like explosions, thrust, sparks, and smoke.
     - [ ] Particle effects from stars can damage the ship.

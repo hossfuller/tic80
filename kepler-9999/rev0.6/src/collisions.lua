@@ -146,61 +146,6 @@ function deflectCollisionPair(a, b)
 end
 
 --[[
-    Asteroids are a special case here because they break up into smaller
-    asteroids when they're "destroyed". So we need a lot of code to detect when
-    this is happening and then properly handle it.
---]]
-function isAsteroid(obj)
-    return obj and getmetatable(obj) == Asteroid
-end
-
-function breakAsteroidFromCollision(asteroid, other)
-    if not asteroid or asteroid.dead then
-        return
-    end
-
-    local nx = 0
-    local ny = 0
-
-    if other and other.position and asteroid.position then
-        nx, ny = getCollisionNormal(asteroid, other)
-    else
-        local direction = asteroid.velocity and asteroid.velocity.direction or randomFloat(0, math.pi * 2)
-        nx = math.cos(direction)
-        ny = math.sin(direction)
-    end
-
-    asteroid.break_normal = {
-        x = nx,
-        y = ny,
-    }
-
-    asteroid.break_other = other
-
-    killAsteroidAndSpawnFragments(asteroid)
-end
-
-function killCollisionObject(obj, other)
-    if not obj or obj.dead then
-        return
-    end
-
-    if isAsteroid(obj) then
-        breakAsteroidFromCollision(obj, other)
-    else
-        obj:kill()
-    end
-end
-
-function destroyCollisionObject(obj)
-    if not obj or obj.dead then
-        return
-    end
-
-    obj:kill()
-end
-
---[[
     Now we're checking against large bodies. If the moving object hits a star,
     planet, or moon, it's gone.
 --]]
@@ -215,7 +160,7 @@ function checkObjectAgainstStar(obj, star)
     end
 
     if objectsCollide(obj, star) then
-        destroyCollisionObject(obj)
+        applyCollisionDamage(obj, star)
     end
 end
 
@@ -229,14 +174,14 @@ function checkObjectAgainstPlanet(obj, planet)
     end
 
     if objectsCollide(obj, planet) then
-        destroyCollisionObject(obj)
+        applyCollisionDamage(obj, planet)
         return
     end
 
     if planet.moons then
         for _, moon in ipairs(planet.moons) do
             if objectsCollide(obj, moon) then
-                destroyCollisionObject(obj)
+                applyCollisionDamage(obj, moon)
                 return
             end
         end
@@ -298,32 +243,30 @@ function handleDynamicCollision(a, b)
         return
     end
 
-    local a_is_asteroid = isAsteroid(a)
-    local b_is_asteroid = isAsteroid(b)
+    -- Calculate damage before deflection changes velocity.
+    local damage_to_b = 0
+    local damage_to_a = 0
 
-    if a_is_asteroid or b_is_asteroid then
-        -- Push the non-asteroid away before the asteroid disappears.
-        if a_is_asteroid and not b_is_asteroid then
-            local nx, ny = getCollisionNormal(b, a)
-            deflectObject(b, nx, ny)
-        elseif b_is_asteroid and not a_is_asteroid then
-            local nx, ny = getCollisionNormal(a, b)
-            deflectObject(a, nx, ny)
-        end
-
-        if a_is_asteroid then
-            killCollisionObject(a, b)
-        end
-
-        if b_is_asteroid then
-            killCollisionObject(b, a)
-        end
-
-        return
+    if a.induceDamage then
+        damage_to_b = a:induceDamage(b)
     end
 
-    -- Everything else just bounces.
+    if b.induceDamage then
+        damage_to_a = b:induceDamage(a)
+    end
+
+    -- Bounce/separate surviving dynamic objects.
     deflectCollisionPair(a, b)
+
+    -- Apply damage after deflection so killed objects can still use the
+    -- pre-collision damage values.
+    if b.takeDamage then
+        b:takeDamage(damage_to_b, a)
+    end
+
+    if a.takeDamage then
+        a:takeDamage(damage_to_a, b)
+    end
 end
 
 function checkDynamicObjectCollisions(objects)
@@ -357,4 +300,33 @@ function updateCollisions()
     -- Use the original snapshot so fragments spawned this frame do not also
     -- collide immediately in the same frame.
     checkDynamicObjectCollisions(objects)
+end
+
+function applyCollisionDamage(a, b)
+    if not a or not b then
+        return
+    end
+
+    if a.dead or b.dead then
+        return
+    end
+
+    local damage_to_b = 0
+    local damage_to_a = 0
+
+    if a.induceDamage then
+        damage_to_b = a:induceDamage(b)
+    end
+
+    if b.induceDamage then
+        damage_to_a = b:induceDamage(a)
+    end
+
+    if b.takeDamage then
+        b:takeDamage(damage_to_b, a)
+    end
+
+    if a.takeDamage then
+        a:takeDamage(damage_to_a, b)
+    end
 end
