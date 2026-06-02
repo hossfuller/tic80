@@ -1,5 +1,5 @@
 -- ==========================================
--- SPACESHIP PRESETS
+-- PLAYER & NPC SHIPS
 -- ==========================================
 
 --[[
@@ -13,16 +13,16 @@ local PASSENGER_MASS         = 75
 local PASSENGER_LUGGAGE_MASS = 25
 local PASSENGER_TOTAL_MASS   = PASSENGER_MASS + PASSENGER_LUGGAGE_MASS
 
-local cruiser_ship = {
-    name  = "Cruiser",
-    shape = {
+local cruiser_ship           = {
+    name      = "Cruiser",
+    shape     = {
         { x = 8,  y = 0 },
         { x = -8, y = 6 },
         { x = -4, y = 0 },
         { x = -8, y = -6 },
         { x = 8,  y = 0 },
     },
-    colors = {
+    colors    = {
         primary = BLUE_MED,
     },
     engines   = {
@@ -45,7 +45,7 @@ local cruiser_ship = {
             tik = 60,
         },
     },
-    holds = {
+    holds     = {
         cargo = {
             max = 500, -- (kg)
         },
@@ -56,20 +56,20 @@ local cruiser_ship = {
             max = 100, -- (kg)
         },
     },
-    mass      = 100,   -- (kg)
-    max_mass  = 1300,  -- (kg, includes passenger luggage)
-    radius    = 10,    -- (pixels)
+    mass      = 100,  -- (kg)
+    max_mass  = 1300, -- (kg, includes passenger luggage)
+    radius    = 10,   -- (pixels)
     max_speed = 2.5,
 }
 
-local freighter_ship = {
-    name  = "Freighter",
-    shape = {
+local freighter_ship         = {
+    name      = "Freighter",
+    shape     = {
         { x = 16, y = 0 },
         { x = 13, y = 5 },
-        { x = 6, y = 5 },
-        { x = 4, y = 7 },
-        { x = 0, y = 8 },
+        { x = 6,  y = 5 },
+        { x = 4,  y = 7 },
+        { x = 0,  y = 8 },
         { x = -9, y = 8 },
         { x = -9, y = 6 },
         { x = -6, y = 2 },
@@ -77,14 +77,14 @@ local freighter_ship = {
         { x = -6, y = -2 },
         { x = -9, y = -6 },
         { x = -9, y = -8 },
-        { x = 0, y = -8 },
-        { x = 4, y = -7 },
-        { x = 6, y = -5 },
+        { x = 0,  y = -8 },
+        { x = 4,  y = -7 },
+        { x = 6,  y = -5 },
         { x = 13, y = -5 },
         { x = 16, y = 0 },
     },
-    colors = {
-        primary = GREEN_MED,
+    colors    = {
+        primary = GREEN_DARK,
     },
     engines   = {
         energy = {
@@ -106,7 +106,7 @@ local freighter_ship = {
             tik = 60,
         },
     },
-    holds   = {
+    holds     = {
         cargo = {
             max = 2000, -- (kg)
         },
@@ -117,46 +117,46 @@ local freighter_ship = {
             max = 400, -- (kg)
         },
     },
-    mass      = 500,   -- (kg)
-    max_mass  = 3300,  -- (kg, includes passenger luggage)
-    radius    = 15,    -- (pixels)
+    mass      = 500,  -- (kg)
+    max_mass  = 3300, -- (kg, includes passenger luggage)
+    radius    = 15,   -- (pixels)
     max_speed = 1.5,
 }
 
-local passenger_ship = {
-    name  = "Passenger Ship",
-    shape = {
-        { x = 10, y = 0 },
-        { x = 9, y = 2 },
-        { x = 7, y = 3 },
-        { x = -1, y = 3 },
-        { x = -3, y = 6 },
-        { x = 1, y = 6 },
-        { x = 2, y = 7 },
-        { x = 1, y = 9 },
+local passenger_ship         = {
+    name      = "Passenger Ship",
+    shape     = {
+        { x = 10,  y = 0 },
+        { x = 9,   y = 2 },
+        { x = 7,   y = 3 },
+        { x = -1,  y = 3 },
+        { x = -3,  y = 6 },
+        { x = 1,   y = 6 },
+        { x = 2,   y = 7 },
+        { x = 1,   y = 9 },
         { x = -10, y = 9 },
         { x = -11, y = 7 },
         { x = -10, y = 6 },
-        { x = -8, y = 6 },
-        { x = -6, y = 3 },
-        { x = -8, y = 3 },
+        { x = -8,  y = 6 },
+        { x = -6,  y = 3 },
+        { x = -8,  y = 3 },
         { x = -10, y = 2 },
         { x = -11, y = 0 },
         { x = -10, y = -2 },
-        { x = -8, y = -3 },
-        { x = -6, y = -3 },
-        { x = -8, y = -6 },
+        { x = -8,  y = -3 },
+        { x = -6,  y = -3 },
+        { x = -8,  y = -6 },
         { x = -10, y = -6 },
         { x = -11, y = -7 },
         { x = -10, y = -9 },
-        { x = 1, y = -9 },
-        { x = 2, y = -7 },
-        { x = 1, y = -6 },
-        { x = -3, y = -6 },
-        { x = -1, y = -3 },
-        { x = 7, y = -3 },
-        { x = 9, y = -2 },
-        { x = 10, y = 0 },
+        { x = 1,   y = -9 },
+        { x = 2,   y = -7 },
+        { x = 1,   y = -6 },
+        { x = -3,  y = -6 },
+        { x = -1,  y = -3 },
+        { x = 7,   y = -3 },
+        { x = 9,   y = -2 },
+        { x = 10,  y = 0 },
     },
     colors    = {
         primary = WHITE,
@@ -181,7 +181,7 @@ local passenger_ship = {
             tik = 60,
         },
     },
-    holds = {
+    holds     = {
         cargo = {
             max = 500, -- (kg)
         },
@@ -198,20 +198,20 @@ local passenger_ship = {
     max_speed = 2.0,
 }
 
-local smuggler_ship = {
-    name  = "Smuggler",
-    shape = {
-        { x = 3, y = 0 },
-        { x = 6, y = 3 },
-        { x = 0, y = 6 },
+local smuggler_ship          = {
+    name      = "Smuggler",
+    shape     = {
+        { x = 3,  y = 0 },
+        { x = 6,  y = 3 },
+        { x = 0,  y = 6 },
         { x = -8, y = 9 },
         { x = -6, y = 3 },
         { x = -9, y = 0 },
         { x = -6, y = -3 },
         { x = -8, y = -9 },
-        { x = 0, y = -6 },
-        { x = 6, y = -3 },
-        { x = 3, y = 0 },
+        { x = 0,  y = -6 },
+        { x = 6,  y = -3 },
+        { x = 3,  y = 0 },
     },
     colors    = {
         primary = RED,
@@ -253,10 +253,15 @@ local smuggler_ship = {
     max_speed = 2.5,
 }
 
--- Use this in `generatePlayer()`.
-ship_presets = {
+local ship_presets = {
     cruiser_ship,
     freighter_ship,
     passenger_ship,
     smuggler_ship,
 }
+
+function generatePlayer()
+    local selected_ship = game.params.ship_type or 1
+    local preset = ship_presets[selected_ship] or cruiser_ship
+    return SpaceShip:new(preset)
+end

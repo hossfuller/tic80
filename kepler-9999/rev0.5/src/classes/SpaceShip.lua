@@ -872,7 +872,7 @@ function SpaceShip:drawBody()
     local points = self:getScreenShapePoints()
 
     -- Draw a ship-shaped black mask first.
-    drawFilledPolygon(points, BLACK)
+    drawFilledPolygon(points, self.color)
 
     -- Draw the ship outline on top.
     drawPolygonOutline(points, self.color)

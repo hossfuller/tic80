@@ -1,5 +1,5 @@
 -- ==========================================
--- STAR PRESETS
+-- STARS
 -- ==========================================
 
 --[[
@@ -9,11 +9,11 @@
 --]]
 
 -- Heavenly Body constants
-local STELLAR_TYPES  = { "O", "B", "A", "F", "G", "K", "M", }
-local SOLAR_MASS     = 1000000000000
-local MOON_MASS      = 1000000
-local SOLAR_RADIUS   = 10000
-local MOON_RADIUS    = 100
+local STELLAR_TYPES    = { "O", "B", "A", "F", "G", "K", "M", }
+local SOLAR_MASS       = 1000000000000
+local MOON_MASS        = 1000000
+local SOLAR_RADIUS     = 10000
+local MOON_RADIUS      = 100
 
 local STELLAR_PROFILES = {
     O = {
@@ -275,3 +275,30 @@ local STELLAR_PROFILES = {
         },
     },
 }
+
+function randomStarCornerPosition()
+    local corners = {
+        { -- Bottom-left
+            x = 0,
+            y = MAP_PIXELS_H,
+        },
+        { -- Bottom-right
+            x = MAP_PIXELS_W,
+            y = MAP_PIXELS_H,
+        },
+        { -- Top-right
+            x = MAP_PIXELS_W,
+            y = 0,
+        },
+    }
+    return corners[math.random(1, #corners)]
+end
+
+function generateStar()
+    local pos = randomStarCornerPosition()
+    return Star:new({
+        stellar_type = randomChoice(STELLAR_TYPES),
+        x = pos.x,
+        y = pos.y,
+    })
+end
