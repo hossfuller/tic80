@@ -23,7 +23,8 @@ local cruiser_ship           = {
         { x = 8,  y = 0 },
     },
     colors    = {
-        primary = BLUE_MED,
+        primary   = BLUE_MED,
+        secondary = BLUE_DARK,
     },
     engines   = {
         energy = {
@@ -84,7 +85,8 @@ local freighter_ship         = {
         { x = 16, y = 0 },
     },
     colors    = {
-        primary = GREEN_DARK,
+        primary   = GREEN_MED,
+        secondary = GREEN_DARK,
     },
     engines   = {
         energy = {
@@ -159,7 +161,8 @@ local passenger_ship         = {
         { x = 10,  y = 0 },
     },
     colors    = {
-        primary = WHITE,
+        primary   = WHITE,
+        secondary = GRAY_LITE,
     },
     engines   = {
         energy = {
@@ -214,7 +217,8 @@ local smuggler_ship          = {
         { x = 3,  y = 0 },
     },
     colors    = {
-        primary = RED,
+        primary   = RED,
+        secondary = ORANGE,
     },
     engines   = {
         energy = {

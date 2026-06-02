@@ -2,6 +2,10 @@
 -- ASTEROID OBJECT
 -- ==========================================
 
+--[[
+    Adapted from the Asteroids clone.
+--]]
+
 Asteroid = setmetatable({}, { __index = KeplerObj })
 Asteroid.__index = Asteroid
 
@@ -10,7 +14,8 @@ function Asteroid:new(params)
 
     params.mass   = params.mass or randomFloat(ASTEROID_MIN_MASS, ASTEROID_MAX_MASS)
     params.radius = params.radius or randomFloat(ASTEROID_RADIUS_MIN, ASTEROID_RADIUS_MAX)
-    params.color  = params.color or randomChoice(ASTEROID_COLORS)
+    params.colors = params.colors or shuffledAsteroidColors()
+    params.color  = params.color or params.colors.primary
 
     local direction     = params.direction or randomFloat(0, math.pi * 2)
     local speed         = params.speed or randomFloat(ASTEROID_SPEED_MIN, ASTEROID_SPEED_MAX)
@@ -36,10 +41,7 @@ function Asteroid:new(params)
 
     self.rotation       = params.rotation or randomFloat(0, math.pi * 2)
     self.rotation_max   = params.rotation_max or ASTEROID_ROTATION_MAX
-    self.rotation_speed = params.rotation_speed or randomFloat(
-        -self.rotation_max,
-        self.rotation_max
-    )
+    self.rotation_speed = params.rotation_speed or randomFloat(-self.rotation_max, self.rotation_max)
 
     self.velocity_min = params.velocity_min or ASTEROID_SPEED_MIN
     self.velocity_max = params.velocity_max or ASTEROID_SPEED_MAX
@@ -60,9 +62,9 @@ function Asteroid:getInducedDamage()
     return self.radius * 10
 end
 
-function Asteroid:getPoints()
-    return self.base_points * self.scale
-end
+-- function Asteroid:getPoints()
+--     return self.base_points * self.scale
+-- end
 
 function Asteroid:getRadius()
     return self.radius
@@ -168,6 +170,7 @@ function Asteroid:explode()
 
             local asteroid = Asteroid:new({
                 name           = "Asteroid Fragment",
+                colors         = self.colors,
                 color          = self.color,
                 x              = self.position.x,
                 y              = self.position.y,
@@ -191,7 +194,7 @@ function Asteroid:explode()
                 radius_plus    = self.radius_plus,
                 num_vertices   = self.num_vertices,
 
-                base_points    = self.base_points,
+                -- base_points    = self.base_points,
                 clumpiness     = self.clumpiness,
             })
 
@@ -248,7 +251,7 @@ function Asteroid:draw()
         local x2 = math.floor(screen_x + p2.x * zoom)
         local y2 = math.floor(screen_y + p2.y * zoom)
 
-        tri(cx, cy, x1, y1, x2, y2, self.color)
-        line(x1, y1, x2, y2, GRAY_LITE)
+        tri(cx, cy, x1, y1, x2, y2, self.colors.secondary)
+        line(x1, y1, x2, y2, self.colors.primary)
     end
 end

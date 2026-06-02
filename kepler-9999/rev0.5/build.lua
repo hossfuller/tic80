@@ -278,7 +278,8 @@ local cruiser_ship           = {
         { x = 8,  y = 0 },
     },
     colors    = {
-        primary = BLUE_MED,
+        primary   = BLUE_MED,
+        secondary = BLUE_DARK,
     },
     engines   = {
         energy = {
@@ -339,7 +340,8 @@ local freighter_ship         = {
         { x = 16, y = 0 },
     },
     colors    = {
-        primary = GREEN_DARK,
+        primary   = GREEN_MED,
+        secondary = GREEN_DARK,
     },
     engines   = {
         energy = {
@@ -414,7 +416,8 @@ local passenger_ship         = {
         { x = 10,  y = 0 },
     },
     colors    = {
-        primary = WHITE,
+        primary   = WHITE,
+        secondary = GRAY_LITE,
     },
     engines   = {
         energy = {
@@ -469,7 +472,8 @@ local smuggler_ship          = {
         { x = 3,  y = 0 },
     },
     colors    = {
-        primary = RED,
+        primary   = RED,
+        secondary = ORANGE,
     },
     engines   = {
         energy = {
@@ -1464,15 +1468,36 @@ local ASTEROID_RADIUS_MINUS       = 6
 local ASTEROID_RADIUS_PLUS        = 4
 local ASTEROID_VERTICES_MIN       = 7
 local ASTEROID_VERTICES_MAX       = 12
-local ASTEROID_NUM_MIN            = 20
-local ASTEROID_NUM_MAX            = 45
+local ASTEROID_NUM_MIN            = 5
+local ASTEROID_NUM_MAX            = 15
 local ASTEROID_MAX_FRAGMENT_SCALE = 4
 
-local ASTEROID_COLORS             = {
+local ASTEROID_COLORS = {
     GRAY_LITE,
     GRAY_MED,
     GRAY_DARK,
 }
+
+function shuffledAsteroidColors()
+    local colors = {}
+
+    -- Copy ASTEROID_COLORS so we do not mutate the original.
+    for i = 1, #ASTEROID_COLORS do
+        colors[i] = ASTEROID_COLORS[i]
+    end
+
+    -- Fisher-Yates shuffle.
+    for i = #colors, 2, -1 do
+        local j = math.random(1, i)
+        colors[i], colors[j] = colors[j], colors[i]
+    end
+
+    return {
+        primary   = colors[1],
+        secondary = colors[2],
+        tertiary  = colors[3],
+    }
+end
 
 function randomAsteroidName(index)
     return "Asteroid-" .. tostring(index)
@@ -4018,22 +4043,22 @@ function SpaceShip:drawBody()
         x = math.floor(x)
         y = math.floor(y)
 
-        pix(x, y, self.color)
-        pix(x - 1, y, self.color)
-        pix(x + 1, y, self.color)
-        pix(x, y - 1, self.color)
-        pix(x, y + 1, self.color)
+        pix(x, y, self.colors.primary)
+        pix(x - 1, y, self.colors.primary)
+        pix(x + 1, y, self.colors.primary)
+        pix(x, y - 1, self.colors.primary)
+        pix(x, y + 1, self.colors.primary)
 
         return
     end
 
     local points = self:getScreenShapePoints()
 
-    -- Draw a ship-shaped black mask first.
-    drawFilledPolygon(points, self.color)
+    -- Draw a ship-shaped mask first.
+    drawFilledPolygon(points, self.colors.secondary)
 
     -- Draw the ship outline on top.
-    drawPolygonOutline(points, self.color)
+    drawPolygonOutline(points, self.colors.primary)
 end
 
 function SpaceShip:draw()
@@ -5319,6 +5344,10 @@ end
 -- ASTEROID OBJECT
 -- ==========================================
 
+--[[
+    Adapted from the Asteroids clone.
+--]]
+
 Asteroid = setmetatable({}, { __index = KeplerObj })
 Asteroid.__index = Asteroid
 
@@ -5327,7 +5356,8 @@ function Asteroid:new(params)
 
     params.mass   = params.mass or randomFloat(ASTEROID_MIN_MASS, ASTEROID_MAX_MASS)
     params.radius = params.radius or randomFloat(ASTEROID_RADIUS_MIN, ASTEROID_RADIUS_MAX)
-    params.color  = params.color or randomChoice(ASTEROID_COLORS)
+    params.colors = params.colors or shuffledAsteroidColors()
+    params.color  = params.color or params.colors.primary
 
     local direction     = params.direction or randomFloat(0, math.pi * 2)
     local speed         = params.speed or randomFloat(ASTEROID_SPEED_MIN, ASTEROID_SPEED_MAX)
@@ -5353,10 +5383,7 @@ function Asteroid:new(params)
 
     self.rotation       = params.rotation or randomFloat(0, math.pi * 2)
     self.rotation_max   = params.rotation_max or ASTEROID_ROTATION_MAX
-    self.rotation_speed = params.rotation_speed or randomFloat(
-        -self.rotation_max,
-        self.rotation_max
-    )
+    self.rotation_speed = params.rotation_speed or randomFloat(-self.rotation_max, self.rotation_max)
 
     self.velocity_min = params.velocity_min or ASTEROID_SPEED_MIN
     self.velocity_max = params.velocity_max or ASTEROID_SPEED_MAX
@@ -5377,9 +5404,9 @@ function Asteroid:getInducedDamage()
     return self.radius * 10
 end
 
-function Asteroid:getPoints()
-    return self.base_points * self.scale
-end
+-- function Asteroid:getPoints()
+--     return self.base_points * self.scale
+-- end
 
 function Asteroid:getRadius()
     return self.radius
@@ -5485,6 +5512,7 @@ function Asteroid:explode()
 
             local asteroid = Asteroid:new({
                 name           = "Asteroid Fragment",
+                colors         = self.colors,
                 color          = self.color,
                 x              = self.position.x,
                 y              = self.position.y,
@@ -5508,7 +5536,7 @@ function Asteroid:explode()
                 radius_plus    = self.radius_plus,
                 num_vertices   = self.num_vertices,
 
-                base_points    = self.base_points,
+                -- base_points    = self.base_points,
                 clumpiness     = self.clumpiness,
             })
 
@@ -5565,8 +5593,8 @@ function Asteroid:draw()
         local x2 = math.floor(screen_x + p2.x * zoom)
         local y2 = math.floor(screen_y + p2.y * zoom)
 
-        tri(cx, cy, x1, y1, x2, y2, self.color)
-        line(x1, y1, x2, y2, GRAY_LITE)
+        tri(cx, cy, x1, y1, x2, y2, self.colors.secondary)
+        line(x1, y1, x2, y2, self.colors.primary)
     end
 end
 

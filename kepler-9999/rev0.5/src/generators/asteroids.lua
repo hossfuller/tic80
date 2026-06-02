@@ -13,15 +13,36 @@ local ASTEROID_RADIUS_MINUS       = 6
 local ASTEROID_RADIUS_PLUS        = 4
 local ASTEROID_VERTICES_MIN       = 7
 local ASTEROID_VERTICES_MAX       = 12
-local ASTEROID_NUM_MIN            = 20
-local ASTEROID_NUM_MAX            = 45
+local ASTEROID_NUM_MIN            = 5
+local ASTEROID_NUM_MAX            = 15
 local ASTEROID_MAX_FRAGMENT_SCALE = 4
 
-local ASTEROID_COLORS             = {
+local ASTEROID_COLORS = {
     GRAY_LITE,
     GRAY_MED,
     GRAY_DARK,
 }
+
+function shuffledAsteroidColors()
+    local colors = {}
+
+    -- Copy ASTEROID_COLORS so we do not mutate the original.
+    for i = 1, #ASTEROID_COLORS do
+        colors[i] = ASTEROID_COLORS[i]
+    end
+
+    -- Fisher-Yates shuffle.
+    for i = #colors, 2, -1 do
+        local j = math.random(1, i)
+        colors[i], colors[j] = colors[j], colors[i]
+    end
+
+    return {
+        primary   = colors[1],
+        secondary = colors[2],
+        tertiary  = colors[3],
+    }
+end
 
 function randomAsteroidName(index)
     return "Asteroid-" .. tostring(index)

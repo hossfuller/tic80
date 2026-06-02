@@ -26,37 +26,35 @@ The different revisions implement separate features. This list is ever changing.
     - [x] Camera stays centered on object.
     - [x] Debug screen that displays user's map location.
     - [x] Backdrop of stationary random stars, black holes, and distant galaxies.
-- [ ] **REV0.2**: Spaceships, modeled on the Asteroids work.
+- [x] **REV0.2**: Spaceships, modeled on the Asteroids work.
     - [x] Spaceships have attributes like mass, engine power, etc that affect things like movement and shield regeneration.
     - [x] Energy for movement, health and shields for life.
     - [x] Implement the player's HUD screen.
-- [ ] **REV0.3**: User can select the ship type they want.
+- [x] **REV0.3**: User can select the ship type they want.
     - [x] Different types of spaceships with max_speed/holds being inversely proportional: freight (solid/liquid?), passengers, smugglers
     - [x] User selects their ship type from the options screen.
     - [x] Ship selection dictates ships' maximum values for mass, speed, etc.
     - [x] Implement cargo holds and passenger seating in spaceships. Solid cargo
     - [x] Different ships have different shapes.
     - [x] Fix controls for start, options, and play screen.
-- [ ] **REV0.4**: Add foreground heavenly bodies.
+- [x] **REV0.4**: Add foreground heavenly bodies.
     - [x] Parent class for all heavenly bodies with mass, radius, color.
     - [x] Particle effects for stars: stellar wind and flares.
     - [x] Add mouse controls that allow us to zoom in and out of map.
-- [ ] **REV0.5**: Add more heavenly bodies.
+- [x] **REV0.5**: Add more heavenly bodies.
     - [x] Update HUD with dynamic Speed indicator.
     - [x] Add a planet class, and include rings and atmospheres.
     - [x] Add a moon class that is attached to a particular planet.
-    - [ ] Add other minor body classes.
+    - [x] Add other minor body classes.
     - [x] Randomly generated names, colors, atmospherics for planets and moons (AAU-style names for anything smaller than a moon).
     - [x] Particle effects for planets: clouds and/or bands that appear to orbit the planet.
-- [ ] **REV0.6**: Spaceships, modeled on the Asteroids work, get physics
+- [ ] **REV0.6**: Collision detection and particle effects!
     - [ ] Collision detection.
     - [ ] Particle effects from stars can damage the ship.
-    - [ ] Can feel gravitational effects from heavenly bodies.
+- [ ] **REV0.7**: Put the heavens in motion.
+    - [ ] Gravity!
     - [ ] Implement inertia and make the energy engine feel it (more mass makes the ship expend more energy to stop).
     - [ ] Bring over Asteroids particle effects like explosions, thrust, sparks, and smoke.
-- [ ] **REV0.7**: Put the heavens in motion.
-    - [ ] When a ship is within 2 map screens of a big-enough heavenly body, put an arrow on the screen with the body's name and current distance.
-    - [ ] Implement keplerian orbital mechanics for heavenly bodies the size of moons and smaller.
 - [ ] **REV0.8**: Space docking, cargo, and passengers
     - [ ] Space stations and ships should have a way to connect to each other to exchange passengers, cargo, or energy/health.
     - [ ] Colors, effects, and sounds indicate successful docking.

@@ -860,22 +860,22 @@ function SpaceShip:drawBody()
         x = math.floor(x)
         y = math.floor(y)
 
-        pix(x, y, self.color)
-        pix(x - 1, y, self.color)
-        pix(x + 1, y, self.color)
-        pix(x, y - 1, self.color)
-        pix(x, y + 1, self.color)
+        pix(x, y, self.colors.primary)
+        pix(x - 1, y, self.colors.primary)
+        pix(x + 1, y, self.colors.primary)
+        pix(x, y - 1, self.colors.primary)
+        pix(x, y + 1, self.colors.primary)
 
         return
     end
 
     local points = self:getScreenShapePoints()
 
-    -- Draw a ship-shaped black mask first.
-    drawFilledPolygon(points, self.color)
+    -- Draw a ship-shaped mask first.
+    drawFilledPolygon(points, self.colors.secondary)
 
     -- Draw the ship outline on top.
-    drawPolygonOutline(points, self.color)
+    drawPolygonOutline(points, self.colors.primary)
 end
 
 function SpaceShip:draw()
