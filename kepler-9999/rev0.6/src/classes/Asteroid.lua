@@ -157,18 +157,91 @@ function Asteroid:explode()
     if orig_scale < ASTEROID_MAX_FRAGMENT_SCALE then
         local new_scale = orig_scale * 2
 
+        -- Default break direction if no collision normal was supplied.
+        local break_nx = 0
+        local break_ny = 0
+
+        if self.break_normal then
+            break_nx = self.break_normal.x or 0
+            break_ny = self.break_normal.y or 0
+        end
+
+        if break_nx == 0 and break_ny == 0 then
+            break_nx = math.cos(self.velocity.direction or 0)
+            break_ny = math.sin(self.velocity.direction or 0)
+        end
+
+        local break_angle = math.atan(break_ny, break_nx)
+
+        -- Perpendicular direction for splitting the two fragments apart.
+        local side_angle = break_angle + math.pi / 2
+
         for count = 1, 2 do
+            local side_sign = -1
+
+            if count == 2 then
+                side_sign = 1
+            end
+
             local fragment_radius = math.max(2, self.radius / new_scale)
+
+            -- Send both fragments mostly away from the collision,
+            -- but split them left/right so they visibly separate.
+            local fragment_direction =
+                break_angle +
+                side_sign * randomFloat(0.35, 0.85)
+
+            -- Move the spawned fragments slightly outside the impact area.
+            local spawn_push = self.radius + fragment_radius + 2
+
+            local spawn_x =
+                self.position.x +
+                math.cos(break_angle) * spawn_push +
+                math.cos(side_angle) * side_sign * fragment_radius
+
+            local spawn_y =
+                self.position.y +
+                math.sin(break_angle) * spawn_push +
+                math.sin(side_angle) * side_sign * fragment_radius
+
+            -- If the asteroid hit a large body, push fragments outside that body.
+            -- This prevents fragments from spawning inside a planet/star/moon and
+            -- instantly dying on the next frame.
+            local other = self.break_other
+
+            if other and other.position then
+                local other_radius = getCollisionRadius(other)
+                local dx = spawn_x - other.position.x
+                local dy = spawn_y - other.position.y
+                local dist_sq = dx * dx + dy * dy
+
+                if dist_sq > 0 then
+                    local dist = math.sqrt(dist_sq)
+                    local min_dist = other_radius + fragment_radius + 2
+
+                    if dist < min_dist then
+                        local nx = dx / dist
+                        local ny = dy / dist
+
+                        spawn_x = other.position.x + nx * min_dist
+                        spawn_y = other.position.y + ny * min_dist
+                    end
+                else
+                    spawn_x = other.position.x + math.cos(break_angle) * (other_radius + fragment_radius + 2)
+                    spawn_y = other.position.y + math.sin(break_angle) * (other_radius + fragment_radius + 2)
+                end
+            end
 
             local asteroid = Asteroid:new({
                 name           = "Asteroid Fragment",
                 colors         = self.colors,
                 color          = self.color,
-                x              = self.position.x,
-                y              = self.position.y,
 
-                speed          = randomFloat(self.velocity_min, self.velocity_max),
-                direction      = randomFloat(0, math.pi * 2),
+                x              = spawn_x,
+                y              = spawn_y,
+
+                speed          = randomFloat(self.velocity_min, self.velocity_max) + 0.15,
+                direction      = fragment_direction,
 
                 acceleration   = self.acceleration,
                 deceleration   = self.deceleration,

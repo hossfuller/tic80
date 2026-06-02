@@ -58,7 +58,7 @@ function updatePlay()
             end
         end
     else
-        -- Check for collisions.
+        updateCollisions()
     end
 
     -- tick invulnerability
