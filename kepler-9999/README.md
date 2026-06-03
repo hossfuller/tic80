@@ -48,11 +48,11 @@ The different revisions implement separate features. This list is ever changing.
     - [x] Add other minor body classes.
     - [x] Randomly generated names, colors, atmospherics for planets and moons (AAU-style names for anything smaller than a moon).
     - [x] Particle effects for planets: clouds and/or bands that appear to orbit the planet.
-- [ ] **REV0.6**: Collision detection and particle effects!
+- [x] **REV0.6**: Collision detection and particle effects!
     - [x] Collision detection.
     - [x] Figure out how heavy everything should hit the ship.
     - [x] Work out mechanics of the ships shields/energy/life when collisions happen.
-    - [ ] Rebalance `SpaceShip` engine levels for all the different ships.
+    - [x] Rebalance `SpaceShip` engine levels for all the different ships.
     - [x] Particle effects from stars can damage the ship.
     - [x] Bring over Asteroids particle effects like explosions, thrust, sparks, and smoke.
 - [ ] **REV0.7**: Put the heavens in motion.
