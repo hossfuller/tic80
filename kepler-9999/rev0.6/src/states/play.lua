@@ -34,7 +34,7 @@ function updatePlay()
 
         asteroid:update()
 
-        if asteroid:isFinished() or asteroid:isOffMap() then
+        if (asteroid:isFinished() or asteroid:isOffMap()) and not asteroid:hasLiveParticles() then
             table.remove(game.play.asteroids, i)
         end
     end

@@ -2876,7 +2876,7 @@ function updatePlay()
 
         asteroid:update()
 
-        if asteroid:isFinished() or asteroid:isOffMap() then
+        if (asteroid:isFinished() or asteroid:isOffMap()) and not asteroid:hasLiveParticles() then
             table.remove(game.play.asteroids, i)
         end
     end
@@ -6036,6 +6036,32 @@ function Asteroid:new(params)
     -- Stable polygon shape.
     self.shape = params.shape or self:spawn()
 
+    self.particle_systems = {
+        explosion = {
+            colors = params.explosion_colors or {
+                WHITE,
+                YELLOW,
+                ORANGE,
+                RED,
+                GRAY_LITE,
+                GRAY_MED,
+            },
+            params = {
+                count_min    = 12,
+                count_max    = 24,
+                speed_min    = 0.25,
+                speed_max    = 1.7,
+                life_min     = 15,
+                life_max     = 38,
+                size_min     = 1,
+                size_max     = 2,
+                drag         = 0.965,
+                spawn_radius = self.radius or 8,
+            },
+            particles = {},
+        },
+    }
+
     return self
 end
 
@@ -6101,6 +6127,146 @@ function Asteroid:spawn()
     return vertices
 end
 
+
+-- ==========================================
+-- ASTEROID PARTICLE EFFECTS
+-- ==========================================
+
+function Asteroid:getParticleSystem(type)
+    if not self.particle_systems then
+        return nil
+    end
+
+    return self.particle_systems[type]
+end
+
+function Asteroid:hasLiveParticles()
+    for _, system in pairs(self.particle_systems or {}) do
+        if system.particles and #system.particles > 0 then
+            return true
+        end
+    end
+
+    return false
+end
+
+function Asteroid:spawnParticleBurst(type, x, y, direction, spread, count)
+    local system = self:getParticleSystem(type)
+
+    if not system then
+        return
+    end
+
+    local p = system.params
+    local particles = system.particles
+
+    direction = direction or 0
+    spread    = spread or math.pi * 2
+
+    for i = 1, count do
+        local particle_direction = direction - spread / 2 + math.random() * spread
+        local spawn_radius       = p.spawn_radius or 0
+        local spawn_angle        = math.random() * math.pi * 2
+        local spawn_distance     = math.random() * spawn_radius
+
+        local px = x + math.cos(spawn_angle) * spawn_distance
+        local py = y + math.sin(spawn_angle) * spawn_distance
+
+        table.insert(particles, {
+            position = {
+                x = px,
+                y = py,
+            },
+            velocity = {
+                speed     = randomFloat(p.speed_min or 0.1, p.speed_max or 1),
+                direction = particle_direction,
+            },
+            life     = math.random(p.life_min or 10, p.life_max or 30),
+            max_life = p.life_max or 30,
+            size     = math.random(p.size_min or 1, p.size_max or 2),
+            color    = system.colors[math.random(1, #system.colors)],
+            drag     = p.drag or 1,
+        })
+    end
+end
+
+function Asteroid:updateParticleList(type)
+    local system = self:getParticleSystem(type)
+
+    if not system then
+        return
+    end
+
+    local particles = system.particles
+
+    for i = #particles, 1, -1 do
+        local particle = particles[i]
+        particle.life = particle.life - 1
+
+        if particle.life <= 0 then
+            table.remove(particles, i)
+        else
+            particle.velocity.speed = particle.velocity.speed * (particle.drag or 1)
+            particle.velocity.direction = self:keepAngleInRange(particle.velocity.direction or 0)
+
+            local components = self:getVectorComponents(particle.velocity)
+
+            particle.position.x = particle.position.x + components.xComp
+            particle.position.y = particle.position.y + components.yComp
+        end
+    end
+end
+
+function Asteroid:drawParticles(type)
+    local system = self:getParticleSystem(type)
+
+    if not system then
+        return
+    end
+
+    local zoom = game.camera.zoom or 1
+
+    for _, particle in ipairs(system.particles) do
+        local screen_x, screen_y = worldToScreen(
+            particle.position.x,
+            particle.position.y
+        )
+
+        local size = math.max(1, particle.size * zoom)
+        local alpha = particle.life / particle.max_life
+        alpha = math.max(0, math.min(1, alpha))
+
+        local color = particle.color or WHITE
+        circ(math.floor(screen_x), math.floor(screen_y), size, color)
+    end
+end
+
+function Asteroid:explosionEffect()
+    local system = self:getParticleSystem("explosion")
+
+    if not system then
+        return
+    end
+
+    local p          = system.params
+    local base_count = math.random(
+        p.count_min or 12,
+        p.count_max or 24
+    )
+
+    local radius_scale = math.max(0.75, (self.radius or 10) / 10)
+    local count        = math.floor(base_count * radius_scale)
+    self:spawnParticleBurst(
+        "explosion",
+        self.position.x,
+        self.position.y,
+        nil,
+        math.pi * 2,
+        count
+    )
+end
+
+
 -- ==========================================
 -- ASTEROID UPDATE
 -- ==========================================
@@ -6118,6 +6284,9 @@ end
 
 function Asteroid:update()
     self:updateTimer()
+
+    -- Particles should keep updating even after the asteroid body is dead.
+    self:updateParticleList("explosion")
 
     if self.dead then
         return
@@ -6276,29 +6445,21 @@ function Asteroid:explode()
                 name           = "Asteroid Fragment",
                 colors         = self.colors,
                 color          = self.color,
-
                 x              = spawn_x,
                 y              = spawn_y,
-
                 speed          = randomFloat(self.velocity_min, self.velocity_max) + 0.15,
                 direction      = fragment_direction,
-
                 acceleration   = self.acceleration,
                 deceleration   = self.deceleration,
                 elasticity     = self.elasticity,
-
                 scale          = new_scale,
-
                 rotation_speed = randomFloat(-self.rotation_max, self.rotation_max),
-
                 radius         = fragment_radius,
                 radius_minus   = self.radius_minus,
                 radius_plus    = self.radius_plus,
                 num_vertices   = self.num_vertices,
-
                 clumpiness     = self.clumpiness,
             })
-
             table.insert(asteroid_fragments, asteroid)
         end
     end
@@ -6323,38 +6484,42 @@ function Asteroid:getRotatedPoint(point)
 end
 
 function Asteroid:draw()
-    if self.dead then
-        return
-    end
-
-    local zoom = game.camera.zoom or 1
-
+    local zoom               = game.camera.zoom or 1
     local screen_x, screen_y = worldToScreen(self.position.x, self.position.y)
+    local screen_radius      = self.radius * zoom
 
-    local screen_radius = self.radius * zoom
+    -- If the asteroid body and its particles are offscreen, skip drawing.
+    -- The extra padding helps avoid clipping explosion particles.
+    local padding = screen_radius + 64
 
-    if screen_x < -screen_radius - 8 or
-        screen_x > SCREEN_W + screen_radius + 8 or
-        screen_y < -screen_radius - 8 or
-        screen_y > SCREEN_H + screen_radius + 8 then
+    if screen_x < -padding or
+        screen_x > SCREEN_W + padding or
+        screen_y < -padding or
+        screen_y > SCREEN_H + padding then
         return
     end
 
-    local cx = math.floor(screen_x)
-    local cy = math.floor(screen_y)
+    -- Draw the asteroid body only while alive.
+    if not self.dead then
+        local cx = math.floor(screen_x)
+        local cy = math.floor(screen_y)
 
-    for i = 1, #self.shape - 1 do
-        local p1 = self:getRotatedPoint(self.shape[i])
-        local p2 = self:getRotatedPoint(self.shape[i + 1])
+        for i = 1, #self.shape - 1 do
+            local p1 = self:getRotatedPoint(self.shape[i])
+            local p2 = self:getRotatedPoint(self.shape[i + 1])
 
-        local x1 = math.floor(screen_x + p1.x * zoom)
-        local y1 = math.floor(screen_y + p1.y * zoom)
-        local x2 = math.floor(screen_x + p2.x * zoom)
-        local y2 = math.floor(screen_y + p2.y * zoom)
+            local x1 = math.floor(screen_x + p1.x * zoom)
+            local y1 = math.floor(screen_y + p1.y * zoom)
+            local x2 = math.floor(screen_x + p2.x * zoom)
+            local y2 = math.floor(screen_y + p2.y * zoom)
 
-        tri(cx, cy, x1, y1, x2, y2, self.colors.secondary)
-        line(x1, y1, x2, y2, self.colors.primary)
+            tri(cx, cy, x1, y1, x2, y2, self.colors.secondary)
+            line(x1, y1, x2, y2, self.colors.primary)
+        end
     end
+
+    -- Draw explosion particles even after the asteroid body is gone.
+    self:drawParticles("explosion")
 end
 
 
