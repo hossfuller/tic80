@@ -935,22 +935,31 @@ function SpaceShip:deadStop()
 end
 
 function SpaceShip:thrust()
+    local load_fraction = clamp(self:getTotalMassFraction(), 0, 1)
+
+    -- At full mass:
+    -- acceleration is 65% of base
+    -- max speed is 85% of base
+    local acceleration_penalty = 1 - load_fraction * 0.35
+    local speed_penalty        = 1 - load_fraction * 0.15
+
     local acceleration = {
-        speed     = self.acceleration,
+        speed     = self.acceleration * acceleration_penalty,
         direction = self.rotation
     }
+
     self.velocity = self:addVectors(self.velocity, acceleration)
 
-    if self.velocity.speed > self.max_speed then
-        self.velocity.speed = self.max_speed
+    local effective_max_speed = self.max_speed * speed_penalty
+
+    if self.velocity.speed > effective_max_speed then
+        self.velocity.speed = effective_max_speed
     end
 
     self:thrustEffect()
-
     -- sfx(3, 10, 10, 3, -8, 1)
 end
 
--- Need to do an energy check before doing any of the following.
 function SpaceShip:input()
     if self.dead or self:getEnergy() <= 0 then
         return

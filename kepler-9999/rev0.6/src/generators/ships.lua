@@ -13,7 +13,7 @@ local PASSENGER_MASS         = 75
 local PASSENGER_LUGGAGE_MASS = 25
 local PASSENGER_TOTAL_MASS   = PASSENGER_MASS + PASSENGER_LUGGAGE_MASS
 
-local cruiser_ship           = {
+local cruiser_ship = {
     name      = "Cruiser",
     shape     = {
         { x = 8,  y = 0 },
@@ -28,42 +28,42 @@ local cruiser_ship           = {
     },
     engines   = {
         energy = {
-            cur = 500,
-            max = 500,
+            cur = 600,
+            max = 600,
             mul = 1,
             tik = 20,
         },
         life_support = {
-            cur = 250,
-            max = 250,
+            cur = 350,
+            max = 350,
             mul = 1,
             tik = 3600,
         },
         shield = {
-            cur = 300,
-            max = 300,
+            cur = 350,
+            max = 350,
             mul = 1,
             tik = 60,
         },
     },
     holds     = {
         cargo = {
-            max = 500, -- (kg)
+            max = 600,
         },
         passengers = {
-            max = 6 * PASSENGER_TOTAL_MASS, -- (individuals and their luggage in kg)
+            max = 6 * PASSENGER_TOTAL_MASS,
         },
         smuggled = {
-            max = 100, -- (kg)
+            max = 100,
         },
     },
-    mass      = 100,  -- (kg)
-    max_mass  = 1300, -- (kg, includes passenger luggage)
-    radius    = 10,   -- (pixels)
-    max_speed = 2.5,
+    mass      = 180,
+    max_mass  = 1480,
+    radius    = 10,
+    max_speed = 2.3,
 }
 
-local freighter_ship         = {
+local freighter_ship = {
     name      = "Freighter",
     shape     = {
         { x = 16, y = 0 },
@@ -90,42 +90,42 @@ local freighter_ship         = {
     },
     engines   = {
         energy = {
-            cur = 1500,
-            max = 1500,
+            cur = 1200,
+            max = 1200,
             mul = 1,
             tik = 20,
         },
         life_support = {
-            cur = 500,
-            max = 500,
+            cur = 550,
+            max = 550,
             mul = 1,
             tik = 3600,
         },
         shield = {
-            cur = 500,
-            max = 500,
+            cur = 700,
+            max = 700,
             mul = 1,
             tik = 60,
         },
     },
     holds     = {
         cargo = {
-            max = 2000, -- (kg)
+            max = 2600,
         },
         passengers = {
-            max = 4 * PASSENGER_TOTAL_MASS, -- (individuals in kg)
+            max = 4 * PASSENGER_TOTAL_MASS,
         },
         smuggled = {
-            max = 400, -- (kg)
+            max = 150,
         },
     },
-    mass      = 500,  -- (kg)
-    max_mass  = 3300, -- (kg, includes passenger luggage)
-    radius    = 15,   -- (pixels)
-    max_speed = 1.5,
+    mass      = 900,
+    max_mass  = 4050,
+    radius    = 16,
+    max_speed = 1.2,
 }
 
-local passenger_ship         = {
+local passenger_ship = {
     name      = "Passenger Ship",
     shape     = {
         { x = 10,  y = 0 },
@@ -166,14 +166,14 @@ local passenger_ship         = {
     },
     engines   = {
         energy = {
-            cur = 1000,
-            max = 1000,
+            cur = 900,
+            max = 900,
             mul = 1,
             tik = 20,
         },
         life_support = {
-            cur = 300,
-            max = 300,
+            cur = 800,
+            max = 800,
             mul = 1,
             tik = 3600,
         },
@@ -186,22 +186,22 @@ local passenger_ship         = {
     },
     holds     = {
         cargo = {
-            max = 500, -- (kg)
+            max = 350,
         },
         passengers = {
-            max = 16 * PASSENGER_TOTAL_MASS, -- (individuals in kg)
+            max = 18 * PASSENGER_TOTAL_MASS,
         },
         smuggled = {
-            max = 100, -- (kg)
+            max = 50,
         },
     },
-    mass      = 500,  -- (kg)
-    max_mass  = 2700, -- (kg, includes passenger luggage)
-    radius    = 15,   -- (pixels)
-    max_speed = 2.0,
+    mass      = 700,
+    max_mass  = 2900,
+    radius    = 15,
+    max_speed = 1.7,
 }
 
-local smuggler_ship          = {
+local smuggler_ship = {
     name      = "Smuggler",
     shape     = {
         { x = 3,  y = 0 },
@@ -222,8 +222,8 @@ local smuggler_ship          = {
     },
     engines   = {
         energy = {
-            cur = 1000,
-            max = 1000,
+            cur = 800,
+            max = 800,
             mul = 1,
             tik = 20,
         },
@@ -234,27 +234,27 @@ local smuggler_ship          = {
             tik = 3600,
         },
         shield = {
-            cur = 300,
-            max = 300,
+            cur = 250,
+            max = 250,
             mul = 1,
             tik = 60,
         },
     },
     holds     = {
         cargo = {
-            max = 250, -- (kg)
+            max = 300,
         },
         passengers = {
-            max = 2 * PASSENGER_TOTAL_MASS, -- (individuals in kg)
+            max = 2 * PASSENGER_TOTAL_MASS,
         },
         smuggled = {
-            max = 1000, -- (kg)
+            max = 900,
         },
     },
-    mass      = 250,  -- (kg)
-    max_mass  = 1700, -- (kg, includes passenger luggage)
-    radius    = 10,   -- (pixels)
-    max_speed = 2.5,
+    mass      = 220,
+    max_mass  = 1620,
+    radius    = 9,
+    max_speed = 3.1,
 }
 
 local ship_presets = {

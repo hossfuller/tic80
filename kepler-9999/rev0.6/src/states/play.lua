@@ -66,44 +66,44 @@ function updatePlay()
         player.mortality.invulnerable = player.mortality.invulnerable - 1
     end
 
-    -- -- FOR TESTING
-    -- if DEBUG then
-    --     if player:everyNTicks(60) then
-    --         local mode = math.random(1, 3)
-    --         local plus_minus = math.random(0, 1) == 1
-    --         if mode == 1 then
-    --             if plus_minus then
-    --                 if player:pickupCargo(mode * 10) then
-    --                     trace("Picked up " .. tostring(mode * 10) .. "kg of cargo")
-    --                 end
-    --             else
-    --                 if player:deliverCargo(mode * 10) then
-    --                     trace("Delivered " .. tostring(mode * 10) .. "kg of cargo")
-    --                 end
-    --             end
-    --         elseif mode == 2 then
-    --             if plus_minus then
-    --                 if player:pickupPassengers(mode) then
-    --                     trace("Picked up " .. tostring(mode) .. " passengers")
-    --                 end
-    --             else
-    --                 if player:deliverPassengers(mode) then
-    --                     trace("Delivered " .. tostring(mode) .. " passengers")
-    --                 end
-    --             end
-    --         elseif mode == 3 then
-    --             if plus_minus then
-    --                 if player:pickupSmuggledGoods(mode * 10) then
-    --                     trace("Picked up " .. tostring(mode * 10) .. "kg of smuggled goods")
-    --                 end
-    --             else
-    --                 if player:deliverSmuggledGoods(mode * 10) then
-    --                     trace("Delivered " .. tostring(mode * 10) .. "kg of smuggled goods")
-    --                 end
-    --             end
-    --         end
-    --     end
-    -- end
+    -- FOR TESTING
+    if DEBUG then
+        if player:everyNTicks(60) then
+            local mode = math.random(1, 3)
+            local plus_minus = math.random(0, 1) == 1
+            if mode == 1 then
+                if plus_minus then
+                    if player:pickupCargo(mode * 10) then
+                        trace("Picked up " .. tostring(mode * 10) .. "kg of cargo")
+                    end
+                else
+                    if player:deliverCargo(mode * 10) then
+                        trace("Delivered " .. tostring(mode * 10) .. "kg of cargo")
+                    end
+                end
+            elseif mode == 2 then
+                if plus_minus then
+                    if player:pickupPassengers(mode) then
+                        trace("Picked up " .. tostring(mode) .. " passengers")
+                    end
+                else
+                    if player:deliverPassengers(mode) then
+                        trace("Delivered " .. tostring(mode) .. " passengers")
+                    end
+                end
+            elseif mode == 3 then
+                if plus_minus then
+                    if player:pickupSmuggledGoods(mode * 10) then
+                        trace("Picked up " .. tostring(mode * 10) .. "kg of smuggled goods")
+                    end
+                else
+                    if player:deliverSmuggledGoods(mode * 10) then
+                        trace("Delivered " .. tostring(mode * 10) .. "kg of smuggled goods")
+                    end
+                end
+            end
+        end
+    end
 end
 
 

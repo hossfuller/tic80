@@ -2,7 +2,7 @@
 -- GAME CONSTANTS
 -- ==========================================
 
-local DEBUG = false
+local DEBUG = true
 
 local TILE_EMPTY       = 0
 local TILE_STAR_DIM    = 1
