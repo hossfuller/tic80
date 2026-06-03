@@ -57,7 +57,7 @@ The different revisions implement separate features. This list is ever changing.
     - [x] Bring over Asteroids particle effects like explosions, thrust, sparks, and smoke.
 - [x] **REV0.7**: Put the heavens in motion.
     - [x] Gravity!
-    - [ ] Implement inertia and make the energy engine feel it (more mass makes the ship expend more energy to stop).
+    - [x] Implement inertia and make the energy engine feel it (more mass makes the ship expend more energy to stop).
 - [ ] **REV0.8**: Spaceship upgrades
     - [ ] Certain places will provide ways to auto-refill energy, health, and shields.
     - [ ] Energy, health, and shields can also be upgraded to higher max values at shops or just randomly floating around.
