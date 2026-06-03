@@ -1,20 +1,9 @@
---
--- Bundle file
--- Code changes will be overwritten
---
-
 -- title:   Kepler-9999
 -- author:  Hoss Fuller
 -- version: rev0.8
 -- script:  lua
 -- input:   mouse
 -- saveid:  kepler_9999
-
--- ==========================================
--- INCLUDES
--- ==========================================
-
--- [TQ-Bundler: src.constants_system]
 
 -- ==========================================
 -- TIC80 CONSTANTS
@@ -78,11 +67,6 @@ local FIXED_CHAR_HEIGHT = 6
 local X_PADDING         = FIXED_CHAR_WIDTH + 2
 local Y_PADDING         = FIXED_CHAR_HEIGHT + 2
 
-
--- [/TQ-Bundler: src.constants_system]
-
--- [TQ-Bundler: src.constants_game]
-
 -- ==========================================
 -- GAME CONSTANTS
 -- ==========================================
@@ -108,11 +92,6 @@ local TILE_BLACK_HOLE_H  = 4
 local TILE_GALAXY_ID = 80
 local TILE_GALAXY_W  = 4
 local TILE_GALAXY_H  = 4
-
-
--- [/TQ-Bundler: src.constants_game]
-
--- [TQ-Bundler: src.generators.backgroundmap]
 
 -- ==========================================
 -- BACKGROUND MAP
@@ -252,11 +231,6 @@ function generateBackgroundMap()
         )
     end
 end
-
-
--- [/TQ-Bundler: src.generators.backgroundmap]
-
--- [TQ-Bundler: src.generators.ships]
 
 -- ==========================================
 -- PLAYER & NPC SHIPS
@@ -529,11 +503,6 @@ function generatePlayer()
     local preset = ship_presets[selected_ship] or cruiser_ship
     return SpaceShip:new(preset)
 end
-
-
--- [/TQ-Bundler: src.generators.ships]
-
--- [TQ-Bundler: src.generators.stars]
 
 -- ==========================================
 -- STARS
@@ -840,11 +809,6 @@ function generateStar()
     })
 end
 
-
--- [/TQ-Bundler: src.generators.stars]
-
--- [TQ-Bundler: src.generators.planets]
-
 -- ==========================================
 -- PLANETS
 -- ==========================================
@@ -1038,11 +1002,6 @@ function generatePlanets()
 
     return planets
 end
-
-
--- [/TQ-Bundler: src.generators.planets]
-
--- [TQ-Bundler: src.generators.moons]
 
 -- ==========================================
 -- MOONS
@@ -1259,11 +1218,6 @@ function generateMoons()
     end
 end
 
-
--- [/TQ-Bundler: src.generators.moons]
-
--- [TQ-Bundler: src.generators.comets]
-
 -- ==========================================
 -- COMETS
 -- ==========================================
@@ -1453,11 +1407,6 @@ function maintainCometCount()
     end
 end
 
-
--- [/TQ-Bundler: src.generators.comets]
-
--- [TQ-Bundler: src.generators.asteroids]
-
 -- ==========================================
 -- ASTEROIDS
 -- ==========================================
@@ -1543,11 +1492,6 @@ function spawnAsteroids(count)
 
     return asteroids
 end
-
-
--- [/TQ-Bundler: src.generators.asteroids]
-
--- [TQ-Bundler: src.camera]
 
 -- ==========================================
 -- CAMERA FUNCTIONS
@@ -1640,11 +1584,6 @@ function updateMouseWheelZoom()
     camera.zoom_index = clamp(camera.zoom_index, 1, #camera.zoom_levels)
     camera.zoom = camera.zoom_levels[camera.zoom_index]
 end
-
-
--- [/TQ-Bundler: src.camera]
-
--- [TQ-Bundler: src.collisions]
 
 -- ==========================================
 -- COLLISION SYSTEM
@@ -1979,11 +1918,6 @@ function applyCollisionDamage(a, b)
     end
 end
 
-
--- [/TQ-Bundler: src.collisions]
-
--- [TQ-Bundler: src.gravity]
-
 -- ==========================================
 -- GRAVITY SYSTEM
 -- ==========================================
@@ -2128,12 +2062,6 @@ function updateGravity()
         applyGravityToObject(obj, sources)
     end
 end
-
-
-
--- [/TQ-Bundler: src.gravity]
-
--- [TQ-Bundler: src.polygons]
 
 -- ==========================================
 -- POLYGON FUNCTIONS
@@ -2358,10 +2286,6 @@ function drawPolygonOutline(points, color)
     end
 end
 
--- [/TQ-Bundler: src.polygons]
-
--- [TQ-Bundler: src.game_state]
-
 -- ==========================================
 -- GAME STATE
 -- ==========================================
@@ -2464,11 +2388,6 @@ function changeState(newState)
     end
 end
 
-
--- [/TQ-Bundler: src.game_state]
-
--- [TQ-Bundler: src.helpers]
-
 -- ==========================================
 -- HELPERS
 -- ==========================================
@@ -2550,11 +2469,6 @@ function drawOverlayBox(text)
     drawCenteredText(text, boxY + 16, 12)
 end
 
-
--- [/TQ-Bundler: src.helpers]
-
--- [TQ-Bundler: src.states.start]
-
 -- ==========================================
 -- STATE: START (Main Menu)
 -- ==========================================
@@ -2619,11 +2533,6 @@ function drawStart()
 
     drawCenteredText("Press Z to select options", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
 end
-
-
--- [/TQ-Bundler: src.states.start]
-
--- [TQ-Bundler: src.states.options]
 
 -- ==========================================
 -- STATE: OPTIONS
@@ -2738,11 +2647,6 @@ function drawOptions()
     drawCenteredText("UP/DOWN: Select  LEFT/RIGHT: Change", inst_y, WHITE, false, 1, true, GRAY_MED)
     drawCenteredText("Z: Confirm  X: Back", inst_y + Y_PADDING, WHITE, false, 1, true, GRAY_MED)
 end
-
-
--- [/TQ-Bundler: src.states.options]
-
--- [TQ-Bundler: src.states.highscores]
 
 -- ==========================================
 -- STATE: HIGH SCORES
@@ -2959,11 +2863,6 @@ function drawHighScores()
     drawCenteredText("Press Z to Return", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
 end
 
-
--- [/TQ-Bundler: src.states.highscores]
-
--- [TQ-Bundler: src.states.ready]
-
 -- ==========================================
 -- STATE: READY
 -- ==========================================
@@ -2990,11 +2889,6 @@ function drawReady()
     drawOverlayBox("READY?")
     drawCenteredText("Press Z to Begin", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
 end
-
-
--- [/TQ-Bundler: src.states.ready]
-
--- [TQ-Bundler: src.states.play]
 
 -- ==========================================
 -- STATE: PLAY
@@ -3358,11 +3252,6 @@ function drawDebugCameraInfo()
     end
 end
 
-
--- [/TQ-Bundler: src.states.play]
-
--- [TQ-Bundler: src.states.pause]
-
 -- ==========================================
 -- STATE: PAUSE
 -- ==========================================
@@ -3390,11 +3279,6 @@ function drawPause()
     drawCenteredText("Press 'SELECT' (A) to Quit", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
 end
 
-
--- [/TQ-Bundler: src.states.pause]
-
--- [TQ-Bundler: src.states.gameover]
-
 -- ==========================================
 -- STATE: GAMEOVER
 -- ==========================================
@@ -3415,11 +3299,6 @@ function drawGameover()
     drawOverlayBox("GAME OVER")
     drawCenteredText("Press Z to Continue", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
 end
-
-
--- [/TQ-Bundler: src.states.gameover]
-
--- [TQ-Bundler: src.state_machine]
 
 -- ==========================================
 -- STATE MACHINE
@@ -3462,11 +3341,6 @@ states = {
         draw = drawGameover,
     },
 }
-
-
--- [/TQ-Bundler: src.state_machine]
-
--- [TQ-Bundler: src.classes.KeplerObj]
 
 -- ==========================================
 -- KEPLEROBJ OBJECT
@@ -3785,10 +3659,6 @@ function KeplerObj:draw()
 
     -- Anything else to draw, like particle effects?
 end
-
--- [/TQ-Bundler: src.classes.KeplerObj]
-
--- [TQ-Bundler: src.classes.SpaceShip]
 
 -- ==========================================
 -- SPACESHIP OBJECT
@@ -4929,11 +4799,6 @@ function SpaceShip:explode()
     -- sfx(2, 10, 30, 3, 15)
 end
 
-
--- [/TQ-Bundler: src.classes.SpaceShip]
-
--- [TQ-Bundler: src.classes.Star]
-
 -- ==========================================
 -- STAR OBJECT
 -- ==========================================
@@ -5248,11 +5113,6 @@ function Star:draw()
     self:drawBody()
     self:drawParticleList(self.particles.flare.particles)
 end
-
-
--- [/TQ-Bundler: src.classes.Star]
-
--- [TQ-Bundler: src.classes.Planet]
 
 -- ==========================================
 -- PLANET OBJECT
@@ -5639,11 +5499,6 @@ function Planet:draw()
     self:drawLabel()
 end
 
-
--- [/TQ-Bundler: src.classes.Planet]
-
--- [TQ-Bundler: src.classes.Moon]
-
 -- ==========================================
 -- MOON OBJECT
 -- ==========================================
@@ -5810,11 +5665,6 @@ end
 function Moon:draw()
     self:drawBody()
 end
-
-
--- [/TQ-Bundler: src.classes.Moon]
-
--- [TQ-Bundler: src.classes.Comet]
 
 -- ==========================================
 -- COMET OBJECT
@@ -6185,11 +6035,6 @@ function Comet:draw()
         self:drawBody()
     end
 end
-
-
--- [/TQ-Bundler: src.classes.Comet]
-
--- [TQ-Bundler: src.classes.Asteroid]
 
 -- ==========================================
 -- ASTEROID OBJECT
@@ -6727,9 +6572,6 @@ function Asteroid:draw()
     -- Draw explosion particles even after the asteroid body is gone.
     self:drawParticles("explosion")
 end
-
-
--- [/TQ-Bundler: src.classes.Asteroid]
 
 -- ==========================================
 -- MAIN TIC FUNCTION

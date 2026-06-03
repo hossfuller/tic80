@@ -58,15 +58,21 @@ The different revisions implement separate features. This list is ever changing.
 - [x] **REV0.7**: Put the heavens in motion.
     - [x] Gravity!
     - [x] Implement inertia and make the energy engine feel it (more mass makes the ship expend more energy to stop).
-- [ ] **REV0.8**: Spaceship upgrades
-    - [ ] Certain places will provide ways to auto-refill energy, health, and shields.
-    - [ ] Energy, health, and shields can also be upgraded to higher max values at shops or just randomly floating around.
-    - [ ] Cargo space and passenger seating can also be increased?
-    - [ ] Spaceship tractor beam? Laser blaster? What are things the ship can do besides fly around and dock?
-- [ ] **REV0.9**: Space docking, cargo, and passengers
-    - [ ] Space stations and ships should have a way to connect to each other to exchange passengers, cargo, or energy/health.
+- [ ] **REV0.8**: Mining
+    - [ ] Add a harpoon to the spaceship that can be fired at moons and smaller objects with the `BTN_P1_A` button.
+    - [ ] Harpoon locks the ship in place with the harpooned object so that the ship is attached to the object.
+    - [ ] When attached, pressing `BTN_P1_A` disengages the harpoon.
+    - [ ] Colliding with the harpooned object doesn't damage the ship.
+    - [ ] While attached to the object, holding `BTN_P1_B` extracts mass from the object. This mass goes into any available space in the cargo hold.
+- [ ] **REV0.9**: The Space Station and various colony space docks
+    - [ ] There is a single space station in the game that orbits the biggest planet in the system.
+    - [ ] All other planets have space docks.
+    - [ ] Harpooning the space station or docks puts the game into the `STATE.SHOP` state.
     - [ ] Colors, effects, and sounds indicate successful docking.
+    - [ ] The spaceship can deposit the mined mass in the game bank.
+    - [ ] Mined mass can be traded for upgrades to the engines or to refill the engines.
 - [ ] **REV1.0**: Game objectives
+    - [ ] While docked at the space station or any of the planets' space docks, pick up cargo/passengers/contraband for delivery.
     - [ ] Use the `pickup`/`deliver` functions to meddle with the ship's mass.
 - [ ] **REV1.1**: tbd
 - [ ] **REV1.2**: tbd

@@ -21,6 +21,10 @@ function objectsCollide(a, b)
         return false
     end
 
+    if objectsAreHarpoonLinked(a, b) then
+        return false
+    end
+
     if not a.position or not b.position then
         return false
     end
@@ -329,4 +333,52 @@ function applyCollisionDamage(a, b)
     if a.takeDamage then
         a:takeDamage(damage_to_a, b)
     end
+end
+
+-- ==========================================
+-- HARPOON FUNCTIONS
+-- ==========================================
+-- These are ~kinda~ part of the collision system.
+
+function objectsAreHarpoonLinked(a, b)
+    if not a or not b then
+        return false
+    end
+
+    if a.harpoon and a.harpoon.attached and a.harpoon.target == b then
+        return true
+    end
+
+    if b.harpoon and b.harpoon.attached and b.harpoon.target == a then
+        return true
+    end
+
+    return false
+end
+
+function distancePointToSegmentSquared(px, py, ax, ay, bx, by)
+    local abx = bx - ax
+    local aby = by - ay
+
+    local apx = px - ax
+    local apy = py - ay
+
+    local ab_len_sq = abx * abx + aby * aby
+
+    if ab_len_sq <= 0 then
+        return distanceSquared(px, py, ax, ay)
+    end
+
+    local t = (apx * abx + apy * aby) / ab_len_sq
+    t = clamp(t, 0, 1)
+
+    local closest_x = ax + abx * t
+    local closest_y = ay + aby * t
+
+    return distanceSquared(px, py, closest_x, closest_y)
+end
+
+function segmentIntersectsCircle(ax, ay, bx, by, cx, cy, radius)
+    local dist_sq = distancePointToSegmentSquared(cx, cy, ax, ay, bx, by)
+    return dist_sq <= radius * radius
 end

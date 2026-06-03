@@ -87,7 +87,7 @@ local Y_PADDING         = FIXED_CHAR_HEIGHT + 2
 -- GAME CONSTANTS
 -- ==========================================
 
-local DEBUG = true
+local DEBUG = false
 
 -- local GRAVITATIONAL_CONSTANT = 0.000000000001 -- very subtle
 -- local GRAVITATIONAL_CONSTANT = 0.00000000001  -- noticeable
@@ -272,6 +272,9 @@ end
 local PASSENGER_MASS         = 75
 local PASSENGER_LUGGAGE_MASS = 25
 local PASSENGER_TOTAL_MASS   = PASSENGER_MASS + PASSENGER_LUGGAGE_MASS
+
+local HARPOON_RANGE       = 140
+local HARPOON_LOCK_OFFSET = 18
 
 local cruiser_ship = {
     name      = "Cruiser",
@@ -1669,6 +1672,10 @@ function objectsCollide(a, b)
         return false
     end
 
+    if objectsAreHarpoonLinked(a, b) then
+        return false
+    end
+
     if not a.position or not b.position then
         return false
     end
@@ -1977,6 +1984,54 @@ function applyCollisionDamage(a, b)
     if a.takeDamage then
         a:takeDamage(damage_to_a, b)
     end
+end
+
+-- ==========================================
+-- HARPOON FUNCTIONS
+-- ==========================================
+-- These are ~kinda~ part of the collision system.
+
+function objectsAreHarpoonLinked(a, b)
+    if not a or not b then
+        return false
+    end
+
+    if a.harpoon and a.harpoon.attached and a.harpoon.target == b then
+        return true
+    end
+
+    if b.harpoon and b.harpoon.attached and b.harpoon.target == a then
+        return true
+    end
+
+    return false
+end
+
+function distancePointToSegmentSquared(px, py, ax, ay, bx, by)
+    local abx = bx - ax
+    local aby = by - ay
+
+    local apx = px - ax
+    local apy = py - ay
+
+    local ab_len_sq = abx * abx + aby * aby
+
+    if ab_len_sq <= 0 then
+        return distanceSquared(px, py, ax, ay)
+    end
+
+    local t = (apx * abx + apy * aby) / ab_len_sq
+    t = clamp(t, 0, 1)
+
+    local closest_x = ax + abx * t
+    local closest_y = ay + aby * t
+
+    return distanceSquared(px, py, closest_x, closest_y)
+end
+
+function segmentIntersectsCircle(ax, ay, bx, by, cx, cy, radius)
+    local dist_sq = distancePointToSegmentSquared(cx, cy, ax, ay, bx, by)
+    return dist_sq <= radius * radius
 end
 
 
@@ -3066,45 +3121,6 @@ function updatePlay()
     if player.mortality.invulnerable > 0 then
         player.mortality.invulnerable = player.mortality.invulnerable - 1
     end
-
-    -- FOR TESTING
-    if DEBUG then
-        if player:everyNTicks(60) then
-            local mode = math.random(1, 3)
-            local plus_minus = math.random(0, 1) == 1
-            if mode == 1 then
-                if plus_minus then
-                    if player:pickupCargo(mode * 10) then
-                        trace("Picked up " .. tostring(mode * 10) .. "kg of cargo")
-                    end
-                else
-                    if player:deliverCargo(mode * 10) then
-                        trace("Delivered " .. tostring(mode * 10) .. "kg of cargo")
-                    end
-                end
-            elseif mode == 2 then
-                if plus_minus then
-                    if player:pickupPassengers(mode) then
-                        trace("Picked up " .. tostring(mode) .. " passengers")
-                    end
-                else
-                    if player:deliverPassengers(mode) then
-                        trace("Delivered " .. tostring(mode) .. " passengers")
-                    end
-                end
-            elseif mode == 3 then
-                if plus_minus then
-                    if player:pickupSmuggledGoods(mode * 10) then
-                        trace("Picked up " .. tostring(mode * 10) .. "kg of smuggled goods")
-                    end
-                else
-                    if player:deliverSmuggledGoods(mode * 10) then
-                        trace("Delivered " .. tostring(mode * 10) .. "kg of smuggled goods")
-                    end
-                end
-            end
-        end
-    end
 end
 
 
@@ -3869,6 +3885,17 @@ function SpaceShip:new(params)
         dead          = false,
         exploded      = false,
         respawn_timer = 0,
+    }
+
+    self.harpoon    = {
+        attached     = false,
+        target       = nil,
+        offset_x     = 0,
+        offset_y     = 0,
+        range        = params.harpoon_range or HARPOON_RANGE,
+        lock_offset  = params.harpoon_lock_offset or HARPOON_LOCK_OFFSET,
+        line_color   = params.harpoon_line_color or GRAY_LITE,
+        anchor_color = params.harpoon_anchor_color or YELLOW,
     }
 
     -- Particle Effects: all particles use the same simple particle tuning vars.
@@ -4669,7 +4696,6 @@ function SpaceShip:thrustEffect()
     end
 end
 
-
 -- ==========================================
 -- SPACESHIP COLLISION DAMAGE
 -- ==========================================
@@ -4732,6 +4758,244 @@ function SpaceShip:takeDamage(damage, other)
 
     return false
 end
+-- ==========================================
+-- SPACESHIP HARPOON
+-- ==========================================
+
+function SpaceShip:getHarpoonTipPosition()
+    return {
+        x = self.position.x + math.cos(self.rotation) * self.radius,
+        y = self.position.y + math.sin(self.rotation) * self.radius,
+    }
+end
+
+function SpaceShip:getHarpoonEndPosition()
+    local tip = self:getHarpoonTipPosition()
+
+    return {
+        x = tip.x + math.cos(self.rotation) * self.harpoon.range,
+        y = tip.y + math.sin(self.rotation) * self.harpoon.range,
+    }
+end
+
+function SpaceShip:isHarpoonAttachedTo(obj)
+    if not self.harpoon then
+        return false
+    end
+
+    return self.harpoon.attached and self.harpoon.target == obj
+end
+
+function SpaceShip:clearHarpoon()
+    if not self.harpoon then
+        return
+    end
+
+    self.harpoon.attached = false
+    self.harpoon.target   = nil
+    self.harpoon.offset_x = 0
+    self.harpoon.offset_y = 0
+end
+
+function SpaceShip:canHarpoonTarget(obj)
+    if not obj then
+        return false
+    end
+
+    if obj.dead then
+        return false
+    end
+
+    if not obj.position then
+        return false
+    end
+
+    -- Do not harpoon yourself.
+    if obj == self then
+        return false
+    end
+
+    -- First round feature: moons and smaller objects.
+    -- Exclude planets and stars.
+    if getmetatable(obj) == Star then
+        return false
+    end
+
+    if getmetatable(obj) == Planet then
+        return false
+    end
+
+    return true
+end
+
+function SpaceShip:getHarpoonTargets()
+    local targets = {}
+
+    -- Moons.
+    for _, planet in ipairs(game.play.planets or {}) do
+        for _, moon in ipairs(planet.moons or {}) do
+            if self:canHarpoonTarget(moon) then
+                table.insert(targets, moon)
+            end
+        end
+    end
+
+    -- Comets.
+    for _, comet in ipairs(game.play.comets or {}) do
+        if self:canHarpoonTarget(comet) then
+            table.insert(targets, comet)
+        end
+    end
+
+    -- Asteroids.
+    for _, asteroid in ipairs(game.play.asteroids or {}) do
+        if self:canHarpoonTarget(asteroid) then
+            table.insert(targets, asteroid)
+        end
+    end
+
+    return targets
+end
+
+function SpaceShip:findHarpoonTarget()
+    local tip = self:getHarpoonTipPosition()
+    local end_pos = self:getHarpoonEndPosition()
+
+    local best_target = nil
+    local best_distance_sq = nil
+
+    for _, target in ipairs(self:getHarpoonTargets()) do
+        local radius = getCollisionRadius(target)
+
+        -- Give tiny objects a little aiming forgiveness.
+        radius = math.max(radius, 6)
+
+        if segmentIntersectsCircle(
+                tip.x,
+                tip.y,
+                end_pos.x,
+                end_pos.y,
+                target.position.x,
+                target.position.y,
+                radius
+            ) then
+            local d_sq = distanceSquared(
+                self.position.x,
+                self.position.y,
+                target.position.x,
+                target.position.y
+            )
+
+            if best_distance_sq == nil or d_sq < best_distance_sq then
+                best_distance_sq = d_sq
+                best_target = target
+            end
+        end
+    end
+
+    return best_target
+end
+
+function SpaceShip:attachHarpoon(target)
+    if not target then
+        return false
+    end
+
+    if not self.harpoon then
+        return false
+    end
+
+    self.harpoon.attached = true
+    self.harpoon.target   = target
+
+    -- Preserve the current relative offset so the ship moves with the target.
+    self.harpoon.offset_x = self.position.x - target.position.x
+    self.harpoon.offset_y = self.position.y - target.position.y
+
+    -- If we somehow attached while almost centered on the target, push the ship
+    -- slightly outside the target so it does not sit inside the collision body.
+    local offset_len_sq   =
+        self.harpoon.offset_x * self.harpoon.offset_x +
+        self.harpoon.offset_y * self.harpoon.offset_y
+
+    if offset_len_sq <= 0.01 then
+        local angle = self.rotation + math.pi
+        local lock_distance =
+            getCollisionRadius(target) +
+            getCollisionRadius(self) +
+            self.harpoon.lock_offset
+
+        self.harpoon.offset_x = math.cos(angle) * lock_distance
+        self.harpoon.offset_y = math.sin(angle) * lock_distance
+    end
+
+    self.velocity.speed = 0
+    self.velocity.direction = 0
+
+    return true
+end
+
+function SpaceShip:fireHarpoon()
+    if self.dead then
+        return false
+    end
+
+    local target = self:findHarpoonTarget()
+
+    if target then
+        return self:attachHarpoon(target)
+    end
+
+    return false
+end
+
+function SpaceShip:toggleHarpoon()
+    if not self.harpoon then
+        return
+    end
+
+    if self.harpoon.attached then
+        self:clearHarpoon()
+    else
+        self:fireHarpoon()
+    end
+end
+
+function SpaceShip:updateHarpoonLock()
+    if not self.harpoon then
+        return
+    end
+
+    if not self.harpoon.attached then
+        return
+    end
+
+    local target = self.harpoon.target
+
+    if not target or target.dead or not target.position then
+        self:clearHarpoon()
+        return
+    end
+
+    -- Lock the ship to the target's current position.
+    self.position.x = target.position.x + self.harpoon.offset_x
+    self.position.y = target.position.y + self.harpoon.offset_y
+
+    self.position.x = clamp(self.position.x, 0, MAP_PIXELS_W - 1)
+    self.position.y = clamp(self.position.y, 0, MAP_PIXELS_H - 1)
+
+    -- Keep ship stationary relative to the harpooned object.
+    self.velocity.speed = 0
+    self.velocity.direction = 0
+
+    -- Face the harpooned target.
+    local dx = target.position.x - self.position.x
+    local dy = target.position.y - self.position.y
+
+    if dx ~= 0 or dy ~= 0 then
+        self.rotation = self:keepAngleInRange(math.atan(dy, dx))
+    end
+end
 
 -- ==========================================
 -- SPACESHIP INPUT
@@ -4780,7 +5044,21 @@ function SpaceShip:thrust()
 end
 
 function SpaceShip:input()
-    if self.dead or self:getEnergy() <= 0 then
+    if self.dead then
+        return
+    end
+
+    -- Harpoon toggle does not require energy.
+    if btnp(BTN_P1_A) then
+        self:toggleHarpoon()
+    end
+
+    -- If attached, normal movement controls are disabled for now.
+    if self.harpoon and self.harpoon.attached then
+        return
+    end
+
+    if self:getEnergy() <= 0 then
         return
     end
 
@@ -4821,10 +5099,14 @@ function SpaceShip:move()
     self:updateTimer()
 
     if not self.dead then
-        self.position = self:movePointByVelocity()
+        if self.harpoon and self.harpoon.attached then
+            self:updateHarpoonLock()
+        else
+            self.position = self:movePointByVelocity()
 
-        self.position.x = clamp(self.position.x, 0, MAP_PIXELS_W - 1)
-        self.position.y = clamp(self.position.y, 0, MAP_PIXELS_H - 1)
+            self.position.x = clamp(self.position.x, 0, MAP_PIXELS_W - 1)
+            self.position.y = clamp(self.position.y, 0, MAP_PIXELS_H - 1)
+        end
 
         self:regenerateEnginesOnTimer()
 
@@ -4880,6 +5162,34 @@ function SpaceShip:getScreenShapePoints()
     return points
 end
 
+function SpaceShip:drawHarpoon()
+    if not self.harpoon then
+        return
+    end
+
+    local start_x, start_y = worldToScreen(self.position.x, self.position.y)
+
+    start_x = math.floor(start_x)
+    start_y = math.floor(start_y)
+
+    if self.harpoon.attached and self.harpoon.target and self.harpoon.target.position then
+        local target = self.harpoon.target
+
+        local target_x, target_y = worldToScreen(
+            target.position.x,
+            target.position.y
+        )
+
+        target_x = math.floor(target_x)
+        target_y = math.floor(target_y)
+
+        line(start_x, start_y, target_x, target_y, self.harpoon.line_color)
+        circ(target_x, target_y, 2, self.harpoon.anchor_color)
+
+        return
+    end
+end
+
 function SpaceShip:drawBody()
     local zoom = game.camera.zoom or 1
 
@@ -4911,6 +5221,10 @@ function SpaceShip:draw()
     -- Draw particles behind/in front of body.
     self:drawParticles("explosion")
     self:drawParticles("thrust")
+
+    if not self.dead then
+        self:drawHarpoon()
+    end
 
     if not self.dead and self:shouldDraw() then
         self:drawBody()

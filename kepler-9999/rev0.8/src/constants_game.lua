@@ -2,7 +2,7 @@
 -- GAME CONSTANTS
 -- ==========================================
 
-local DEBUG = true
+local DEBUG = false
 
 -- local GRAVITATIONAL_CONSTANT = 0.000000000001 -- very subtle
 -- local GRAVITATIONAL_CONSTANT = 0.00000000001  -- noticeable
