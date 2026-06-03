@@ -61,8 +61,8 @@ game = {
         target_y    = 0,
         lerp        = 0.08,
         zoom        = 1,
-        zoom_index  = 4,
-        zoom_levels = { 0.15, 0.25, 0.5, 1 },
+        zoom_index  = 5,
+        zoom_levels = { 0.1, 0.15, 0.25, 0.5, 1 },
     },
 
     -- Gameplay state

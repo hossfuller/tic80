@@ -2269,8 +2269,8 @@ game = {
         target_y    = 0,
         lerp        = 0.08,
         zoom        = 1,
-        zoom_index  = 4,
-        zoom_levels = { 0.15, 0.25, 0.5, 1 },
+        zoom_index  = 5,
+        zoom_levels = { 0.1, 0.15, 0.25, 0.5, 1 },
     },
 
     -- Gameplay state
@@ -3144,15 +3144,7 @@ function drawGame()
     end
 
     local player = game.play.player
-    if not player.dead and player:shouldDraw() then
-        player:drawBody()
-    end
-
-    -- Draw particle effects even if the ship explodes and isn't drawn anymore.
-    -- player:drawParticles(player.TYPES.EXPLOSION)
-    -- player:drawParticles(player.TYPES.SMOKE)
-    -- player:drawParticles(player.TYPES.SPARK)
-    -- player:drawParticles(player.TYPES.THRUST)
+    player:draw()
 
     drawShipCargoHoldHud()
     drawShipStatusHud()
@@ -3714,61 +3706,99 @@ function SpaceShip:new(params)
         respawn_timer = 0,
     }
 
-    -- Particle Effects
-    self.particles = {
+    -- Particle Effects: all particles use the same simple particle tuning vars.
+    self.particles  = {
         explosion = {
-            colors = { YELLOW, ORANGE, RED },
+            colors = params.explosion_colors or {
+                WHITE,
+                YELLOW,
+                ORANGE,
+                RED,
+                GRAY_LITE,
+                GRAY_MED,
+                GRAY_DARK,
+            },
             params = {
-                cooldown      = 0,
-                deceleration  = 0.015,
-                max_lifetime  = 90,
-                max_size      = 3,
-                max_speed     = 2,
-                num_particles = 100,
-                offset        = { x = 0, y = 0 },
-                type          = "explosion",
+                count_min    = 70,
+                count_max    = 110,
+                speed_min    = 0.8,
+                speed_max    = 4.2,
+                life_min     = 35,
+                life_max     = 95,
+                size_min     = 1,
+                size_max     = 3,
+                drag         = 0.975,
+                spawn_radius = (self.radius or 10) * 1.6,
             },
             particles = {},
         },
         smoke = {
-            colors = { GRAY_LITE, GRAY_MED, GRAY_DARK },
+            colors = params.smoke_colors or {
+                GRAY_DARK,
+                GRAY_MED,
+                GRAY_LITE,
+            },
             params = {
-                cooldown      = 0,
-                deceleration  = 0.015,
-                max_lifetime  = 90,
-                max_size      = 3,
-                max_speed     = 2,
-                num_particles = 100,
-                offset        = { x = 0, y = 0 },
-                type          = "smoke",
+                -- Spawn chance is calculated from life support fraction.
+                spawn_chance_min = 0.04,
+                spawn_chance_max = 0.65,
+                count_min        = 1,
+                count_max        = 2,
+                speed_min        = 0.05,
+                speed_max        = 0.45,
+                life_min         = 32,
+                life_max         = 90,
+                size_min         = 1,
+                size_max         = 3,
+                drag             = 0.985,
+                diffuse_speed    = 0.35,                -- Random outward diffusion.
+                trail_strength   = 0.65,                -- smoke trails opposite current ship movement
+                spawn_radius     = self.radius or 10,
             },
             particles = {},
         },
         spark = {
-            colors = { ORANGE },
+            colors = params.spark_colors or {
+                YELLOW,
+                ORANGE,
+                RED,
+                WHITE,
+            },
             params = {
-                cooldown      = 0,
-                deceleration  = 0.01,
-                max_lifetime  = 30,
-                max_size      = 1,
-                max_speed     = 2,
-                num_particles = 30,
-                offset        = { x = 0, y = 0 },
-                type          = "spark",
+                count_min    = 6,
+                count_max    = 14,
+                speed_min    = 0.5,
+                speed_max    = 2.2,
+                life_min     = 8,
+                life_max     = 22,
+                size_min     = 1,
+                size_max     = 1,
+                drag         = 0.92,
+                spawn_radius = self.radius or 10,
             },
             particles = {},
         },
+
         thrust = {
-            colors = { YELLOW, ORANGE, RED, GRAY_LITE, GRAY_MED, GRAY_DARK },
+            colors = params.thrust_colors or {
+                BLUE_LITE,
+                CYAN,
+                WHITE,
+                ORANGE,
+            },
             params = {
-                cooldown      = 0,
-                deceleration  = 0.01,
-                max_lifetime  = 30,
-                max_size      = 1,
-                max_speed     = 2,
-                num_particles = 5,
-                offset        = { x = -5, y = 0 },
-                type          = "thrust",
+                count_min      = 1,
+                count_max      = 3,
+                speed_min      = 0.4,
+                speed_max      = 1.4,
+                life_min       = 8,
+                life_max       = 18,
+                size_min       = 1,
+                size_max       = 2,
+                drag           = 0.94,
+                spread         = math.pi / 7,         -- Exhaust cone behind the ship.
+                backend_offset = self.radius or 10,   -- Spawn just behind ship center.
+                side_jitter    = 3,                   -- Slight side jitter so exhaust is not a single line.
             },
             particles = {},
         },
@@ -4091,252 +4121,361 @@ function SpaceShip:deliverSmuggledGoods(smuggled_mass)
 end
 
 
-
 -- ==========================================
 -- SPACESHIP PARTICLE EFFECTS
 -- ==========================================
 
--- function SpaceShip:explosionEffect()
---     self.type               = self.PARTICLE_TYPES.EXPLOSION
---     self.deceleration       = 0.015
---     self.max_lifetime       = 90
---     self.max_size           = 3
---     self.max_speed          = 2
---     self.num_particles      = 100
+function SpaceShip:getParticleSystem(type)
+    if not self.particles then
+        return nil
+    end
 
---     local particle_velocity = {}
---     for particle = 1, self.num_particles do
---         particle_velocity = {
---             speed     = math.random() * self.max_speed,
---             direction = math.random() * math.pi * 2
---         }
---         self:spawnParticle(
---             self.position,
---             particle_velocity,
---             self.max_lifetime,
---             self.EXPLOSION_COLORS,
---             self.max_size,
---             self.deceleration,
---             self.type
---         )
---     end
--- end
+    return self.particles[type]
+end
 
--- function SpaceShip:leakingSmoke(health_fraction)
---     -- Check cooldown - don't spawn if still cooling down
---     if self.smoke_cooldown > 0 then
---         self.smoke_cooldown = self.smoke_cooldown - 1
---         return
---     end
+function SpaceShip:addParticle(type, particle)
+    local system = self:getParticleSystem(type)
 
---     self.type             = self.PARTICLE_TYPES.SMOKE
---     self.max_lifetime     = 90
---     self.max_size         = 1
+    if not system then
+        return
+    end
 
---     -- Scale particle count based on damage (more damage = more smoke)
---     local damage_severity = 1 - (health_fraction / 0.5)
---     self.num_particles    = math.floor(1 + damage_severity)
+    table.insert(system.particles, particle)
+end
 
---     -- Set cooldown based on health: more damage = shorter cooldown (more frequent smoke)
---     -- At 50% health: cooldown ~60 frames (1 second)
---     -- At 0% health: cooldown ~15 frames (0.25 seconds)
---     -- Smoke cooldown attributes can be tinkered like this:
---     --  1. Increase `attr_a` to make smoke less frequent at low damage.
---     --  2. Decrease `attr_b` to make the frequency diff between low and high
---     --     damage smaller.
---     --  3. Change self.max_lifetime to control how long each puff lingers.
---     local attr_a          = 30
---     local attr_b          = 75
---     self.smoke_cooldown   = math.floor(attr_a - (damage_severity * attr_b))
+function SpaceShip:spawnParticleBurst(type, origin_x, origin_y, base_direction, spread, count)
+    local system = self:getParticleSystem(type)
 
---     -- Random offset from ship center for spawn position
---     local spawn_offset    = {
---         x = (math.random() * 8) - 4,
---         y = (math.random() * 8) - 4
---     }
---     local rotated_offset  = self:rotatePoint(spawn_offset, self.rotation)
---     local spawn_position  = {
---         x = rotated_offset.x + self.position.x,
---         y = rotated_offset.y + self.position.y,
---     }
+    if not system then
+        return
+    end
 
---     for particle = 1, self.num_particles do
---         local particle_velocity = {
---             speed     = 0,
---             direction = 0
---         }
---         self:spawnParticle(
---             spawn_position,
---             particle_velocity,
---             self.max_lifetime,
---             self.SMOKE_LEAK_COLORS,
---             self.max_size,
---             0,
---             self.type
---         )
---     end
--- end
+    local p = system.params
+    local colors = system.colors
 
--- function SpaceShip:sparkEffect(position)
---     self.type          = self.PARTICLE_TYPES.SPARK
---     self.deceleration  = 0.01
---     self.max_lifetime  = 30
---     self.max_size      = 1
---     self.max_speed     = 2
---     self.num_particles = 30
+    count = count or math.random(p.count_min or 1, p.count_max or 1)
+    spread = spread or math.pi * 2
 
---     -- Fallback in case no position is passed
---     position           = position or self.position
+    for i = 1, count do
+        local direction
 
---     for particle = 1, self.num_particles do
---         local particle_velocity = {
---             speed     = math.random() * self.max_speed,
---             direction = math.random() * math.pi * 2
---         }
+        if base_direction then
+            direction = base_direction + randomFloat(-spread, spread)
+        else
+            direction = randomFloat(0, math.pi * 2)
+        end
 
---         self:spawnParticle(
---             position,
---             particle_velocity,
---             self.max_lifetime,
---             self.SPARK_COLORS,
---             self.max_size,
---             self.deceleration,
---             self.type
---         )
---     end
--- end
+        direction = self:keepAngleInRange(direction)
 
--- function SpaceShip:thrustEffect()
---     -- Effect-specific overrides
---     self.type                     = self.PARTICLE_TYPES.THRUST
---     self.deceleration             = 0.01
---     self.max_lifetime             = 30
---     self.max_size                 = 1
---     self.max_speed                = 2
---     self.num_particles            = 5
+        local speed = randomFloat(p.speed_min or 0.1, p.speed_max or 1)
+        local life = math.random(p.life_min or 10, p.life_max or 30)
+        local size = math.random(p.size_min or 1, p.size_max or 1)
 
---     local thrust_offset           = { x = -5, y = 0 }
---     local particle_velocity       = {}
---     local direction               = 0
---     local relative_spawn_position = self:rotatePoint(thrust_offset, self.rotation)
---     local spawn_position          = {
---         x = relative_spawn_position.x + self.position.x,
---         y = relative_spawn_position.y + self.position.y,
---     }
+        local spawn_radius = p.spawn_radius or 0
+        local spawn_angle = self:keepAngleInRange(randomFloat(0, math.pi * 2))
+        local spawn_dist = randomFloat(0, spawn_radius)
 
---     for particle = 1, self.num_particles do
---         direction = self.rotation + math.pi + (math.random() * math.pi / 6) - (math.pi / 12)
---         direction = self:keepAngleInRange(direction)
---         particle_velocity = {
---             speed     = math.random() * self.max_speed,
---             direction = direction
---         }
---         self:spawnParticle(
---             spawn_position,
---             particle_velocity,
---             self.max_lifetime,
---             self.SMOKE_COLORS,
---             self.max_size,
---             self.deceleration,
---             self.type
---         )
---     end
--- end
+        local offset = self:rotatePoint({
+            x = spawn_dist,
+            y = 0
+        }, spawn_angle)
 
--- function SpaceShip:spawnParticle(
---     position,
---     velocity,
---     max_lifetime,
---     colors,
---     max_size,
---     deceleration,
---     particle_type
--- )
---     local particle = {
---         position     = {
---             x = position.x,
---             y = position.y
---         },
---         velocity     = {
---             speed     = velocity.speed,
---             direction = velocity.direction
---         },
---         life_timer   = (max_lifetime / 2) + (math.random() * max_lifetime / 2),
---         colors       = colors,
---         size         = math.random(1, max_size),
---         deceleration = deceleration,
---         type         = particle_type
---     }
+        local sx = origin_x + offset.x
+        local sy = origin_y + offset.y
 
---     if particle_type == self.PARTICLE_TYPES.EXPLOSION then
---         table.insert(self.explosionParticles, particle)
---     elseif particle_type == self.PARTICLE_TYPES.LASER_HIT then
---         table.insert(self.laserHitParticles, particle)
---     elseif particle_type == self.PARTICLE_TYPES.SMOKE then
---         table.insert(self.smokeParticles, particle)
---     elseif particle_type == self.PARTICLE_TYPES.SPARK then
---         table.insert(self.sparkParticles, particle)
---     elseif particle_type == self.PARTICLE_TYPES.THRUST then
---         table.insert(self.thrustParticles, particle)
---     end
--- end
+        self:addParticle(type, {
+            position = {
+                x = sx,
+                y = sy,
+            },
+            velocity = {
+                speed     = speed,
+                direction = direction,
+            },
+            life     = life,
+            max_life = life,
+            color    = randomChoice(colors),
+            size     = size,
+            drag     = p.drag or 1,
+            gravity  = {
+                speed     = p.gravity_speed or 0,
+                direction = p.gravity_direction or 0,
+            },
+        })
+    end
+end
 
--- function SpaceShip:moveParticles(particle_type)
---     local particles = self.explosionParticles
+function SpaceShip:updateParticleList(type)
+    local system = self:getParticleSystem(type)
 
---     if particle_type == self.PARTICLE_TYPES.LASER_HIT then
---         particles = self.laserHitParticles
---     elseif particle_type == self.PARTICLE_TYPES.SMOKE then
---         particles = self.smokeParticles
---     elseif particle_type == self.PARTICLE_TYPES.SPARK then
---         particles = self.sparkParticles
---     elseif particle_type == self.PARTICLE_TYPES.THRUST then
---         particles = self.thrustParticles
---     end
+    if not system then
+        return
+    end
 
---     for index = #particles, 1, -1 do
---         local particle = particles[index]
+    local particles = system.particles
+    for i = #particles, 1, -1 do
+        local particle = particles[i]
+        particle.life = particle.life - 1
 
---         particle.life_timer = particle.life_timer - 1
+        if particle.life <= 0 then
+            table.remove(particles, i)
+        else
+            if particle.gravity and particle.gravity.speed and particle.gravity.speed ~= 0 then
+                particle.velocity = self:addVectors(particle.velocity, particle.gravity)
+            end
 
---         if particle.life_timer < 0 then
---             table.remove(particles, index)
---         else
---             particle.position = self:movePointByVelocity(particle)
+            particle.velocity.speed = particle.velocity.speed * (particle.drag or 1)
+            particle.velocity.direction = self:keepAngleInRange(particle.velocity.direction or 0)
 
---             particle.velocity.speed = particle.velocity.speed - particle.deceleration
---             if particle.velocity.speed < 0 then
---                 particle.velocity.speed = 0
---             end
---         end
---     end
--- end
+            local components = self:getVectorComponents(particle.velocity)
 
--- function SpaceShip:drawParticles(particle_type)
---     local particles = self.particles.explosion
+            particle.position.x = particle.position.x + components.xComp
+            particle.position.y = particle.position.y + components.yComp
+        end
+    end
+end
 
---     if particle_type == self.PARTICLE_TYPES.SMOKE then
---         particles = self.particles.smoke
---     elseif particle_type == self.PARTICLE_TYPES.SPARK then
---         particles = self.particles.spark
---     elseif particle_type == self.PARTICLE_TYPES.THRUST then
---         particles = self.particles.thrust
---     end
+function SpaceShip:updateParticles()
+    if not self.particles then
+        return
+    end
 
---     for index, particle in ipairs(particles) do
---         local particle_color = particle.colors[math.random(1, #particle.colors)]
+    self:updateParticleList("explosion")
+    self:updateParticleList("smoke")
+    self:updateParticleList("spark")
+    self:updateParticleList("thrust")
+end
 
---         if particle.type == self.PARTICLE_TYPES.EXPLOSION or particle.type == self.PARTICLE_TYPES.LASER_HIT then
---             circ(particle.position.x, particle.position.y, particle.size, particle_color)
---         elseif particle.type == self.PARTICLE_TYPES.THRUST then
---             pix(particle.position.x, particle.position.y, particle_color)
---         elseif particle.type == self.PARTICLE_TYPES.SMOKE then
---             circ(particle.position.x, particle.position.y, particle.size, particle_color)
---         else
---             rect(particle.position.x, particle.position.y, particle.size, particle.size, particle_color)
---         end
---     end
--- end
+function SpaceShip:drawParticles(type)
+    local system = self:getParticleSystem(type)
+
+    if not system then
+        return
+    end
+
+    local zoom = game.camera.zoom or 1
+
+    for _, particle in ipairs(system.particles) do
+        local screen_x, screen_y = worldToScreen(
+            particle.position.x,
+            particle.position.y
+        )
+
+        screen_x = math.floor(screen_x)
+        screen_y = math.floor(screen_y)
+
+        if screen_x >= -4 and screen_x <= SCREEN_W + 4 and
+            screen_y >= -4 and screen_y <= SCREEN_H + 4 then
+            local life_fraction = particle.life / particle.max_life
+            local size = math.max(1, math.floor((particle.size or 1) * zoom))
+
+            if life_fraction < 0.35 then
+                size = 1
+            end
+
+            if size <= 1 then
+                pix(screen_x, screen_y, particle.color)
+            else
+                circ(screen_x, screen_y, size, particle.color)
+            end
+        end
+    end
+end
+
+function SpaceShip:drawAllParticles()
+    if not self.particles then
+        return
+    end
+
+    -- Draw smoke/explosion behind hotter particles.
+    self:drawParticles("smoke")
+    self:drawParticles("explosion")
+    self:drawParticles("thrust")
+    self:drawParticles("spark")
+end
+
+
+function SpaceShip:explosionEffect()
+    local system = self:getParticleSystem("explosion")
+
+    if not system then
+        return
+    end
+
+    local p = system.params
+    local count = math.random(p.count_min or 20, p.count_max or 40)
+    self:spawnParticleBurst(
+        "explosion",
+        self.position.x,
+        self.position.y,
+        nil,
+        math.pi * 2,
+        count
+    )
+end
+
+function SpaceShip:smokeEffect()
+    local system = self:getParticleSystem("smoke")
+    if not system then
+        return
+    end
+
+    local life_fraction = self:getLifeSupportFraction()
+    if life_fraction > 0.5 then
+        return
+    end
+
+    local p               = system.params
+    local damage_fraction = clamp((0.5 - life_fraction) / 0.5, 0, 1)
+    local spawn_chance    =
+        (p.spawn_chance_min or 0.04) +
+        damage_fraction * ((p.spawn_chance_max or 0.65) - (p.spawn_chance_min or 0.04))
+
+    if math.random() > spawn_chance then
+        return
+    end
+
+    local count = math.random(p.count_min or 1, p.count_max or 2)
+    local ship_speed = self.velocity and self.velocity.speed or 0
+
+    for i = 1, count do
+        local spawn_radius = p.spawn_radius or self.radius or 10
+        local spawn_angle  = self:keepAngleInRange(randomFloat(0, math.pi * 2))
+        local spawn_dist   = randomFloat(0, spawn_radius * 0.7)
+        local spawn_offset = self:rotatePoint({
+            x = spawn_dist,
+            y = 0,
+        }, spawn_angle)
+        local x              = self.position.x + spawn_offset.x
+        local y              = self.position.y + spawn_offset.y
+        local diffuse_angle  = self:keepAngleInRange(randomFloat(0, math.pi * 2))
+        local diffuse_speed  = randomFloat(0.02, p.diffuse_speed or 0.35)
+        local smoke_velocity = {
+            speed = diffuse_speed,
+            direction = diffuse_angle,
+        }
+
+        -- If the ship is moving, smoke trails behind it.
+        if ship_speed > 0.05 then
+            local trail_strength = p.trail_strength or 0.65
+            local trail_velocity = {
+                speed = ship_speed * trail_strength,
+                direction = self:keepAngleInRange(self.velocity.direction + math.pi),
+            }
+            smoke_velocity = self:addVectors(smoke_velocity, trail_velocity)
+        end
+
+        smoke_velocity.direction = self:keepAngleInRange(
+            smoke_velocity.direction or 0
+        )
+
+        local life = math.random(p.life_min or 30, p.life_max or 80)
+        local size = math.random(p.size_min or 1, p.size_max or 3)
+        self:addParticle("smoke", {
+            position = {
+                x = x,
+                y = y,
+            },
+            velocity = smoke_velocity,
+            life     = life,
+            max_life = life,
+            color    = randomChoice(system.colors),
+            size     = size,
+            drag     = p.drag or 0.985,
+            gravity  = {
+                speed     = p.gravity_speed or 0,
+                direction = p.gravity_direction or 0,
+            },
+        })
+    end
+end
+
+function SpaceShip:sparkEffect()
+    local system = self:getParticleSystem("spark")
+
+    if not system then
+        return
+    end
+
+    local p         = system.params
+    local count     = math.random(p.count_min or 4, p.count_max or 10)
+    local direction = nil
+    if self.velocity and self.velocity.speed and self.velocity.speed > 0.05 then
+        direction = self:keepAngleInRange(self.velocity.direction + math.pi)
+    end
+
+    self:spawnParticleBurst(
+        "spark",
+        self.position.x,
+        self.position.y,
+        direction,
+        math.pi / 1.5,
+        count
+    )
+end
+
+function SpaceShip:thrustEffect()
+    local system = self:getParticleSystem("thrust")
+
+    if not system then
+        return
+    end
+
+    local p                 = system.params
+    local exhaust_direction = self:keepAngleInRange(self.rotation + math.pi)
+    local backend_distance  = p.backend_offset or self.radius or 10
+    local side_jitter       = p.side_jitter or 0
+    local count             = math.random(p.count_min or 1, p.count_max or 1)
+
+    for i = 1, count do
+        local jitter = randomFloat(-side_jitter, side_jitter)
+
+        -- Local-space rear exhaust point.
+        -- x is behind the ship, y is side jitter.
+        local offset = self:rotatePoint({
+            x = -backend_distance,
+            y = jitter,
+        }, self.rotation)
+        local x = self.position.x + offset.x
+        local y = self.position.y + offset.y
+        local direction = self:keepAngleInRange(
+            exhaust_direction + randomFloat(-(p.spread or 0.2), p.spread or 0.2)
+        )
+        local speed = randomFloat(p.speed_min or 0.2, p.speed_max or 1)
+        local exhaust_velocity = {
+            speed = speed,
+            direction = direction,
+        }
+        -- Include a little of the ship velocity so exhaust feels attached.
+        local ship_velocity = {
+            speed = (self.velocity and self.velocity.speed or 0) * 0.25,
+            direction = self.velocity and self.velocity.direction or 0,
+        }
+        local particle_velocity = self:addVectors(exhaust_velocity, ship_velocity)
+        particle_velocity.direction = self:keepAngleInRange(
+            particle_velocity.direction or 0
+        )
+
+        local life = math.random(p.life_min or 8, p.life_max or 18)
+        local size = math.random(p.size_min or 1, p.size_max or 2)
+        self:addParticle("thrust", {
+            position = {
+                x = x,
+                y = y,
+            },
+            velocity = particle_velocity,
+            life     = life,
+            max_life = life,
+            color    = randomChoice(system.colors),
+            size     = size,
+            drag     = p.drag or 0.94,
+            gravity  = {
+                speed = p.gravity_speed or 0,
+                direction = p.gravity_direction or 0,
+            },
+        })
+    end
+end
 
 
 -- ==========================================
@@ -4396,6 +4535,9 @@ function SpaceShip:takeDamage(damage, other)
         return true
     end
 
+    -- Damaged but survived.
+    self:sparkEffect()
+
     return false
 end
 
@@ -4425,11 +4567,13 @@ function SpaceShip:thrust()
         direction = self.rotation
     }
     self.velocity = self:addVectors(self.velocity, acceleration)
+
     if self.velocity.speed > self.max_speed then
         self.velocity.speed = self.max_speed
     end
 
-    -- self:thrustEffect()
+    self:thrustEffect()
+
     -- sfx(3, 10, 10, 3, -8, 1)
 end
 
@@ -4476,29 +4620,19 @@ function SpaceShip:move()
     self:updateTimer()
 
     if not self.dead then
-        -- We want to be able to coast without any deceleration....
-        -- self.velocity.speed = self.velocity.speed - self.deceleration
-        -- if self.velocity.speed < 0 then
-        --     self.velocity.speed = 0
-        -- end
+        self.position = self:movePointByVelocity()
 
-        -- -- Leak smoke when damaged
-        -- local health_frac = self:getHealthFraction()
-        -- if health_frac < 0.5 then
-        --     self:leakingSmoke(health_frac)
-        -- end
-
-        self.position   = self:movePointByVelocity()
         self.position.x = clamp(self.position.x, 0, MAP_PIXELS_W - 1)
         self.position.y = clamp(self.position.y, 0, MAP_PIXELS_H - 1)
 
         self:regenerateEnginesOnTimer()
-    else
-        -- Dead ship body does not move, but particles still animate.
-        -- self:moveParticles(self.TYPES.EXPLOSION)
-        -- self:moveParticles(self.TYPES.SMOKE)
-        -- self:moveParticles(self.TYPES.THRUST)
+
+        -- Emit smoke if life support is damaged enough.
+        self:smokeEffect()
     end
+
+    -- Particles continue moving even after the ship dies.
+    self:updateParticles()
 end
 
 function SpaceShip:kill()
@@ -4573,15 +4707,16 @@ function SpaceShip:drawBody()
 end
 
 function SpaceShip:draw()
+    -- Draw particles behind/in front of body.
+    self:drawParticles("explosion")
+    self:drawParticles("thrust")
+
     if not self.dead and self:shouldDraw() then
         self:drawBody()
     end
 
-    -- Draw particle effects.
-    -- self:drawParticles(self.TYPES.EXPLOSION)
-    -- self:drawParticles(self.TYPES.LASER_HIT)
-    -- self:drawParticles(self.TYPES.SPARK)
-    -- self:drawParticles(self.TYPES.THRUST)
+    self:drawParticles("smoke")
+    self:drawParticles("spark")
 end
 
 function SpaceShip:explode()
@@ -4589,7 +4724,7 @@ function SpaceShip:explode()
         return
     end
     self.exploded = true
-    -- self:explosionEffect()
+    self:explosionEffect()
     -- sfx(2, 10, 30, 3, 15)
 end
 

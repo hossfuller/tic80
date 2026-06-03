@@ -302,15 +302,7 @@ function drawGame()
     end
 
     local player = game.play.player
-    if not player.dead and player:shouldDraw() then
-        player:drawBody()
-    end
-
-    -- Draw particle effects even if the ship explodes and isn't drawn anymore.
-    -- player:drawParticles(player.TYPES.EXPLOSION)
-    -- player:drawParticles(player.TYPES.SMOKE)
-    -- player:drawParticles(player.TYPES.SPARK)
-    -- player:drawParticles(player.TYPES.THRUST)
+    player:draw()
 
     drawShipCargoHoldHud()
     drawShipStatusHud()
