@@ -49,6 +49,7 @@ function SpaceShip:new(params)
             max = params.holds.smuggled.max or 100, -- (kg)
         },
     }
+    self.cargo_has_ore = params.cargo_has_ore or false
 
     self.mass       = params.mass       or 100   -- (kg)
     self.radius     = params.radius     or 10    -- (pixels)
@@ -515,7 +516,13 @@ function SpaceShip:pickupCargo(cargo_mass)
 end
 
 function SpaceShip:deliverCargo(cargo_mass)
-    return self:updateHoldMass("cargo", -cargo_mass)
+    local delivered = self:updateHoldMass("cargo", -cargo_mass)
+
+    if delivered and self:getCargoMass() <= 0 then
+        self.cargo_has_ore = false
+    end
+
+    return delivered
 end
 
 function SpaceShip:pickupPassengers(num_passengers)
@@ -534,6 +541,108 @@ function SpaceShip:deliverSmuggledGoods(smuggled_mass)
     return self:updateHoldMass("smuggled", -smuggled_mass)
 end
 
+-- ==========================================
+-- SPACESHIP MINING
+-- ==========================================
+
+function SpaceShip:getCargoFreeMass()
+    return math.max(0, self:getCargoMassMax() - self:getCargoMass())
+end
+
+function SpaceShip:getMiningTarget()
+    if not self.harpoon then
+        return nil
+    end
+
+    if not self.harpoon.attached then
+        return nil
+    end
+
+    local target = self.harpoon.target
+
+    if not target then
+        return nil
+    end
+
+    if target.dead then
+        return nil
+    end
+
+    if not target.mass or target.mass <= 0 then
+        return nil
+    end
+
+    return target
+end
+
+function SpaceShip:canMineHarpoonTarget()
+    local target = self:getMiningTarget()
+
+    if not target then
+        return false
+    end
+
+    -- No cargo space.
+    if self:getCargoFreeMass() <= 0 then
+        return false
+    end
+
+    -- Empty cargo hold can start ore cargo.
+    if self:getCargoMass() <= 0 then
+        return true
+    end
+
+    -- Non-empty hold can continue mining only if current cargo is ore.
+    return self.cargo_has_ore == true
+end
+
+function SpaceShip:mineHarpoonTarget()
+    local target = self:getMiningTarget()
+
+    if not target then
+        return false
+    end
+
+    if not self:canMineHarpoonTarget() then
+        return false
+    end
+
+    local free_mass = self:getCargoFreeMass()
+    if free_mass <= 0 then
+        return false
+    end
+
+    local mine_mass = math.min(target.mass, free_mass, HARPOON_MINE_RATE)
+    if mine_mass <= 0 then
+        return false
+    end
+
+    -- If the cargo hold was empty, this establishes that the current cargo is ore.
+    if self:getCargoMass() <= 0 then
+        self.cargo_has_ore = true
+    end
+
+    -- Reuse existing cargo setter logic.
+    local picked_up = self:pickupCargo(mine_mass)
+
+    if not picked_up then
+        return false
+    end
+
+    target.mass = target.mass - mine_mass
+
+    if target.mass <= 0 then
+        target.mass = 0
+        target:kill()
+
+        -- The harpoon should not remain attached to a mined-out object.
+        if self.harpoon and self.harpoon.target == target then
+            self:clearHarpoon()
+        end
+    end
+
+    return true
+end
 
 -- ==========================================
 -- SPACESHIP PARTICLE EFFECTS
@@ -1330,6 +1439,11 @@ function SpaceShip:input()
     -- Harpoon toggle does not require energy.
     if btnp(BTN_P1_A) then
         self:toggleHarpoon()
+    end
+
+    -- Mining through the harpoon.
+    if btn(BTN_P1_B) then
+        self:mineHarpoonTarget()
     end
 
     -- If attached, normal movement controls are disabled for now.
