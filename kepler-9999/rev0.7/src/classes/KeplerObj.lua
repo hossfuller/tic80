@@ -35,6 +35,12 @@ function KeplerObj:new(params)
     self.rotation       = params.rotation       or 5
     self.rotation_speed = params.rotation_speed or 0.07
 
+    -- Gravity behavior.
+    -- Objects with gravity_mass/exerts_gravity pull on other objects.
+    -- Objects with affected_by_gravity get their velocity changed by gravity.
+    self.exerts_gravity      = getOrDefault(params.exerts_gravity, true)
+    self.affected_by_gravity = getOrDefault(params.affected_by_gravity, true)
+
     self.max_mass  = params.max_mass  or 1    -- (kg)
     self.max_speed = params.max_speed or 1.0
 

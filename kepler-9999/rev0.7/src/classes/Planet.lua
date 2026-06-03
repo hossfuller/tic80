@@ -35,6 +35,9 @@ function Planet:new(params)
     params.acceleration = 0
     params.deceleration = 0
 
+    params.exerts_gravity = true
+    params.affected_by_gravity = false
+
     local self = KeplerObj:new(params)
     setmetatable(self, Planet)
 

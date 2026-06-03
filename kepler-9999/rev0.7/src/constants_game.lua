@@ -4,6 +4,11 @@
 
 local DEBUG = true
 
+-- local GRAVITATIONAL_CONSTANT = 0.000000000001 -- very subtle
+-- local GRAVITATIONAL_CONSTANT = 0.00000000001  -- noticeable
+local GRAVITATIONAL_CONSTANT = 0.000000000025 -- middle
+-- local GRAVITATIONAL_CONSTANT = 0.00000000005 -- strong
+
 local TILE_EMPTY       = 0
 local TILE_STAR_DIM    = 1
 local TILE_STAR_MED    = 2

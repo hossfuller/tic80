@@ -281,10 +281,36 @@ end
 -- SPACESHIP ENGINE MANAGEMENT
 -- ==========================================
 
--- TODO:
--- 1. Whenever one of these values regenerates, it pulls from energy. Unless
---    energy regenerates, and that happens on its own.
--- 2. Whenever one of these values gets upgraded, the ship's mass increases.
+function SpaceShip:getAddedMass()
+    return self:getCargoMass() + self:getPassengerMass() + self:getSmuggledMass()
+end
+
+function SpaceShip:getAddedMassMax()
+    return self.max_mass - self.mass
+end
+
+function SpaceShip:getAddedMassFraction()
+    local added_mass_max = self:getAddedMassMax()
+
+    if added_mass_max <= 0 then
+        return 0
+    end
+
+    return clamp(self:getAddedMass() / added_mass_max, 0, 1)
+end
+
+function SpaceShip:getEnergyDrainMultiplier()
+    local load_fraction = self:getAddedMassFraction()
+
+    -- At full added mass, energy drains 3x faster.
+    local max_multiplier = 3
+
+    return 1 + load_fraction * (max_multiplier - 1)
+end
+
+function SpaceShip:getEnergyDrainAmount()
+    return math.ceil(self:getEnergyDrainMultiplier())
+end
 
 function SpaceShip:modifyEngineMaxValue(type, upgrade)
     if type == nil then
@@ -402,8 +428,9 @@ function SpaceShip:modifyEngineCurrentValue(type, value)
     return new_engine_cur
 end
 
-function SpaceShip:drainEnergy()
-    return self:modifyEngineCurrentValue("energy", -1)
+function SpaceShip:drainEnergy(amount)
+    amount = amount or self:getEnergyDrainAmount()
+    return self:modifyEngineCurrentValue("energy", -amount)
 end
 
 function SpaceShip:regenerateEnergy()

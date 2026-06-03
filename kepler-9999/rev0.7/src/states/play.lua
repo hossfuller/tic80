@@ -22,6 +22,9 @@ function updatePlay()
         planet:update()
     end
 
+    -- Apply gravity before movable objects move this frame.
+    updateGravity()
+
     if game.play.comets then
         for _, comet in ipairs(game.play.comets) do
             comet:update()

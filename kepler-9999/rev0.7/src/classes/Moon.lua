@@ -20,7 +20,6 @@ function Moon:new(params)
     params.colors = params.colors or randomMoonColorSet()
 
     -- Important:
-    -- Planet:new is defined with colon syntax, so call it using colon syntax.
     local self = Planet:new(params)
     setmetatable(self, Moon)
 

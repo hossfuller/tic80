@@ -55,17 +55,17 @@ The different revisions implement separate features. This list is ever changing.
     - [x] Rebalance `SpaceShip` engine levels for all the different ships.
     - [x] Particle effects from stars can damage the ship.
     - [x] Bring over Asteroids particle effects like explosions, thrust, sparks, and smoke.
-- [ ] **REV0.7**: Put the heavens in motion.
-    - [ ] Gravity!
+- [x] **REV0.7**: Put the heavens in motion.
+    - [x] Gravity!
     - [ ] Implement inertia and make the energy engine feel it (more mass makes the ship expend more energy to stop).
-- [ ] **REV0.8**: Space docking, cargo, and passengers
-    - [ ] Space stations and ships should have a way to connect to each other to exchange passengers, cargo, or energy/health.
-    - [ ] Colors, effects, and sounds indicate successful docking.
-- [ ] **REV0.9**: Spaceship upgrades
+- [ ] **REV0.8**: Spaceship upgrades
     - [ ] Certain places will provide ways to auto-refill energy, health, and shields.
     - [ ] Energy, health, and shields can also be upgraded to higher max values at shops or just randomly floating around.
     - [ ] Cargo space and passenger seating can also be increased?
     - [ ] Spaceship tractor beam? Laser blaster? What are things the ship can do besides fly around and dock?
+- [ ] **REV0.9**: Space docking, cargo, and passengers
+    - [ ] Space stations and ships should have a way to connect to each other to exchange passengers, cargo, or energy/health.
+    - [ ] Colors, effects, and sounds indicate successful docking.
 - [ ] **REV1.0**: Game objectives
     - [ ] Use the `pickup`/`deliver` functions to meddle with the ship's mass.
 - [ ] **REV1.1**: tbd
