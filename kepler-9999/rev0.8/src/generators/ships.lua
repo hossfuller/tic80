@@ -8,14 +8,6 @@
     select which ship they want to fly around with at the options screen.
 --]]
 
--- Quick constants to set passenger masses.
-local PASSENGER_MASS         = 75
-local PASSENGER_LUGGAGE_MASS = 25
-local PASSENGER_TOTAL_MASS   = PASSENGER_MASS + PASSENGER_LUGGAGE_MASS
-
-local HARPOON_RANGE       = 140
-local HARPOON_LOCK_OFFSET = 18
-
 local cruiser_ship = {
     name      = "Cruiser",
     shape     = {

@@ -89,11 +89,6 @@ local Y_PADDING         = FIXED_CHAR_HEIGHT + 2
 
 local DEBUG = false
 
--- local GRAVITATIONAL_CONSTANT = 0.000000000001 -- very subtle
--- local GRAVITATIONAL_CONSTANT = 0.00000000001  -- noticeable
-local GRAVITATIONAL_CONSTANT = 0.000000000025 -- middle
--- local GRAVITATIONAL_CONSTANT = 0.00000000005 -- strong
-
 local TILE_EMPTY       = 0
 local TILE_STAR_DIM    = 1
 local TILE_STAR_MED    = 2
@@ -108,6 +103,24 @@ local TILE_BLACK_HOLE_H  = 4
 local TILE_GALAXY_ID = 80
 local TILE_GALAXY_W  = 4
 local TILE_GALAXY_H  = 4
+
+local COLLISION_DAMAGE_SCALE = 1
+
+-- local GRAVITATIONAL_CONSTANT = 0.000000000001 -- very subtle
+-- local GRAVITATIONAL_CONSTANT = 0.00000000001  -- noticeable
+local GRAVITATIONAL_CONSTANT = 0.000000000025 -- middle
+-- local GRAVITATIONAL_CONSTANT = 0.00000000005 -- strong
+
+-- Quick constants to set passenger masses.
+local PASSENGER_MASS         = 75
+local PASSENGER_LUGGAGE_MASS = 25
+local PASSENGER_TOTAL_MASS   = PASSENGER_MASS + PASSENGER_LUGGAGE_MASS
+
+local HARPOON_RANGE        = 140
+local HARPOON_LOCK_OFFSET  = 18
+local HARPOON_REEL_SPEED   = 0.35
+local HARPOON_REEL_PADDING = 6
+local HARPOON_RELEASE_PUSH = 0.4
 
 
 -- [/TQ-Bundler: src.constants_game]
@@ -267,14 +280,6 @@ end
     These presets are used by the `generatePlayer()` function. The user will
     select which ship they want to fly around with at the options screen.
 --]]
-
--- Quick constants to set passenger masses.
-local PASSENGER_MASS         = 75
-local PASSENGER_LUGGAGE_MASS = 25
-local PASSENGER_TOTAL_MASS   = PASSENGER_MASS + PASSENGER_LUGGAGE_MASS
-
-local HARPOON_RANGE       = 140
-local HARPOON_LOCK_OFFSET = 18
 
 local cruiser_ship = {
     name      = "Cruiser",
@@ -1653,7 +1658,17 @@ end
 -- COLLISION SYSTEM
 -- ==========================================
 
-local COLLISION_DAMAGE_SCALE = 1
+function objectIsOffMap(obj)
+    if not obj or not obj.position then
+        return true
+    end
+
+    return
+        obj.position.x < 0 or
+        obj.position.y < 0 or
+        obj.position.x >= MAP_PIXELS_W or
+        obj.position.y >= MAP_PIXELS_H
+end
 
 function getCollisionRadius(obj)
     if not obj then
@@ -3892,9 +3907,12 @@ function SpaceShip:new(params)
         target       = nil,
         offset_x     = 0,
         offset_y     = 0,
-        range        = params.harpoon_range or HARPOON_RANGE,
-        lock_offset  = params.harpoon_lock_offset or HARPOON_LOCK_OFFSET,
-        line_color   = params.harpoon_line_color or GRAY_LITE,
+        range        = params.harpoon_range        or HARPOON_RANGE,
+        lock_offset  = params.harpoon_lock_offset  or HARPOON_LOCK_OFFSET,
+        reel_speed   = params.harpoon_reel_speed   or HARPOON_REEL_SPEED,
+        reel_padding = params.harpoon_reel_padding or HARPOON_REEL_PADDING,
+        release_push = params.harpoon_release_push or HARPOON_RELEASE_PUSH,
+        line_color   = params.harpoon_line_color   or GRAY_LITE,
         anchor_color = params.harpoon_anchor_color or YELLOW,
     }
 
@@ -4791,6 +4809,45 @@ function SpaceShip:clearHarpoon()
         return
     end
 
+    local target = self.harpoon.target
+
+    if self.harpoon.attached and target and target.position then
+        local dx = self.position.x - target.position.x
+        local dy = self.position.y - target.position.y
+
+        local dist_sq = dx * dx + dy * dy
+
+        if dist_sq > 0 then
+            local dist = math.sqrt(dist_sq)
+
+            local safe_distance =
+                getCollisionRadius(self) +
+                getCollisionRadius(target) +
+                self.harpoon.reel_padding
+
+            local nx = dx / dist
+            local ny = dy / dist
+
+            -- If the ship is too close, move it just outside the safe radius.
+            if dist < safe_distance then
+                self.position.x = target.position.x + nx * safe_distance
+                self.position.y = target.position.y + ny * safe_distance
+
+                self.position.x = clamp(self.position.x, 0, MAP_PIXELS_W - 1)
+                self.position.y = clamp(self.position.y, 0, MAP_PIXELS_H - 1)
+            end
+
+            -- Give the ship a small push away from the released object.
+            if self.velocity then
+                self.velocity.direction = math.atan(ny, nx)
+                self.velocity.speed = math.max(
+                    self.velocity.speed or 0,
+                    self.harpoon.release_push
+                )
+            end
+        end
+    end
+
     self.harpoon.attached = false
     self.harpoon.target   = nil
     self.harpoon.offset_x = 0
@@ -4929,9 +4986,6 @@ function SpaceShip:attachHarpoon(target)
         self.harpoon.offset_y = math.sin(angle) * lock_distance
     end
 
-    self.velocity.speed = 0
-    self.velocity.direction = 0
-
     return true
 end
 
@@ -4977,16 +5031,21 @@ function SpaceShip:updateHarpoonLock()
         return
     end
 
-    -- Lock the ship to the target's current position.
+    -- If the harpooned object leaves the map, disconnect automatically.
+    if objectIsOffMap(target) then
+        self:clearHarpoon()
+        return
+    end
+
+    -- Shorten the harpoon distance over time.
+    self:reelHarpoon()
+
+    -- Lock the ship to the target's current position using the shortened offset.
     self.position.x = target.position.x + self.harpoon.offset_x
     self.position.y = target.position.y + self.harpoon.offset_y
 
     self.position.x = clamp(self.position.x, 0, MAP_PIXELS_W - 1)
     self.position.y = clamp(self.position.y, 0, MAP_PIXELS_H - 1)
-
-    -- Keep ship stationary relative to the harpooned object.
-    self.velocity.speed = 0
-    self.velocity.direction = 0
 
     -- Face the harpooned target.
     local dx = target.position.x - self.position.x
@@ -4995,6 +5054,49 @@ function SpaceShip:updateHarpoonLock()
     if dx ~= 0 or dy ~= 0 then
         self.rotation = self:keepAngleInRange(math.atan(dy, dx))
     end
+end
+
+function SpaceShip:reelHarpoon()
+    if not self.harpoon then
+        return
+    end
+
+    if not self.harpoon.attached then
+        return
+    end
+
+    local target = self.harpoon.target
+
+    if not target or not target.position then
+        return
+    end
+
+    local ox = self.harpoon.offset_x
+    local oy = self.harpoon.offset_y
+
+    local distance = math.sqrt(ox * ox + oy * oy)
+
+    if distance <= 0 then
+        return
+    end
+
+    -- This is the minimum safe center-to-center distance between the ship and
+    -- the harpooned object. It prevents instant collision after disengage.
+    local desired_distance = getCollisionRadius(self) + getCollisionRadius(target) + self.harpoon.reel_padding
+
+    if distance <= desired_distance then
+        return
+    end
+
+    local new_distance = math.max(
+        desired_distance,
+        distance - self.harpoon.reel_speed
+    )
+
+    local scale = new_distance / distance
+
+    self.harpoon.offset_x = ox * scale
+    self.harpoon.offset_y = oy * scale
 end
 
 -- ==========================================

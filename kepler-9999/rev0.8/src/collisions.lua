@@ -2,7 +2,17 @@
 -- COLLISION SYSTEM
 -- ==========================================
 
-local COLLISION_DAMAGE_SCALE = 1
+function objectIsOffMap(obj)
+    if not obj or not obj.position then
+        return true
+    end
+
+    return
+        obj.position.x < 0 or
+        obj.position.y < 0 or
+        obj.position.x >= MAP_PIXELS_W or
+        obj.position.y >= MAP_PIXELS_H
+end
 
 function getCollisionRadius(obj)
     if not obj then
