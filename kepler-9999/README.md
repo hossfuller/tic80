@@ -64,7 +64,8 @@ The different revisions implement separate features. This list is ever changing.
     - [x] When attached, pressing `BTN_P1_A` disengages the harpoon.
     - [x] Colliding with the harpooned object doesn't damage the ship.
     - [x] While attached to the object, holding `BTN_P1_B` extracts mass from the object. This mass goes into any available space in the cargo hold.
-    - [ ] Moons need to implode if they've been mined clean. Since this is the only way to kill moons, do it in `Moon::explosionEffect()`
+    - [x] Moons need to implode if they've been mined clean. Since this is the only way to kill moons, do it in `Moon::explosionEffect()`
+    - [ ] Update the `STATE.READY` and `STATE.PAUSE` screens to display controls instructions.
 - [ ] **REV0.9**: The Space Station and various colony space docks
     - [ ] There is a single space station in the game that orbits the biggest planet in the system.
     - [ ] All other planets have space docks.

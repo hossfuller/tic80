@@ -44,12 +44,39 @@ function Moon:new(params)
         self.orbit.semi_major *
         math.sqrt(1 - self.orbit.eccentricity * self.orbit.eccentricity)
 
+    self.dust_particles = {}
+
+    self.dust = {
+        colors = params.dust_colors or {
+            GRAY_DARK,
+            GRAY_MED,
+            GRAY_LITE,
+            self.colors.primary,
+            self.colors.secondary,
+        },
+        count_min    = params.dust_count_min or 35,
+        count_max    = params.dust_count_max or 70,
+        speed_min    = params.dust_speed_min or 0.15,
+        speed_max    = params.dust_speed_max or 1.25,
+        life_min     = params.dust_life_min or 35,
+        life_max     = params.dust_life_max or 90,
+        size_min     = params.dust_size_min or 1,
+        size_max     = params.dust_size_max or 3,
+        drag         = params.dust_drag or 0.965,
+        spread       = math.pi * 2,
+        spawn_radius = self.radius or 8,
+    }
+
     return self
 end
 
 -- ==========================================
 -- MOON GETTERS
 -- ==========================================
+
+function Moon:isFinished()
+    return self.dead and self.dust_particles and #self.dust_particles <= 0
+end
 
 -- ==========================================
 -- MOON UPDATE
@@ -96,6 +123,14 @@ end
 function Moon:update()
     self:updateTimer()
 
+    -- Dust continues after death.
+    self:updateDustParticles()
+
+    -- Dead moons no longer orbit or update body position.
+    if self.dead then
+        return
+    end
+
     if not self.host then
         return
     end
@@ -109,6 +144,108 @@ function Moon:update()
     end
 
     self:updateOrbitPosition(focus)
+end
+
+-- ==========================================
+-- MOON PARTICLE EFFECTS
+-- ==========================================
+
+function Moon:explosionEffect()
+    if not self.dust then
+        return
+    end
+
+    local dust = self.dust
+    local count = math.random(dust.count_min, dust.count_max)
+
+    for i = 1, count do
+        local angle = randomFloat(0, math.pi * 2)
+        local spawn_dist = randomFloat(0, dust.spawn_radius or self.radius or 8)
+
+        local x = self.position.x + math.cos(angle) * spawn_dist
+        local y = self.position.y + math.sin(angle) * spawn_dist
+
+        local direction = randomFloat(0, math.pi * 2)
+        local speed = randomFloat(dust.speed_min, dust.speed_max)
+        local life = math.random(dust.life_min, dust.life_max)
+
+        table.insert(self.dust_particles, {
+            position = {
+                x = x,
+                y = y,
+            },
+            velocity = {
+                speed = speed,
+                direction = direction,
+            },
+            life = life,
+            max_life = life,
+            size = math.random(dust.size_min, dust.size_max),
+            color = randomChoice(dust.colors),
+            drag = dust.drag or 0.965,
+        })
+    end
+end
+
+function Moon:updateDustParticles()
+    if not self.dust_particles then
+        return
+    end
+
+    for i = #self.dust_particles, 1, -1 do
+        local particle = self.dust_particles[i]
+
+        particle.life = particle.life - 1
+
+        if particle.life <= 0 then
+            table.remove(self.dust_particles, i)
+        else
+            particle.velocity.speed = particle.velocity.speed * (particle.drag or 1)
+            particle.velocity.direction = self:keepAngleInRange(
+                particle.velocity.direction or 0
+            )
+
+            local components = self:getVectorComponents(particle.velocity)
+
+            particle.position.x = particle.position.x + components.xComp
+            particle.position.y = particle.position.y + components.yComp
+        end
+    end
+end
+
+function Moon:drawDustParticles()
+    if not self.dust_particles then
+        return
+    end
+
+    local zoom = game.camera.zoom or 1
+
+    for _, particle in ipairs(self.dust_particles) do
+        local screen_x, screen_y = worldToScreen(
+            particle.position.x,
+            particle.position.y
+        )
+
+        screen_x = math.floor(screen_x)
+        screen_y = math.floor(screen_y)
+
+        if screen_x >= -4 and screen_x <= SCREEN_W + 4 and
+            screen_y >= -4 and screen_y <= SCREEN_H + 4 then
+            local life_fraction = particle.life / particle.max_life
+            local size = math.max(1, math.floor((particle.size or 1) * zoom))
+
+            -- As the dust fades, make it visually smaller.
+            if life_fraction < 0.35 then
+                size = 1
+            end
+
+            if size <= 1 then
+                pix(screen_x, screen_y, particle.color)
+            else
+                circ(screen_x, screen_y, size, particle.color)
+            end
+        end
+    end
 end
 
 -- ==========================================
@@ -162,5 +299,11 @@ function Moon:drawLabel()
 end
 
 function Moon:draw()
-    self:drawBody()
+    -- Draw the moon body only while alive.
+    if not self.dead then
+        self:drawBody()
+    end
+
+    -- Dust can remain after the moon is dead.
+    self:drawDustParticles()
 end

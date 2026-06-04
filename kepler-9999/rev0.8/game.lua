@@ -1,9 +1,20 @@
+--
+-- Bundle file
+-- Code changes will be overwritten
+--
+
 -- title:   Kepler-9999
 -- author:  Hoss Fuller
 -- version: rev0.8
 -- script:  lua
 -- input:   mouse
 -- saveid:  kepler_9999
+
+-- ==========================================
+-- INCLUDES
+-- ==========================================
+
+-- [TQ-Bundler: src.constants_system]
 
 -- ==========================================
 -- TIC80 CONSTANTS
@@ -67,16 +78,16 @@ local FIXED_CHAR_HEIGHT = 6
 local X_PADDING         = FIXED_CHAR_WIDTH + 2
 local Y_PADDING         = FIXED_CHAR_HEIGHT + 2
 
+
+-- [/TQ-Bundler: src.constants_system]
+
+-- [TQ-Bundler: src.constants_game]
+
 -- ==========================================
 -- GAME CONSTANTS
 -- ==========================================
 
-local DEBUG = true
-
--- local GRAVITATIONAL_CONSTANT = 0.000000000001 -- very subtle
--- local GRAVITATIONAL_CONSTANT = 0.00000000001  -- noticeable
-local GRAVITATIONAL_CONSTANT = 0.000000000025 -- middle
--- local GRAVITATIONAL_CONSTANT = 0.00000000005 -- strong
+local DEBUG = false
 
 local TILE_EMPTY       = 0
 local TILE_STAR_DIM    = 1
@@ -92,6 +103,30 @@ local TILE_BLACK_HOLE_H  = 4
 local TILE_GALAXY_ID = 80
 local TILE_GALAXY_W  = 4
 local TILE_GALAXY_H  = 4
+
+local COLLISION_DAMAGE_SCALE = 1
+
+-- local GRAVITATIONAL_CONSTANT = 0.000000000001 -- very subtle
+-- local GRAVITATIONAL_CONSTANT = 0.00000000001  -- noticeable
+local GRAVITATIONAL_CONSTANT = 0.000000000025 -- middle
+-- local GRAVITATIONAL_CONSTANT = 0.00000000005 -- strong
+
+-- Quick constants to set passenger masses.
+local PASSENGER_MASS         = 75
+local PASSENGER_LUGGAGE_MASS = 25
+local PASSENGER_TOTAL_MASS   = PASSENGER_MASS + PASSENGER_LUGGAGE_MASS
+
+local HARPOON_RANGE        = 140
+local HARPOON_LOCK_OFFSET  = 18
+local HARPOON_REEL_SPEED   = 0.35
+local HARPOON_REEL_PADDING = 6
+local HARPOON_RELEASE_PUSH = 0.4
+local HARPOON_MINE_RATE    = 2.0
+
+
+-- [/TQ-Bundler: src.constants_game]
+
+-- [TQ-Bundler: src.generators.backgroundmap]
 
 -- ==========================================
 -- BACKGROUND MAP
@@ -232,6 +267,11 @@ function generateBackgroundMap()
     end
 end
 
+
+-- [/TQ-Bundler: src.generators.backgroundmap]
+
+-- [TQ-Bundler: src.generators.ships]
+
 -- ==========================================
 -- PLAYER & NPC SHIPS
 -- ==========================================
@@ -241,11 +281,6 @@ end
     These presets are used by the `generatePlayer()` function. The user will
     select which ship they want to fly around with at the options screen.
 --]]
-
--- Quick constants to set passenger masses.
-local PASSENGER_MASS         = 75
-local PASSENGER_LUGGAGE_MASS = 25
-local PASSENGER_TOTAL_MASS   = PASSENGER_MASS + PASSENGER_LUGGAGE_MASS
 
 local cruiser_ship = {
     name      = "Cruiser",
@@ -503,6 +538,11 @@ function generatePlayer()
     local preset = ship_presets[selected_ship] or cruiser_ship
     return SpaceShip:new(preset)
 end
+
+
+-- [/TQ-Bundler: src.generators.ships]
+
+-- [TQ-Bundler: src.generators.stars]
 
 -- ==========================================
 -- STARS
@@ -809,6 +849,11 @@ function generateStar()
     })
 end
 
+
+-- [/TQ-Bundler: src.generators.stars]
+
+-- [TQ-Bundler: src.generators.planets]
+
 -- ==========================================
 -- PLANETS
 -- ==========================================
@@ -1003,12 +1048,19 @@ function generatePlanets()
     return planets
 end
 
+
+-- [/TQ-Bundler: src.generators.planets]
+
+-- [TQ-Bundler: src.generators.moons]
+
 -- ==========================================
 -- MOONS
 -- ==========================================
 
-local MOON_MASS               = 1000000
-local MOON_MIN_MASS           = 10000
+-- local MOON_MASS               = 1000000
+-- local MOON_MIN_MASS           = 10000
+local MOON_MASS               = 100
+local MOON_MIN_MASS           = 10
 local MOON_RADIUS             = 100
 
 local MAX_MOONS_PER_PLANET    = 3
@@ -1218,6 +1270,11 @@ function generateMoons()
     end
 end
 
+
+-- [/TQ-Bundler: src.generators.moons]
+
+-- [TQ-Bundler: src.generators.comets]
+
 -- ==========================================
 -- COMETS
 -- ==========================================
@@ -1407,6 +1464,11 @@ function maintainCometCount()
     end
 end
 
+
+-- [/TQ-Bundler: src.generators.comets]
+
+-- [TQ-Bundler: src.generators.asteroids]
+
 -- ==========================================
 -- ASTEROIDS
 -- ==========================================
@@ -1492,6 +1554,11 @@ function spawnAsteroids(count)
 
     return asteroids
 end
+
+
+-- [/TQ-Bundler: src.generators.asteroids]
+
+-- [TQ-Bundler: src.camera]
 
 -- ==========================================
 -- CAMERA FUNCTIONS
@@ -1585,11 +1652,26 @@ function updateMouseWheelZoom()
     camera.zoom = camera.zoom_levels[camera.zoom_index]
 end
 
+
+-- [/TQ-Bundler: src.camera]
+
+-- [TQ-Bundler: src.collisions]
+
 -- ==========================================
 -- COLLISION SYSTEM
 -- ==========================================
 
-local COLLISION_DAMAGE_SCALE = 1
+function objectIsOffMap(obj)
+    if not obj or not obj.position then
+        return true
+    end
+
+    return
+        obj.position.x < 0 or
+        obj.position.y < 0 or
+        obj.position.x >= MAP_PIXELS_W or
+        obj.position.y >= MAP_PIXELS_H
+end
 
 function getCollisionRadius(obj)
     if not obj then
@@ -1605,6 +1687,10 @@ function objectsCollide(a, b)
     end
 
     if a.dead or b.dead then
+        return false
+    end
+
+    if objectsAreHarpoonLinked(a, b) then
         return false
     end
 
@@ -1919,6 +2005,59 @@ function applyCollisionDamage(a, b)
 end
 
 -- ==========================================
+-- HARPOON FUNCTIONS
+-- ==========================================
+-- These are ~kinda~ part of the collision system.
+
+function objectsAreHarpoonLinked(a, b)
+    if not a or not b then
+        return false
+    end
+
+    if a.harpoon and a.harpoon.attached and a.harpoon.target == b then
+        return true
+    end
+
+    if b.harpoon and b.harpoon.attached and b.harpoon.target == a then
+        return true
+    end
+
+    return false
+end
+
+function distancePointToSegmentSquared(px, py, ax, ay, bx, by)
+    local abx = bx - ax
+    local aby = by - ay
+
+    local apx = px - ax
+    local apy = py - ay
+
+    local ab_len_sq = abx * abx + aby * aby
+
+    if ab_len_sq <= 0 then
+        return distanceSquared(px, py, ax, ay)
+    end
+
+    local t = (apx * abx + apy * aby) / ab_len_sq
+    t = clamp(t, 0, 1)
+
+    local closest_x = ax + abx * t
+    local closest_y = ay + aby * t
+
+    return distanceSquared(px, py, closest_x, closest_y)
+end
+
+function segmentIntersectsCircle(ax, ay, bx, by, cx, cy, radius)
+    local dist_sq = distancePointToSegmentSquared(cx, cy, ax, ay, bx, by)
+    return dist_sq <= radius * radius
+end
+
+
+-- [/TQ-Bundler: src.collisions]
+
+-- [TQ-Bundler: src.gravity]
+
+-- ==========================================
 -- GRAVITY SYSTEM
 -- ==========================================
 
@@ -2062,6 +2201,12 @@ function updateGravity()
         applyGravityToObject(obj, sources)
     end
 end
+
+
+
+-- [/TQ-Bundler: src.gravity]
+
+-- [TQ-Bundler: src.polygons]
 
 -- ==========================================
 -- POLYGON FUNCTIONS
@@ -2286,6 +2431,10 @@ function drawPolygonOutline(points, color)
     end
 end
 
+-- [/TQ-Bundler: src.polygons]
+
+-- [TQ-Bundler: src.game_state]
+
 -- ==========================================
 -- GAME STATE
 -- ==========================================
@@ -2388,6 +2537,11 @@ function changeState(newState)
     end
 end
 
+
+-- [/TQ-Bundler: src.game_state]
+
+-- [TQ-Bundler: src.helpers]
+
 -- ==========================================
 -- HELPERS
 -- ==========================================
@@ -2469,6 +2623,11 @@ function drawOverlayBox(text)
     drawCenteredText(text, boxY + 16, 12)
 end
 
+
+-- [/TQ-Bundler: src.helpers]
+
+-- [TQ-Bundler: src.states.start]
+
 -- ==========================================
 -- STATE: START (Main Menu)
 -- ==========================================
@@ -2533,6 +2692,11 @@ function drawStart()
 
     drawCenteredText("Press Z to select options", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
 end
+
+
+-- [/TQ-Bundler: src.states.start]
+
+-- [TQ-Bundler: src.states.options]
 
 -- ==========================================
 -- STATE: OPTIONS
@@ -2647,6 +2811,11 @@ function drawOptions()
     drawCenteredText("UP/DOWN: Select  LEFT/RIGHT: Change", inst_y, WHITE, false, 1, true, GRAY_MED)
     drawCenteredText("Z: Confirm  X: Back", inst_y + Y_PADDING, WHITE, false, 1, true, GRAY_MED)
 end
+
+
+-- [/TQ-Bundler: src.states.options]
+
+-- [TQ-Bundler: src.states.highscores]
 
 -- ==========================================
 -- STATE: HIGH SCORES
@@ -2863,6 +3032,11 @@ function drawHighScores()
     drawCenteredText("Press Z to Return", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
 end
 
+
+-- [/TQ-Bundler: src.states.highscores]
+
+-- [TQ-Bundler: src.states.ready]
+
 -- ==========================================
 -- STATE: READY
 -- ==========================================
@@ -2889,6 +3063,11 @@ function drawReady()
     drawOverlayBox("READY?")
     drawCenteredText("Press Z to Begin", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
 end
+
+
+-- [/TQ-Bundler: src.states.ready]
+
+-- [TQ-Bundler: src.states.play]
 
 -- ==========================================
 -- STATE: PLAY
@@ -2959,45 +3138,6 @@ function updatePlay()
     -- tick invulnerability
     if player.mortality.invulnerable > 0 then
         player.mortality.invulnerable = player.mortality.invulnerable - 1
-    end
-
-    -- FOR TESTING
-    if DEBUG then
-        if player:everyNTicks(60) then
-            local mode = math.random(1, 3)
-            local plus_minus = math.random(0, 1) == 1
-            if mode == 1 then
-                if plus_minus then
-                    if player:pickupCargo(mode * 10) then
-                        trace("Picked up " .. tostring(mode * 10) .. "kg of cargo")
-                    end
-                else
-                    if player:deliverCargo(mode * 10) then
-                        trace("Delivered " .. tostring(mode * 10) .. "kg of cargo")
-                    end
-                end
-            elseif mode == 2 then
-                if plus_minus then
-                    if player:pickupPassengers(mode) then
-                        trace("Picked up " .. tostring(mode) .. " passengers")
-                    end
-                else
-                    if player:deliverPassengers(mode) then
-                        trace("Delivered " .. tostring(mode) .. " passengers")
-                    end
-                end
-            elseif mode == 3 then
-                if plus_minus then
-                    if player:pickupSmuggledGoods(mode * 10) then
-                        trace("Picked up " .. tostring(mode * 10) .. "kg of smuggled goods")
-                    end
-                else
-                    if player:deliverSmuggledGoods(mode * 10) then
-                        trace("Delivered " .. tostring(mode * 10) .. "kg of smuggled goods")
-                    end
-                end
-            end
-        end
     end
 end
 
@@ -3252,6 +3392,11 @@ function drawDebugCameraInfo()
     end
 end
 
+
+-- [/TQ-Bundler: src.states.play]
+
+-- [TQ-Bundler: src.states.pause]
+
 -- ==========================================
 -- STATE: PAUSE
 -- ==========================================
@@ -3279,6 +3424,11 @@ function drawPause()
     drawCenteredText("Press 'SELECT' (A) to Quit", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
 end
 
+
+-- [/TQ-Bundler: src.states.pause]
+
+-- [TQ-Bundler: src.states.gameover]
+
 -- ==========================================
 -- STATE: GAMEOVER
 -- ==========================================
@@ -3299,6 +3449,11 @@ function drawGameover()
     drawOverlayBox("GAME OVER")
     drawCenteredText("Press Z to Continue", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
 end
+
+
+-- [/TQ-Bundler: src.states.gameover]
+
+-- [TQ-Bundler: src.state_machine]
 
 -- ==========================================
 -- STATE MACHINE
@@ -3341,6 +3496,11 @@ states = {
         draw = drawGameover,
     },
 }
+
+
+-- [/TQ-Bundler: src.state_machine]
+
+-- [TQ-Bundler: src.classes.KeplerObj]
 
 -- ==========================================
 -- KEPLEROBJ OBJECT
@@ -3660,6 +3820,10 @@ function KeplerObj:draw()
     -- Anything else to draw, like particle effects?
 end
 
+-- [/TQ-Bundler: src.classes.KeplerObj]
+
+-- [TQ-Bundler: src.classes.SpaceShip]
+
 -- ==========================================
 -- SPACESHIP OBJECT
 -- ==========================================
@@ -3711,6 +3875,7 @@ function SpaceShip:new(params)
             max = params.holds.smuggled.max or 100, -- (kg)
         },
     }
+    self.cargo_has_ore = params.cargo_has_ore or false
 
     self.mass       = params.mass       or 100   -- (kg)
     self.radius     = params.radius     or 10    -- (pixels)
@@ -3739,6 +3904,20 @@ function SpaceShip:new(params)
         dead          = false,
         exploded      = false,
         respawn_timer = 0,
+    }
+
+    self.harpoon    = {
+        attached     = false,
+        target       = nil,
+        offset_x     = 0,
+        offset_y     = 0,
+        range        = params.harpoon_range        or HARPOON_RANGE,
+        lock_offset  = params.harpoon_lock_offset  or HARPOON_LOCK_OFFSET,
+        reel_speed   = params.harpoon_reel_speed   or HARPOON_REEL_SPEED,
+        reel_padding = params.harpoon_reel_padding or HARPOON_REEL_PADDING,
+        release_push = params.harpoon_release_push or HARPOON_RELEASE_PUSH,
+        line_color   = params.harpoon_line_color   or GRAY_LITE,
+        anchor_color = params.harpoon_anchor_color or YELLOW,
     }
 
     -- Particle Effects: all particles use the same simple particle tuning vars.
@@ -4163,7 +4342,13 @@ function SpaceShip:pickupCargo(cargo_mass)
 end
 
 function SpaceShip:deliverCargo(cargo_mass)
-    return self:updateHoldMass("cargo", -cargo_mass)
+    local delivered = self:updateHoldMass("cargo", -cargo_mass)
+
+    if delivered and self:getCargoMass() <= 0 then
+        self.cargo_has_ore = false
+    end
+
+    return delivered
 end
 
 function SpaceShip:pickupPassengers(num_passengers)
@@ -4182,6 +4367,108 @@ function SpaceShip:deliverSmuggledGoods(smuggled_mass)
     return self:updateHoldMass("smuggled", -smuggled_mass)
 end
 
+-- ==========================================
+-- SPACESHIP MINING
+-- ==========================================
+
+function SpaceShip:getCargoFreeMass()
+    return math.max(0, self:getCargoMassMax() - self:getCargoMass())
+end
+
+function SpaceShip:getMiningTarget()
+    if not self.harpoon then
+        return nil
+    end
+
+    if not self.harpoon.attached then
+        return nil
+    end
+
+    local target = self.harpoon.target
+
+    if not target then
+        return nil
+    end
+
+    if target.dead then
+        return nil
+    end
+
+    if not target.mass or target.mass <= 0 then
+        return nil
+    end
+
+    return target
+end
+
+function SpaceShip:canMineHarpoonTarget()
+    local target = self:getMiningTarget()
+
+    if not target then
+        return false
+    end
+
+    -- No cargo space.
+    if self:getCargoFreeMass() <= 0 then
+        return false
+    end
+
+    -- Empty cargo hold can start ore cargo.
+    if self:getCargoMass() <= 0 then
+        return true
+    end
+
+    -- Non-empty hold can continue mining only if current cargo is ore.
+    return self.cargo_has_ore == true
+end
+
+function SpaceShip:mineHarpoonTarget()
+    local target = self:getMiningTarget()
+
+    if not target then
+        return false
+    end
+
+    if not self:canMineHarpoonTarget() then
+        return false
+    end
+
+    local free_mass = self:getCargoFreeMass()
+    if free_mass <= 0 then
+        return false
+    end
+
+    local mine_mass = math.min(target.mass, free_mass, HARPOON_MINE_RATE)
+    if mine_mass <= 0 then
+        return false
+    end
+
+    -- If the cargo hold was empty, this establishes that the current cargo is ore.
+    if self:getCargoMass() <= 0 then
+        self.cargo_has_ore = true
+    end
+
+    -- Reuse existing cargo setter logic.
+    local picked_up = self:pickupCargo(mine_mass)
+
+    if not picked_up then
+        return false
+    end
+
+    target.mass = target.mass - mine_mass
+
+    if target.mass <= 0 then
+        target.mass = 0
+        target:kill()
+
+        -- The harpoon should not remain attached to a mined-out object.
+        if self.harpoon and self.harpoon.target == target then
+            self:clearHarpoon()
+        end
+    end
+
+    return true
+end
 
 -- ==========================================
 -- SPACESHIP PARTICLE EFFECTS
@@ -4539,7 +4826,6 @@ function SpaceShip:thrustEffect()
     end
 end
 
-
 -- ==========================================
 -- SPACESHIP COLLISION DAMAGE
 -- ==========================================
@@ -4602,6 +4888,328 @@ function SpaceShip:takeDamage(damage, other)
 
     return false
 end
+-- ==========================================
+-- SPACESHIP HARPOON
+-- ==========================================
+
+function SpaceShip:getHarpoonTipPosition()
+    return {
+        x = self.position.x + math.cos(self.rotation) * self.radius,
+        y = self.position.y + math.sin(self.rotation) * self.radius,
+    }
+end
+
+function SpaceShip:getHarpoonEndPosition()
+    local tip = self:getHarpoonTipPosition()
+
+    return {
+        x = tip.x + math.cos(self.rotation) * self.harpoon.range,
+        y = tip.y + math.sin(self.rotation) * self.harpoon.range,
+    }
+end
+
+function SpaceShip:isHarpoonAttachedTo(obj)
+    if not self.harpoon then
+        return false
+    end
+
+    return self.harpoon.attached and self.harpoon.target == obj
+end
+
+function SpaceShip:clearHarpoon()
+    if not self.harpoon then
+        return
+    end
+
+    local target = self.harpoon.target
+
+    if self.harpoon.attached and target and target.position then
+        local dx = self.position.x - target.position.x
+        local dy = self.position.y - target.position.y
+
+        local dist_sq = dx * dx + dy * dy
+
+        if dist_sq > 0 then
+            local dist = math.sqrt(dist_sq)
+
+            local safe_distance =
+                getCollisionRadius(self) +
+                getCollisionRadius(target) +
+                self.harpoon.reel_padding
+
+            local nx = dx / dist
+            local ny = dy / dist
+
+            -- If the ship is too close, move it just outside the safe radius.
+            if dist < safe_distance then
+                self.position.x = target.position.x + nx * safe_distance
+                self.position.y = target.position.y + ny * safe_distance
+
+                self.position.x = clamp(self.position.x, 0, MAP_PIXELS_W - 1)
+                self.position.y = clamp(self.position.y, 0, MAP_PIXELS_H - 1)
+            end
+
+            -- Give the ship a small push away from the released object.
+            if self.velocity then
+                self.velocity.direction = math.atan(ny, nx)
+                self.velocity.speed = math.max(
+                    self.velocity.speed or 0,
+                    self.harpoon.release_push
+                )
+            end
+        end
+    end
+
+    self.harpoon.attached = false
+    self.harpoon.target   = nil
+    self.harpoon.offset_x = 0
+    self.harpoon.offset_y = 0
+end
+
+function SpaceShip:canHarpoonTarget(obj)
+    if not obj then
+        return false
+    end
+
+    if obj.dead then
+        return false
+    end
+
+    if not obj.position then
+        return false
+    end
+
+    -- Do not harpoon yourself.
+    if obj == self then
+        return false
+    end
+
+    -- First round feature: moons and smaller objects.
+    -- Exclude planets and stars.
+    if getmetatable(obj) == Star then
+        return false
+    end
+
+    if getmetatable(obj) == Planet then
+        return false
+    end
+
+    return true
+end
+
+function SpaceShip:getHarpoonTargets()
+    local targets = {}
+
+    -- Moons.
+    for _, planet in ipairs(game.play.planets or {}) do
+        for _, moon in ipairs(planet.moons or {}) do
+            if self:canHarpoonTarget(moon) then
+                table.insert(targets, moon)
+            end
+        end
+    end
+
+    -- Comets.
+    for _, comet in ipairs(game.play.comets or {}) do
+        if self:canHarpoonTarget(comet) then
+            table.insert(targets, comet)
+        end
+    end
+
+    -- Asteroids.
+    for _, asteroid in ipairs(game.play.asteroids or {}) do
+        if self:canHarpoonTarget(asteroid) then
+            table.insert(targets, asteroid)
+        end
+    end
+
+    return targets
+end
+
+function SpaceShip:findHarpoonTarget()
+    local tip = self:getHarpoonTipPosition()
+    local end_pos = self:getHarpoonEndPosition()
+
+    local best_target = nil
+    local best_distance_sq = nil
+
+    for _, target in ipairs(self:getHarpoonTargets()) do
+        local radius = getCollisionRadius(target)
+
+        -- Give tiny objects a little aiming forgiveness.
+        radius = math.max(radius, 6)
+
+        if segmentIntersectsCircle(
+                tip.x,
+                tip.y,
+                end_pos.x,
+                end_pos.y,
+                target.position.x,
+                target.position.y,
+                radius
+            ) then
+            local d_sq = distanceSquared(
+                self.position.x,
+                self.position.y,
+                target.position.x,
+                target.position.y
+            )
+
+            if best_distance_sq == nil or d_sq < best_distance_sq then
+                best_distance_sq = d_sq
+                best_target = target
+            end
+        end
+    end
+
+    return best_target
+end
+
+function SpaceShip:attachHarpoon(target)
+    if not target then
+        return false
+    end
+
+    if not self.harpoon then
+        return false
+    end
+
+    self.harpoon.attached = true
+    self.harpoon.target   = target
+
+    -- Preserve the current relative offset so the ship moves with the target.
+    self.harpoon.offset_x = self.position.x - target.position.x
+    self.harpoon.offset_y = self.position.y - target.position.y
+
+    -- If we somehow attached while almost centered on the target, push the ship
+    -- slightly outside the target so it does not sit inside the collision body.
+    local offset_len_sq   =
+        self.harpoon.offset_x * self.harpoon.offset_x +
+        self.harpoon.offset_y * self.harpoon.offset_y
+
+    if offset_len_sq <= 0.01 then
+        local angle = self.rotation + math.pi
+        local lock_distance =
+            getCollisionRadius(target) +
+            getCollisionRadius(self) +
+            self.harpoon.lock_offset
+
+        self.harpoon.offset_x = math.cos(angle) * lock_distance
+        self.harpoon.offset_y = math.sin(angle) * lock_distance
+    end
+
+    return true
+end
+
+function SpaceShip:fireHarpoon()
+    if self.dead then
+        return false
+    end
+
+    local target = self:findHarpoonTarget()
+
+    if target then
+        return self:attachHarpoon(target)
+    end
+
+    return false
+end
+
+function SpaceShip:toggleHarpoon()
+    if not self.harpoon then
+        return
+    end
+
+    if self.harpoon.attached then
+        self:clearHarpoon()
+    else
+        self:fireHarpoon()
+    end
+end
+
+function SpaceShip:updateHarpoonLock()
+    if not self.harpoon then
+        return
+    end
+
+    if not self.harpoon.attached then
+        return
+    end
+
+    local target = self.harpoon.target
+
+    if not target or target.dead or not target.position then
+        self:clearHarpoon()
+        return
+    end
+
+    -- If the harpooned object leaves the map, disconnect automatically.
+    if objectIsOffMap(target) then
+        self:clearHarpoon()
+        return
+    end
+
+    -- Shorten the harpoon distance over time.
+    self:reelHarpoon()
+
+    -- Lock the ship to the target's current position using the shortened offset.
+    self.position.x = target.position.x + self.harpoon.offset_x
+    self.position.y = target.position.y + self.harpoon.offset_y
+
+    self.position.x = clamp(self.position.x, 0, MAP_PIXELS_W - 1)
+    self.position.y = clamp(self.position.y, 0, MAP_PIXELS_H - 1)
+
+    -- Face the harpooned target.
+    local dx = target.position.x - self.position.x
+    local dy = target.position.y - self.position.y
+
+    if dx ~= 0 or dy ~= 0 then
+        self.rotation = self:keepAngleInRange(math.atan(dy, dx))
+    end
+end
+
+function SpaceShip:reelHarpoon()
+    if not self.harpoon then
+        return
+    end
+
+    if not self.harpoon.attached then
+        return
+    end
+
+    local target = self.harpoon.target
+
+    if not target or not target.position then
+        return
+    end
+
+    local ox = self.harpoon.offset_x
+    local oy = self.harpoon.offset_y
+
+    local distance = math.sqrt(ox * ox + oy * oy)
+
+    if distance <= 0 then
+        return
+    end
+
+    -- This is the minimum safe center-to-center distance between the ship and
+    -- the harpooned object. It prevents instant collision after disengage.
+    local desired_distance = getCollisionRadius(self) + getCollisionRadius(target) + self.harpoon.reel_padding
+
+    if distance <= desired_distance then
+        return
+    end
+
+    local new_distance = math.max(
+        desired_distance,
+        distance - self.harpoon.reel_speed
+    )
+
+    local scale = new_distance / distance
+
+    self.harpoon.offset_x = ox * scale
+    self.harpoon.offset_y = oy * scale
+end
 
 -- ==========================================
 -- SPACESHIP INPUT
@@ -4650,7 +5258,26 @@ function SpaceShip:thrust()
 end
 
 function SpaceShip:input()
-    if self.dead or self:getEnergy() <= 0 then
+    if self.dead then
+        return
+    end
+
+    -- Harpoon toggle does not require energy.
+    if btnp(BTN_P1_A) then
+        self:toggleHarpoon()
+    end
+
+    -- Mining through the harpoon.
+    if btn(BTN_P1_B) then
+        self:mineHarpoonTarget()
+    end
+
+    -- If attached, normal movement controls are disabled for now.
+    if self.harpoon and self.harpoon.attached then
+        return
+    end
+
+    if self:getEnergy() <= 0 then
         return
     end
 
@@ -4691,10 +5318,14 @@ function SpaceShip:move()
     self:updateTimer()
 
     if not self.dead then
-        self.position = self:movePointByVelocity()
+        if self.harpoon and self.harpoon.attached then
+            self:updateHarpoonLock()
+        else
+            self.position = self:movePointByVelocity()
 
-        self.position.x = clamp(self.position.x, 0, MAP_PIXELS_W - 1)
-        self.position.y = clamp(self.position.y, 0, MAP_PIXELS_H - 1)
+            self.position.x = clamp(self.position.x, 0, MAP_PIXELS_W - 1)
+            self.position.y = clamp(self.position.y, 0, MAP_PIXELS_H - 1)
+        end
 
         self:regenerateEnginesOnTimer()
 
@@ -4750,6 +5381,34 @@ function SpaceShip:getScreenShapePoints()
     return points
 end
 
+function SpaceShip:drawHarpoon()
+    if not self.harpoon then
+        return
+    end
+
+    local start_x, start_y = worldToScreen(self.position.x, self.position.y)
+
+    start_x = math.floor(start_x)
+    start_y = math.floor(start_y)
+
+    if self.harpoon.attached and self.harpoon.target and self.harpoon.target.position then
+        local target = self.harpoon.target
+
+        local target_x, target_y = worldToScreen(
+            target.position.x,
+            target.position.y
+        )
+
+        target_x = math.floor(target_x)
+        target_y = math.floor(target_y)
+
+        line(start_x, start_y, target_x, target_y, self.harpoon.line_color)
+        circ(target_x, target_y, 2, self.harpoon.anchor_color)
+
+        return
+    end
+end
+
 function SpaceShip:drawBody()
     local zoom = game.camera.zoom or 1
 
@@ -4782,6 +5441,10 @@ function SpaceShip:draw()
     self:drawParticles("explosion")
     self:drawParticles("thrust")
 
+    if not self.dead then
+        self:drawHarpoon()
+    end
+
     if not self.dead and self:shouldDraw() then
         self:drawBody()
     end
@@ -4798,6 +5461,11 @@ function SpaceShip:explode()
     self:explosionEffect()
     -- sfx(2, 10, 30, 3, 15)
 end
+
+
+-- [/TQ-Bundler: src.classes.SpaceShip]
+
+-- [TQ-Bundler: src.classes.Star]
 
 -- ==========================================
 -- STAR OBJECT
@@ -5113,6 +5781,11 @@ function Star:draw()
     self:drawBody()
     self:drawParticleList(self.particles.flare.particles)
 end
+
+
+-- [/TQ-Bundler: src.classes.Star]
+
+-- [TQ-Bundler: src.classes.Planet]
 
 -- ==========================================
 -- PLANET OBJECT
@@ -5499,6 +6172,11 @@ function Planet:draw()
     self:drawLabel()
 end
 
+
+-- [/TQ-Bundler: src.classes.Planet]
+
+-- [TQ-Bundler: src.classes.Moon]
+
 -- ==========================================
 -- MOON OBJECT
 -- ==========================================
@@ -5545,12 +6223,39 @@ function Moon:new(params)
         self.orbit.semi_major *
         math.sqrt(1 - self.orbit.eccentricity * self.orbit.eccentricity)
 
+    self.dust_particles = {}
+
+    self.dust = {
+        colors = params.dust_colors or {
+            GRAY_DARK,
+            GRAY_MED,
+            GRAY_LITE,
+            self.colors.primary,
+            self.colors.secondary,
+        },
+        count_min    = params.dust_count_min or 35,
+        count_max    = params.dust_count_max or 70,
+        speed_min    = params.dust_speed_min or 0.15,
+        speed_max    = params.dust_speed_max or 1.25,
+        life_min     = params.dust_life_min or 35,
+        life_max     = params.dust_life_max or 90,
+        size_min     = params.dust_size_min or 1,
+        size_max     = params.dust_size_max or 3,
+        drag         = params.dust_drag or 0.965,
+        spread       = math.pi * 2,
+        spawn_radius = self.radius or 8,
+    }
+
     return self
 end
 
 -- ==========================================
 -- MOON GETTERS
 -- ==========================================
+
+function Moon:isFinished()
+    return self.dead and self.dust_particles and #self.dust_particles <= 0
+end
 
 -- ==========================================
 -- MOON UPDATE
@@ -5597,6 +6302,14 @@ end
 function Moon:update()
     self:updateTimer()
 
+    -- Dust continues after death.
+    self:updateDustParticles()
+
+    -- Dead moons no longer orbit or update body position.
+    if self.dead then
+        return
+    end
+
     if not self.host then
         return
     end
@@ -5610,6 +6323,108 @@ function Moon:update()
     end
 
     self:updateOrbitPosition(focus)
+end
+
+-- ==========================================
+-- MOON PARTICLE EFFECTS
+-- ==========================================
+
+function Moon:explosionEffect()
+    if not self.dust then
+        return
+    end
+
+    local dust = self.dust
+    local count = math.random(dust.count_min, dust.count_max)
+
+    for i = 1, count do
+        local angle = randomFloat(0, math.pi * 2)
+        local spawn_dist = randomFloat(0, dust.spawn_radius or self.radius or 8)
+
+        local x = self.position.x + math.cos(angle) * spawn_dist
+        local y = self.position.y + math.sin(angle) * spawn_dist
+
+        local direction = randomFloat(0, math.pi * 2)
+        local speed = randomFloat(dust.speed_min, dust.speed_max)
+        local life = math.random(dust.life_min, dust.life_max)
+
+        table.insert(self.dust_particles, {
+            position = {
+                x = x,
+                y = y,
+            },
+            velocity = {
+                speed = speed,
+                direction = direction,
+            },
+            life = life,
+            max_life = life,
+            size = math.random(dust.size_min, dust.size_max),
+            color = randomChoice(dust.colors),
+            drag = dust.drag or 0.965,
+        })
+    end
+end
+
+function Moon:updateDustParticles()
+    if not self.dust_particles then
+        return
+    end
+
+    for i = #self.dust_particles, 1, -1 do
+        local particle = self.dust_particles[i]
+
+        particle.life = particle.life - 1
+
+        if particle.life <= 0 then
+            table.remove(self.dust_particles, i)
+        else
+            particle.velocity.speed = particle.velocity.speed * (particle.drag or 1)
+            particle.velocity.direction = self:keepAngleInRange(
+                particle.velocity.direction or 0
+            )
+
+            local components = self:getVectorComponents(particle.velocity)
+
+            particle.position.x = particle.position.x + components.xComp
+            particle.position.y = particle.position.y + components.yComp
+        end
+    end
+end
+
+function Moon:drawDustParticles()
+    if not self.dust_particles then
+        return
+    end
+
+    local zoom = game.camera.zoom or 1
+
+    for _, particle in ipairs(self.dust_particles) do
+        local screen_x, screen_y = worldToScreen(
+            particle.position.x,
+            particle.position.y
+        )
+
+        screen_x = math.floor(screen_x)
+        screen_y = math.floor(screen_y)
+
+        if screen_x >= -4 and screen_x <= SCREEN_W + 4 and
+            screen_y >= -4 and screen_y <= SCREEN_H + 4 then
+            local life_fraction = particle.life / particle.max_life
+            local size = math.max(1, math.floor((particle.size or 1) * zoom))
+
+            -- As the dust fades, make it visually smaller.
+            if life_fraction < 0.35 then
+                size = 1
+            end
+
+            if size <= 1 then
+                pix(screen_x, screen_y, particle.color)
+            else
+                circ(screen_x, screen_y, size, particle.color)
+            end
+        end
+    end
 end
 
 -- ==========================================
@@ -5663,8 +6478,19 @@ function Moon:drawLabel()
 end
 
 function Moon:draw()
-    self:drawBody()
+    -- Draw the moon body only while alive.
+    if not self.dead then
+        self:drawBody()
+    end
+
+    -- Dust can remain after the moon is dead.
+    self:drawDustParticles()
 end
+
+
+-- [/TQ-Bundler: src.classes.Moon]
+
+-- [TQ-Bundler: src.classes.Comet]
 
 -- ==========================================
 -- COMET OBJECT
@@ -6035,6 +6861,11 @@ function Comet:draw()
         self:drawBody()
     end
 end
+
+
+-- [/TQ-Bundler: src.classes.Comet]
+
+-- [TQ-Bundler: src.classes.Asteroid]
 
 -- ==========================================
 -- ASTEROID OBJECT
@@ -6572,6 +7403,9 @@ function Asteroid:draw()
     -- Draw explosion particles even after the asteroid body is gone.
     self:drawParticles("explosion")
 end
+
+
+-- [/TQ-Bundler: src.classes.Asteroid]
 
 -- ==========================================
 -- MAIN TIC FUNCTION
