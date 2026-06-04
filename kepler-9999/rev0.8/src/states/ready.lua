@@ -21,6 +21,6 @@ function drawReady()
     drawGame()
 
     -- Draw overlay
-    drawOverlayBox("READY?")
+    drawControlsOverlayBox("READY?")
     drawCenteredText("Press Z to Begin", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
 end

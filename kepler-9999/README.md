@@ -58,14 +58,14 @@ The different revisions implement separate features. This list is ever changing.
 - [x] **REV0.7**: Put the heavens in motion.
     - [x] Gravity!
     - [x] Implement inertia and make the energy engine feel it (more mass makes the ship expend more energy to stop).
-- [ ] **REV0.8**: Mining
+- [x] **REV0.8**: Mining
     - [x] Add a harpoon to the spaceship that can be fired at moons and smaller objects with the `BTN_P1_A` button.
     - [x] Harpoon locks the ship in place with the harpooned object so that the ship is attached to the object.
     - [x] When attached, pressing `BTN_P1_A` disengages the harpoon.
     - [x] Colliding with the harpooned object doesn't damage the ship.
     - [x] While attached to the object, holding `BTN_P1_B` extracts mass from the object. This mass goes into any available space in the cargo hold.
     - [x] Moons need to implode if they've been mined clean. Since this is the only way to kill moons, do it in `Moon::explosionEffect()`
-    - [ ] Update the `STATE.READY` and `STATE.PAUSE` screens to display controls instructions.
+    - [x] Update the `STATE.READY` and `STATE.PAUSE` screens to display controls instructions.
 - [ ] **REV0.9**: The Space Station and various colony space docks
     - [ ] There is a single space station in the game that orbits the biggest planet in the system.
     - [ ] All other planets have space docks.
