@@ -280,8 +280,10 @@ function drawGame()
     local player = game.play.player
     player:draw()
 
-    drawShipCargoHoldHud()
-    drawShipStatusHud()
+    if game.camera.zoom >= 0.5 then
+        drawShipCargoHoldHud()
+        drawShipStatusHud()
+    end
 end
 
 function drawPlay()

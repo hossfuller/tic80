@@ -3666,8 +3666,10 @@ function drawGame()
     local player = game.play.player
     player:draw()
 
-    drawShipCargoHoldHud()
-    drawShipStatusHud()
+    if game.camera.zoom >= 0.5 then
+        drawShipCargoHoldHud()
+        drawShipStatusHud()
+    end
 end
 
 function drawPlay()
@@ -5166,6 +5168,11 @@ function SpaceShip:takeDamage(damage, other)
         return false
     end
 
+    -- Docked/harpooned ships are protected while attached to SpaceDock.
+    if self:isHarpoonedToSpaceDock() then
+        return false
+    end
+
     -- Optional: ignore damage while invulnerable.
     if self.mortality and self.mortality.invulnerable > 0 then
         return false
@@ -5239,6 +5246,19 @@ function SpaceShip:isHarpoonAttachedTo(obj)
     end
 
     return self.harpoon.attached and self.harpoon.target == obj
+end
+
+function SpaceShip:isHarpoonedToSpaceDock()
+    if not self.harpoon or not self.harpoon.attached then
+        return false
+    end
+
+    local target = self.harpoon.target
+    if not target or target.dead then
+        return false
+    end
+
+    return SpaceDock ~= nil and getmetatable(target) == SpaceDock
 end
 
 function SpaceShip:clearHarpoon()
