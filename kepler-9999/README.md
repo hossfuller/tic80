@@ -76,7 +76,8 @@ The different revisions implement separate features. This list is ever changing.
 - [ ] **REV1.0**: Game objectives
     - [ ] While docked at the space station or any of the planets' space docks, pick up cargo/passengers/contraband for delivery.
     - [ ] Use the `pickup`/`deliver` functions to meddle with the ship's mass.
-- [ ] **REV1.1**: tbd
+- [ ] **REV1.1**: High Scores
+    - [ ] Track date, ore mined/delivered, cargo delivered, passengers delivered, contraband delivered, and engine levels.
 - [ ] **REV1.2**: tbd
 - [ ] **REV1.3**: tbd
 - [ ] **REV1.4**: tbd
