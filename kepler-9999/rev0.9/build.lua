@@ -1570,6 +1570,9 @@ local DOCK_RADIUS         = 10
 local DOCK_REAL_RADIUS    = 10
 local DOCK_ORBIT_PADDING  = 35
 
+local STATION_ORE_BANK_MAX = 100000
+local DOCK_ORE_BANK_MAX    = 10000
+
 function generateSpaceStationName(index)
     return "Station 9999X"
 end
@@ -7831,6 +7834,11 @@ function SpaceStation:new(params)
         light  = params.tube_light_color  or CYAN,
     }
 
+    self.ore_bank = {
+        cur = 0,
+        max = STATION_ORE_BANK_MAX,
+    }
+
     return self
 end
 
@@ -8331,8 +8339,14 @@ function SpaceDock:new(params)
         self.orbit.semi_major *
         math.sqrt(1 - self.orbit.eccentricity * self.orbit.eccentricity)
 
-    -- You can't mine a SpaceDock!
+    -- You can't mine a SpaceDock! But the NPC freighter can gather it up for
+    -- transport to the station.
     self.mineable = false
+
+    self.ore_bank = {
+        cur = 0,
+        max = DOCK_ORE_BANK_MAX,
+    }
 
     -- SpaceDocks do not use Moon dust effects. Instead they have SpaceShip-like
     -- explosion effects.

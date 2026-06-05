@@ -62,6 +62,11 @@ function SpaceStation:new(params)
         light  = params.tube_light_color  or CYAN,
     }
 
+    self.ore_bank = {
+        cur = 0,
+        max = STATION_ORE_BANK_MAX,
+    }
+
     return self
 end
 

@@ -67,12 +67,19 @@ The different revisions implement separate features. This list is ever changing.
     - [x] Moons need to implode if they've been mined clean. Since this is the only way to kill moons, do it in `Moon::explosionEffect()`
     - [x] Update the `STATE.READY` and `STATE.PAUSE` screens to display controls instructions.
 - [ ] **REV0.9**: The Space Station and various colony space docks
-    - [ ] There is a single space station in the game that orbits the sun like a planet.
-    - [ ] All other planets have space docks.
+    - [x] There is a single space station in the game that orbits the sun like a planet.
+    - [x] All other planets have space docks.
     - [ ] Harpooning the space station or docks puts the game into the `STATE.SHOP` state.
+    - [ ] Space docks and station have an ore hold that the spaceship can deposit into.
+    - [ ] Docks attached to space station automatically transfer their ore to the main station bank.
+    - [ ] If the dock is destroyed, that ore is lost.
+    - [ ] When docked, a spaceship's attributes are refilled. The current ore bank is displayed in the upper-left corner of the screen.
     - [ ] Colors, effects, and sounds indicate successful docking.
     - [ ] The spaceship can deposit the mined mass in the game bank.
     - [ ] Mined mass can be traded for upgrades to the engines or to refill the engines.
+- [ ] **REV1.0**: NPC Ships
+    - [ ] A freighter travels from dock to dock collecting ore deposits and transferring them to the space station.
+    - [ ] The freighter can be lost, and if so, that ore is gone but also a new freighter spawns somewhere else.
 - [ ] **REV1.0**: Game objectives
     - [ ] While docked at the space station or any of the planets' space docks, pick up cargo/passengers/contraband for delivery.
     - [ ] Use the `pickup`/`deliver` functions to meddle with the ship's mass.

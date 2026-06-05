@@ -57,8 +57,14 @@ function SpaceDock:new(params)
         self.orbit.semi_major *
         math.sqrt(1 - self.orbit.eccentricity * self.orbit.eccentricity)
 
-    -- You can't mine a SpaceDock!
+    -- You can't mine a SpaceDock! But the NPC freighter can gather it up for
+    -- transport to the station.
     self.mineable = false
+
+    self.ore_bank = {
+        cur = 0,
+        max = DOCK_ORE_BANK_MAX,
+    }
 
     -- SpaceDocks do not use Moon dust effects. Instead they have SpaceShip-like
     -- explosion effects.
