@@ -13,9 +13,9 @@ function SpaceDock:new(params)
     params.radius_real = params.radius_real or DOCK_REAL_RADIUS
     params.radius      = params.radius      or SpaceDock:getDrawRadiusFromRealRadius(params.radius_real)
     params.colors      = params.colors or {
-        primary = WHITE,
-        secondary = BLUE_LITE,
-        tertiary  = GRAY_LITE,
+        primary   = GRAY_LITE,
+        secondary = GRAY_MED,
+        tertiary  = BLUE_LITE,
     }
 
     params.has_atmosphere      = false
@@ -31,6 +31,12 @@ function SpaceDock:new(params)
     self.name = params.name or "SpaceDock"
     self.mass = DOCK_MASS
     self.host = params.host
+
+    self.colors              = {
+        primary   = params.colors and params.colors.primary or GRAY_LITE,
+        secondary = params.colors and params.colors.secondary or GRAY_MED,
+        tertiary  = params.colors and params.colors.tertiary or BLUE_LITE,
+    }
 
     self.has_atmosphere      = false
     self.has_ring            = false
@@ -310,13 +316,130 @@ function SpaceDock:drawBody()
     local r = math.max(1, math.floor(self.radius * zoom))
 
     -- Skip if comfortably off-screen.
-    if screen_x < -r - 4 or screen_x > SCREEN_W + r + 4 or
-        screen_y < -r - 4 or screen_y > SCREEN_H + r + 4 then
+    if screen_x < -r - 8 or screen_x > SCREEN_W + r + 8 or
+        screen_y < -r - 8 or screen_y > SCREEN_H + r + 8 then
         return
     end
 
-    -- Simple dock body.
-    circ(screen_x, screen_y, r, self.colors.primary)
+    -- Very low zoom: keep it readable as a bright marker.
+    if r <= 2 then
+        pix(screen_x, screen_y, self.colors.primary or WHITE)
+        pix(screen_x - 1, screen_y, GRAY_LITE)
+        pix(screen_x + 1, screen_y, GRAY_LITE)
+        pix(screen_x, screen_y - 1, WHITE)
+        pix(screen_x, screen_y + 1, WHITE)
+        return
+    end
+
+    local primary      = self.colors.primary or GRAY_LITE
+    local secondary    = self.colors.secondary or WHITE
+    local tertiary     = self.colors.tertiary or BLUE_LITE
+
+    local outer_r      = r
+    local mid_r        = math.max(1, math.floor(r * 0.72))
+    local inner_r      = math.max(1, math.floor(r * 0.38))
+
+    -- Slight animation for beacon/lights.
+    local timer        = self.timer or 0
+    local beacon_angle = (timer * 0.06) % (math.pi * 2)
+
+    -- ==========================================
+    -- Main body ring
+    -- ==========================================
+
+    -- Outer hull.
+    circ(screen_x, screen_y, outer_r, primary)
+
+    -- Slight inner band.
+    circ(screen_x, screen_y, mid_r, secondary)
+
+    -- Dark interior/core.
+    circ(screen_x, screen_y, inner_r, BLACK)
+
+    -- Inner hatch.
+    local hatch_r = math.max(1, math.floor(inner_r * 0.45))
+    circ(screen_x, screen_y, hatch_r, tertiary)
+
+    -- Cross / docking guide lines.
+    line(screen_x - inner_r, screen_y, screen_x + inner_r, screen_y, GRAY_DARK)
+    line(screen_x, screen_y - inner_r, screen_x, screen_y + inner_r, GRAY_DARK)
+
+    -- Small bright center.
+    pix(screen_x, screen_y, WHITE)
+
+    -- ==========================================
+    -- Ring panel details
+    -- ==========================================
+
+    if r >= 5 then
+        local panel_count = 8
+        local panel_r = math.max(1, math.floor(r * 0.10))
+        local panel_dist = math.floor(r * 0.82)
+
+        for i = 1, panel_count do
+            local a = ((i - 1) / panel_count) * math.pi * 2
+            local px = screen_x + math.floor(math.cos(a) * panel_dist)
+            local py = screen_y + math.floor(math.sin(a) * panel_dist)
+
+            local color = GRAY_DARK
+
+            -- Alternating hull panels.
+            if i % 2 == 0 then
+                color = GRAY_MED
+            end
+
+            circ(px, py, panel_r, color)
+        end
+    end
+
+    -- ==========================================
+    -- Lights
+    -- ==========================================
+
+    if r >= 4 then
+        local light_dist = math.floor(r * 1.18)
+
+        -- Blinking lights.
+        local blink_on = (math.floor(timer / 20) % 2) == 0
+        local blink_color = blink_on and YELLOW or ORANGE
+
+        local lx1 = screen_x + math.floor(math.cos(math.pi * 0.25) * light_dist)
+        local ly1 = screen_y + math.floor(math.sin(math.pi * 0.25) * light_dist)
+
+        local lx2 = screen_x + math.floor(math.cos(math.pi * 1.25) * light_dist)
+        local ly2 = screen_y + math.floor(math.sin(math.pi * 1.25) * light_dist)
+
+        pix(lx1, ly1, blink_color)
+        pix(lx2, ly2, blink_color)
+
+        -- Fixed navigation lights.
+        local lx3 = screen_x + math.floor(math.cos(math.pi * 0.75) * light_dist)
+        local ly3 = screen_y + math.floor(math.sin(math.pi * 0.75) * light_dist)
+
+        local lx4 = screen_x + math.floor(math.cos(math.pi * 1.75) * light_dist)
+        local ly4 = screen_y + math.floor(math.sin(math.pi * 1.75) * light_dist)
+
+        pix(lx3, ly3, RED)
+        pix(lx4, ly4, GREEN_LITE)
+    end
+
+    -- ==========================================
+    -- Rotating beacon arm
+    -- ==========================================
+
+    if r >= 5 then
+        local beacon_inner = math.floor(r * 0.45)
+        local beacon_outer = math.floor(r * 1.25)
+
+        local bx1 = screen_x + math.floor(math.cos(beacon_angle) * beacon_inner)
+        local by1 = screen_y + math.floor(math.sin(beacon_angle) * beacon_inner)
+
+        local bx2 = screen_x + math.floor(math.cos(beacon_angle) * beacon_outer)
+        local by2 = screen_y + math.floor(math.sin(beacon_angle) * beacon_outer)
+
+        line(bx1, by1, bx2, by2, CYAN)
+        circ(bx2, by2, 1, WHITE)
+    end
 end
 
 function SpaceDock:draw()
