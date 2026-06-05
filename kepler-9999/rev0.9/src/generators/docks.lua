@@ -7,10 +7,8 @@ local DOCK_MASS           = 1000
 local STATION_RADIUS      = 100
 local STATION_REAL_RADIUS = 25
 local DOCK_RADIUS         = 10
-
-function generateSpaceDockName(host_name, index)
-    return host_name .. "-DOCK[" .. index .. "]"
-end
+local DOCK_REAL_RADIUS    = 10
+local DOCK_ORBIT_PADDING  = 55
 
 function generateSpaceStationName(index)
     return "Station 9999X"
@@ -65,4 +63,79 @@ function generateSpaceStations(planets)
     end
 
     return stations
+end
+
+function generateSpaceDockName(host_name, index)
+    return host_name .. "-DOCK[" .. index .. "]"
+end
+
+function generatePlanetSpaceDock(planet, index)
+    index = index or 1
+
+    local orbit_radius =
+        getCollisionRadius(planet) +
+        DOCK_RADIUS +
+        35
+
+    return SpaceDock:new({
+        name = generateSpaceDockName(planet.name or "Planet", index),
+        host = planet,
+
+        orbit = {
+            semi_major   = orbit_radius,
+            eccentricity = 0.15,
+            angle        = randomFloat(0, math.pi * 2),
+            phase        = randomFloat(0, math.pi * 2),
+            period       = math.random(1200, 2400),
+        },
+    })
+end
+
+function generateSpaceStationDock(station, index, total)
+    index = index or 1
+    total = total or 6
+
+    local phase        = ((index - 1) / total) * math.pi * 2
+    local orbit_radius = getCollisionRadius(station) + DOCK_RADIUS + DOCK_ORBIT_PADDING
+
+    return SpaceDock:new({
+        name = generateSpaceDockName(station.name or "Station", index),
+        host = station,
+
+        orbit = {
+            semi_major   = orbit_radius,
+            eccentricity = 0, -- circular orbit
+            angle        = 0,
+            phase        = phase,
+            period       = 1800,
+        },
+    })
+end
+
+function addSpaceDocksToPlanets(planets)
+    planets = planets or {}
+
+    for _, planet in ipairs(planets) do
+        planet.docks = planet.docks or {}
+
+        -- Each planet gets exactly one dock.
+        if #planet.docks <= 0 then
+            table.insert(planet.docks, generatePlanetSpaceDock(planet, 1))
+        end
+    end
+end
+
+function addSpaceDocksToStations(stations)
+    stations = stations or {}
+
+    for _, station in ipairs(stations) do
+        station.docks = station.docks or {}
+
+        -- Each SpaceStation gets exactly six docks.
+        if #station.docks <= 0 then
+            for i = 1, 6 do
+                table.insert(station.docks, generateSpaceStationDock(station, i, 6))
+            end
+        end
+    end
 end

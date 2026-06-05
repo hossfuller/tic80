@@ -123,6 +123,12 @@ function Planet:update()
             moon:update()
         end
     end
+
+    if self.docks then
+        for _, dock in ipairs(self.docks) do
+            dock:update()
+        end
+    end
 end
 
 -- ==========================================
@@ -303,6 +309,30 @@ function Planet:drawMoonsInFront()
     end
 end
 
+function Planet:drawDocksBehind()
+    if not self.docks then
+        return
+    end
+
+    for _, dock in ipairs(self.docks) do
+        if dock.orbit_depth and dock.orbit_depth < 0 then
+            dock:draw()
+        end
+    end
+end
+
+function Planet:drawDocksInFront()
+    if not self.docks then
+        return
+    end
+
+    for _, dock in ipairs(self.docks) do
+        if not dock.orbit_depth or dock.orbit_depth >= 0 then
+            dock:draw()
+        end
+    end
+end
+
 function Planet:drawBody()
     local screen_x, screen_y = worldToScreen(self.position.x, self.position.y)
     local zoom = game.camera.zoom or 1
@@ -370,14 +400,16 @@ function Planet:drawLabel()
 end
 
 function Planet:draw()
-    -- Moons on the far side are drawn first, so the planet can eclipse them.
+    -- Far-side orbiters.
     self:drawMoonsBehind()
+    self:drawDocksBehind()
 
     -- Planet body/rings/clouds/etc.
     self:drawBody()
 
-    -- Moons on the near side are drawn after, so they can eclipse the planet.
+    -- Near-side orbiters.
     self:drawMoonsInFront()
+    self:drawDocksInFront()
 
     -- Labels still go on top.
     self:drawLabel()

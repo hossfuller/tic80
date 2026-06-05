@@ -192,14 +192,31 @@ function checkObjectAgainstPlanet(obj, planet)
         return
     end
 
-    if planet.moons then
-        for _, moon in ipairs(planet.moons) do
-            if objectsCollide(obj, moon) then
-                applyCollisionDamage(obj, moon)
-                return
-            end
+    if checkObjectAgainstOrbiters(obj, planet.moons) then
+        return
+    end
+    if checkObjectAgainstOrbiters(obj, planet.docks) then
+        return
+    end
+end
+
+function checkObjectAgainstOrbiters(obj, orbiters)
+    if not obj or obj.dead then
+        return false
+    end
+
+    if not orbiters then
+        return false
+    end
+
+    for _, orbiter in ipairs(orbiters) do
+        if objectsCollide(obj, orbiter) then
+            applyCollisionDamage(obj, orbiter)
+            return true
         end
     end
+
+    return false
 end
 
 function checkObjectAgainstLargeBodies(obj)

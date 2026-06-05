@@ -98,6 +98,9 @@ function changeState(newState)
         generateMoons()
         generateComets()
 
+        addSpaceDocksToPlanets(game.play.planets)
+        addSpaceDocksToStations(game.play.space_stations)
+
         resetPlayerAndCamera()
     end
 end

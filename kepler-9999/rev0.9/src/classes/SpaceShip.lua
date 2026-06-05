@@ -1197,6 +1197,22 @@ function SpaceShip:getHarpoonTargets()
         end
     end
 
+    -- Space Docks orbiting planets and attached to the space station.
+    for _, planet in ipairs(game.play.planets or {}) do
+        for _, dock in ipairs(planet.docks or {}) do
+            if self:canHarpoonTarget(dock) then
+                table.insert(targets, dock)
+            end
+        end
+    end
+    for _, station in ipairs(game.play.space_stations or {}) do
+        for _, dock in ipairs(station.docks or {}) do
+            if self:canHarpoonTarget(dock) then
+                table.insert(targets, dock)
+            end
+        end
+    end
+
     return targets
 end
 

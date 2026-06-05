@@ -10,8 +10,8 @@ function SpaceStation:new(params)
 
     params.name        = params.name or "Station 9999X"
     params.mass        = params.mass or STATION_MASS
-    params.radius_real = params.radius_real or STATION_RADIUS
-    params.radius      = params.radius or self:getDrawRadiusFromRealRadius(params.radius_real)
+    params.radius_real = params.radius_real or STATION_REAL_RADIUS
+    params.radius      = params.radius or SpaceStation:getDrawRadiusFromRealRadius(params.radius_real)
 
     params.has_atmosphere = false
     params.has_ring = false
@@ -87,6 +87,30 @@ end
 -- SPACESTATION DRAW
 -- ==========================================
 
+function SpaceStation:drawDocksBehind()
+    if not self.docks then
+        return
+    end
+
+    for _, dock in ipairs(self.docks) do
+        if dock.orbit_depth and dock.orbit_depth < 0 then
+            dock:draw()
+        end
+    end
+end
+
+function SpaceStation:drawDocksInFront()
+    if not self.docks then
+        return
+    end
+
+    for _, dock in ipairs(self.docks) do
+        if not dock.orbit_depth or dock.orbit_depth >= 0 then
+            dock:draw()
+        end
+    end
+end
+
 function SpaceStation:drawBody()
     local screen_x, screen_y = worldToScreen(self.position.x, self.position.y)
     local zoom = game.camera.zoom or 1
@@ -139,6 +163,8 @@ function SpaceStation:drawLabel()
 end
 
 function SpaceStation:draw()
+    self:drawDocksBehind()
     self:drawBody()
+    self:drawDocksInFront()
     self:drawLabel()
 end

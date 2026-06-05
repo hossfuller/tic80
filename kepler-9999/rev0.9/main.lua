@@ -44,6 +44,7 @@ include "src.classes.Moon"
 include "src.classes.Comet"
 include "src.classes.Asteroid"
 include "src.classes.SpaceStation"
+include "src.classes.SpaceDock"
 
 -- ==========================================
 -- MAIN TIC FUNCTION

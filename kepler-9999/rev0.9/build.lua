@@ -1567,10 +1567,8 @@ local DOCK_MASS           = 1000
 local STATION_RADIUS      = 100
 local STATION_REAL_RADIUS = 25
 local DOCK_RADIUS         = 10
-
-function generateSpaceDockName(host_name, index)
-    return host_name .. "-DOCK[" .. index .. "]"
-end
+local DOCK_REAL_RADIUS    = 10
+local DOCK_ORBIT_PADDING  = 55
 
 function generateSpaceStationName(index)
     return "Station 9999X"
@@ -1625,6 +1623,81 @@ function generateSpaceStations(planets)
     end
 
     return stations
+end
+
+function generateSpaceDockName(host_name, index)
+    return host_name .. "-DOCK[" .. index .. "]"
+end
+
+function generatePlanetSpaceDock(planet, index)
+    index = index or 1
+
+    local orbit_radius =
+        getCollisionRadius(planet) +
+        DOCK_RADIUS +
+        35
+
+    return SpaceDock:new({
+        name = generateSpaceDockName(planet.name or "Planet", index),
+        host = planet,
+
+        orbit = {
+            semi_major   = orbit_radius,
+            eccentricity = 0.15,
+            angle        = randomFloat(0, math.pi * 2),
+            phase        = randomFloat(0, math.pi * 2),
+            period       = math.random(1200, 2400),
+        },
+    })
+end
+
+function generateSpaceStationDock(station, index, total)
+    index = index or 1
+    total = total or 6
+
+    local phase        = ((index - 1) / total) * math.pi * 2
+    local orbit_radius = getCollisionRadius(station) + DOCK_RADIUS + DOCK_ORBIT_PADDING
+
+    return SpaceDock:new({
+        name = generateSpaceDockName(station.name or "Station", index),
+        host = station,
+
+        orbit = {
+            semi_major   = orbit_radius,
+            eccentricity = 0, -- circular orbit
+            angle        = 0,
+            phase        = phase,
+            period       = 1800,
+        },
+    })
+end
+
+function addSpaceDocksToPlanets(planets)
+    planets = planets or {}
+
+    for _, planet in ipairs(planets) do
+        planet.docks = planet.docks or {}
+
+        -- Each planet gets exactly one dock.
+        if #planet.docks <= 0 then
+            table.insert(planet.docks, generatePlanetSpaceDock(planet, 1))
+        end
+    end
+end
+
+function addSpaceDocksToStations(stations)
+    stations = stations or {}
+
+    for _, station in ipairs(stations) do
+        station.docks = station.docks or {}
+
+        -- Each SpaceStation gets exactly six docks.
+        if #station.docks <= 0 then
+            for i = 1, 6 do
+                table.insert(station.docks, generateSpaceStationDock(station, i, 6))
+            end
+        end
+    end
 end
 
 
@@ -1939,14 +2012,31 @@ function checkObjectAgainstPlanet(obj, planet)
         return
     end
 
-    if planet.moons then
-        for _, moon in ipairs(planet.moons) do
-            if objectsCollide(obj, moon) then
-                applyCollisionDamage(obj, moon)
-                return
-            end
+    if checkObjectAgainstOrbiters(obj, planet.moons) then
+        return
+    end
+    if checkObjectAgainstOrbiters(obj, planet.docks) then
+        return
+    end
+end
+
+function checkObjectAgainstOrbiters(obj, orbiters)
+    if not obj or obj.dead then
+        return false
+    end
+
+    if not orbiters then
+        return false
+    end
+
+    for _, orbiter in ipairs(orbiters) do
+        if objectsCollide(obj, orbiter) then
+            applyCollisionDamage(obj, orbiter)
+            return true
         end
     end
+
+    return false
 end
 
 function checkObjectAgainstLargeBodies(obj)
@@ -2631,6 +2721,9 @@ function changeState(newState)
 
         generateMoons()
         generateComets()
+
+        addSpaceDocksToPlanets(game.play.planets)
+        addSpaceDocksToStations(game.play.space_stations)
 
         resetPlayerAndCamera()
     end
@@ -5225,6 +5318,22 @@ function SpaceShip:getHarpoonTargets()
         end
     end
 
+    -- Space Docks orbiting planets and attached to the space station.
+    for _, planet in ipairs(game.play.planets or {}) do
+        for _, dock in ipairs(planet.docks or {}) do
+            if self:canHarpoonTarget(dock) then
+                table.insert(targets, dock)
+            end
+        end
+    end
+    for _, station in ipairs(game.play.space_stations or {}) do
+        for _, dock in ipairs(station.docks or {}) do
+            if self:canHarpoonTarget(dock) then
+                table.insert(targets, dock)
+            end
+        end
+    end
+
     return targets
 end
 
@@ -6114,6 +6223,12 @@ function Planet:update()
             moon:update()
         end
     end
+
+    if self.docks then
+        for _, dock in ipairs(self.docks) do
+            dock:update()
+        end
+    end
 end
 
 -- ==========================================
@@ -6294,6 +6409,30 @@ function Planet:drawMoonsInFront()
     end
 end
 
+function Planet:drawDocksBehind()
+    if not self.docks then
+        return
+    end
+
+    for _, dock in ipairs(self.docks) do
+        if dock.orbit_depth and dock.orbit_depth < 0 then
+            dock:draw()
+        end
+    end
+end
+
+function Planet:drawDocksInFront()
+    if not self.docks then
+        return
+    end
+
+    for _, dock in ipairs(self.docks) do
+        if not dock.orbit_depth or dock.orbit_depth >= 0 then
+            dock:draw()
+        end
+    end
+end
+
 function Planet:drawBody()
     local screen_x, screen_y = worldToScreen(self.position.x, self.position.y)
     local zoom = game.camera.zoom or 1
@@ -6361,14 +6500,16 @@ function Planet:drawLabel()
 end
 
 function Planet:draw()
-    -- Moons on the far side are drawn first, so the planet can eclipse them.
+    -- Far-side orbiters.
     self:drawMoonsBehind()
+    self:drawDocksBehind()
 
     -- Planet body/rings/clouds/etc.
     self:drawBody()
 
-    -- Moons on the near side are drawn after, so they can eclipse the planet.
+    -- Near-side orbiters.
     self:drawMoonsInFront()
+    self:drawDocksInFront()
 
     -- Labels still go on top.
     self:drawLabel()
@@ -7623,8 +7764,8 @@ function SpaceStation:new(params)
 
     params.name        = params.name or "Station 9999X"
     params.mass        = params.mass or STATION_MASS
-    params.radius_real = params.radius_real or STATION_RADIUS
-    params.radius      = params.radius or self:getDrawRadiusFromRealRadius(params.radius_real)
+    params.radius_real = params.radius_real or STATION_REAL_RADIUS
+    params.radius      = params.radius or SpaceStation:getDrawRadiusFromRealRadius(params.radius_real)
 
     params.has_atmosphere = false
     params.has_ring = false
@@ -7700,6 +7841,30 @@ end
 -- SPACESTATION DRAW
 -- ==========================================
 
+function SpaceStation:drawDocksBehind()
+    if not self.docks then
+        return
+    end
+
+    for _, dock in ipairs(self.docks) do
+        if dock.orbit_depth and dock.orbit_depth < 0 then
+            dock:draw()
+        end
+    end
+end
+
+function SpaceStation:drawDocksInFront()
+    if not self.docks then
+        return
+    end
+
+    for _, dock in ipairs(self.docks) do
+        if not dock.orbit_depth or dock.orbit_depth >= 0 then
+            dock:draw()
+        end
+    end
+end
+
 function SpaceStation:drawBody()
     local screen_x, screen_y = worldToScreen(self.position.x, self.position.y)
     local zoom = game.camera.zoom or 1
@@ -7752,12 +7917,190 @@ function SpaceStation:drawLabel()
 end
 
 function SpaceStation:draw()
+    self:drawDocksBehind()
     self:drawBody()
+    self:drawDocksInFront()
     self:drawLabel()
 end
 
 
 -- [/TQ-Bundler: src.classes.SpaceStation]
+
+-- [TQ-Bundler: src.classes.SpaceDock]
+
+-- ==========================================
+-- SPACEDOCK OBJECT
+-- ==========================================
+
+SpaceDock = setmetatable({}, { __index = Moon })
+SpaceDock.__index = SpaceDock
+
+function SpaceDock:new(params)
+    params                = params or {}
+
+    params.name        = params.name or "SpaceDock"
+    params.mass        = params.mass        or DOCK_MASS
+    params.radius_real = params.radius_real or DOCK_REAL_RADIUS
+    params.radius      = params.radius      or SpaceDock:getDrawRadiusFromRealRadius(params.radius_real)
+    params.colors      = params.colors or {
+        primary = WHITE,
+        secondary = BLUE_LITE,
+        tertiary  = GRAY_LITE,
+    }
+
+    params.has_atmosphere      = false
+    params.has_ring            = false
+    params.num_rings           = 0
+    params.exerts_gravity      = true
+    params.affected_by_gravity = false
+
+    -- SpaceDocks are moon-like orbital bodies.
+    local self            = Moon:new(params)
+    setmetatable(self, SpaceDock)
+
+    self.name = params.name or "SpaceDock"
+    self.mass = DOCK_MASS
+    self.host = params.host
+
+    self.has_atmosphere      = false
+    self.has_ring            = false
+    self.num_rings           = 0
+    self.exerts_gravity      = false
+    self.affected_by_gravity = false
+
+    local orbit = params.orbit or {}
+    self.orbit  = {
+        semi_major   = orbit.semi_major or 100,
+        eccentricity = orbit.eccentricity or 0,
+        angle        = orbit.angle or 0,
+        phase        = orbit.phase or 0,
+        period       = orbit.period or 1800,
+    }
+
+    self.orbit.semi_minor =
+        self.orbit.semi_major *
+        math.sqrt(1 - self.orbit.eccentricity * self.orbit.eccentricity)
+
+    -- SpaceDocks do not use Moon dust effects.
+    self.dust_particles   = {}
+    self.dust             = nil
+
+    -- Initialize dock position immediately if it has a host.
+    if self.host then
+        local focus = self.host.barycenter or self.host.position
+        self:updateOrbitPosition(focus)
+    end
+
+    return self
+end
+
+-- ==========================================
+-- SPACEDOCK GETTERS
+-- ==========================================
+
+function SpaceDock:isFinished()
+    return self.dead
+end
+
+function SpaceDock:getDrawRadiusFromRealRadius(radius_real)
+    return DOCK_REAL_RADIUS
+end
+
+-- ==========================================
+-- SPACEDOCK PARTICLE EFFECTS
+-- ==========================================
+
+-- function SpaceDock:explosionEffect()
+--     -- Do nothing, no explosions here...
+-- end
+
+-- function SpaceDock:updateDustParticles()
+--     -- Do nothing, no dust particles to update here...
+-- end
+
+-- function SpaceDock:drawDustParticles()
+--     -- Do nothing, no dust particles to draw here...
+-- end
+
+-- ==========================================
+-- SPACEDOCK UPDATE
+-- ==========================================
+
+-- function SpaceDock:takeDamage(damage, other)
+--     -- Docks are solid/harpoonable but not destructible.
+--     return false
+-- end
+
+-- ==========================================
+-- SPACEDOCK DRAW
+-- ==========================================
+
+function SpaceDock:drawBody()
+    if self.dead then
+        return
+    end
+
+    local zoom = game.camera.zoom or 1
+
+    local screen_x, screen_y = worldToScreen(self.position.x, self.position.y)
+
+    screen_x = math.floor(screen_x)
+    screen_y = math.floor(screen_y)
+
+    local r = math.max(1, math.floor(self.radius * zoom))
+
+    -- Skip if comfortably off-screen.
+    if screen_x < -r - 4 or screen_x > SCREEN_W + r + 4 or
+        screen_y < -r - 4 or screen_y > SCREEN_H + r + 4 then
+        return
+    end
+
+    -- Simple dock body.
+    circ(screen_x, screen_y, r, self.colors.primary)
+
+    -- Small inner detail.
+    if r >= 3 then
+        circ(screen_x, screen_y, math.max(1, r - 2), self.colors.secondary)
+    end
+end
+
+function SpaceDock:drawLabel()
+    local zoom = game.camera.zoom or 1
+
+    -- Labels are only visible when zoomed out.
+    if zoom >= 1 then
+        return
+    end
+
+    local screen_x, screen_y = worldToScreen(self.position.x, self.position.y)
+    screen_x                 = math.floor(screen_x)
+    screen_y                 = math.floor(screen_y)
+
+    local r       = math.max(1, math.floor(self.radius * zoom))
+    local text    = self.name or "SpaceDock"
+    local text_w  = print(text, 0, -100, WHITE, true, 1, true)
+    local label_x = math.floor(screen_x - text_w / 2)
+    local label_y = screen_y + r + 4
+    if label_x > SCREEN_W or label_x + text_w < 0 or
+        label_y > SCREEN_H or label_y + FIXED_CHAR_HEIGHT < 0 then
+        return
+    end
+
+    print(text, label_x + 1, label_y + 1, BLACK, true, 1, true)
+    print(text, label_x, label_y, WHITE, true, 1, true)
+end
+
+function SpaceDock:draw()
+    if self.dead then
+        return
+    end
+
+    self:drawBody()
+    self:drawLabel()
+end
+
+
+-- [/TQ-Bundler: src.classes.SpaceDock]
 
 -- ==========================================
 -- MAIN TIC FUNCTION
