@@ -44,9 +44,9 @@ function Moon:new(params)
         self.orbit.semi_major *
         math.sqrt(1 - self.orbit.eccentricity * self.orbit.eccentricity)
 
+    self.mineable       = true
     self.dust_particles = {}
-
-    self.dust = {
+    self.dust           = {
         colors = params.dust_colors or {
             GRAY_DARK,
             GRAY_MED,
@@ -104,10 +104,6 @@ function Moon:updateOrbitPosition(focus)
     -- Focus-relative version shifts x by -a*e.
     local local_x = a * math.cos(E) - a * e
     local local_y = b * math.sin(E)
-
-    -- Used only for draw order.
-    -- Negative means "behind" the planet, positive means "in front".
-    self.orbit_depth = local_y
 
     -- Rotate ellipse.
     local cos_a = math.cos(orbit.angle)

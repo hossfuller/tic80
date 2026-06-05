@@ -285,51 +285,23 @@ function Planet:drawClouds(screen_x, screen_y, r, zoom)
     end
 end
 
-function Planet:drawMoonsBehind()
+function Planet:drawMoons()
     if not self.moons then
         return
     end
 
     for _, moon in ipairs(self.moons) do
-        if moon.orbit_depth and moon.orbit_depth < 0 then
-            moon:draw()
-        end
+        moon:draw()
     end
 end
 
-function Planet:drawMoonsInFront()
-    if not self.moons then
-        return
-    end
-
-    for _, moon in ipairs(self.moons) do
-        if not moon.orbit_depth or moon.orbit_depth >= 0 then
-            moon:draw()
-        end
-    end
-end
-
-function Planet:drawDocksBehind()
+function Planet:drawDocks()
     if not self.docks then
         return
     end
 
     for _, dock in ipairs(self.docks) do
-        if dock.orbit_depth and dock.orbit_depth < 0 then
-            dock:draw()
-        end
-    end
-end
-
-function Planet:drawDocksInFront()
-    if not self.docks then
-        return
-    end
-
-    for _, dock in ipairs(self.docks) do
-        if not dock.orbit_depth or dock.orbit_depth >= 0 then
-            dock:draw()
-        end
+        dock:draw()
     end
 end
 
@@ -400,17 +372,10 @@ function Planet:drawLabel()
 end
 
 function Planet:draw()
-    -- Far-side orbiters.
-    self:drawMoonsBehind()
-    self:drawDocksBehind()
-
-    -- Planet body/rings/clouds/etc.
     self:drawBody()
 
-    -- Near-side orbiters.
-    self:drawMoonsInFront()
-    self:drawDocksInFront()
+    self:drawMoons()
+    self:drawDocks()
 
-    -- Labels still go on top.
     self:drawLabel()
 end

@@ -87,26 +87,31 @@ end
 -- SPACESTATION DRAW
 -- ==========================================
 
-function SpaceStation:drawDocksBehind()
+function SpaceStation:drawDocks()
     if not self.docks then
         return
     end
 
     for _, dock in ipairs(self.docks) do
-        if dock.orbit_depth and dock.orbit_depth < 0 then
-            dock:draw()
-        end
+        dock:draw()
     end
 end
 
-function SpaceStation:drawDocksInFront()
+function SpaceStation:drawDockTubes()
     if not self.docks then
         return
     end
 
+    local station_x, station_y = worldToScreen(self.position.x, self.position.y)
+    station_x                  = math.floor(station_x)
+    station_y                  = math.floor(station_y)
+
     for _, dock in ipairs(self.docks) do
-        if not dock.orbit_depth or dock.orbit_depth >= 0 then
-            dock:draw()
+        if dock and not dock.dead and dock.position then
+            local dock_x, dock_y = worldToScreen(dock.position.x, dock.position.y)
+            dock_x               = math.floor(dock_x)
+            dock_y               = math.floor(dock_y)
+            line(dock_x, dock_y, station_x, station_y, WHITE)
         end
     end
 end
@@ -163,8 +168,8 @@ function SpaceStation:drawLabel()
 end
 
 function SpaceStation:draw()
-    self:drawDocksBehind()
+    self:drawDockTubes()
+    self:drawDocks()
     self:drawBody()
-    self:drawDocksInFront()
     self:drawLabel()
 end

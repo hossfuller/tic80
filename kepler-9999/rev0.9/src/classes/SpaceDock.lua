@@ -51,9 +51,39 @@ function SpaceDock:new(params)
         self.orbit.semi_major *
         math.sqrt(1 - self.orbit.eccentricity * self.orbit.eccentricity)
 
-    -- SpaceDocks do not use Moon dust effects.
-    self.dust_particles   = {}
-    self.dust             = nil
+    -- You can't mine a SpaceDock!
+    self.mineable = false
+
+    -- SpaceDocks do not use Moon dust effects. Instead they have SpaceShip-like
+    -- explosion effects.
+    self.dust_particles = {}
+    self.dust           = nil
+    self.particles           = {
+        explosion = {
+            colors = params.explosion_colors or {
+                WHITE,
+                YELLOW,
+                ORANGE,
+                RED,
+                GRAY_LITE,
+                GRAY_MED,
+                GRAY_DARK,
+            },
+            params = {
+                count_min    = 130,
+                count_max    = 190,
+                speed_min    = 1.0,
+                speed_max    = 5.2,
+                life_min     = 45,
+                life_max     = 120,
+                size_min     = 1,
+                size_max     = 4,
+                drag         = 0.97,
+                spawn_radius = (self.radius or DOCK_RADIUS or 10) * 2.4,
+            },
+            particles = {},
+        },
+    }
 
     -- Initialize dock position immediately if it has a host.
     if self.host then
@@ -69,7 +99,11 @@ end
 -- ==========================================
 
 function SpaceDock:isFinished()
-    return self.dead
+    local explosion = self.particles and self.particles.explosion
+    if not explosion then
+        return self.dead
+    end
+    return self.dead and #explosion.particles <= 0
 end
 
 function SpaceDock:getDrawRadiusFromRealRadius(radius_real)
@@ -80,26 +114,182 @@ end
 -- SPACEDOCK PARTICLE EFFECTS
 -- ==========================================
 
--- function SpaceDock:explosionEffect()
---     -- Do nothing, no explosions here...
--- end
+function SpaceDock:getParticleSystem(type)
+    if not self.particles then
+        return nil
+    end
 
--- function SpaceDock:updateDustParticles()
---     -- Do nothing, no dust particles to update here...
--- end
+    return self.particles[type]
+end
 
--- function SpaceDock:drawDustParticles()
---     -- Do nothing, no dust particles to draw here...
--- end
+function SpaceDock:addParticle(type, particle)
+    local system = self:getParticleSystem(type)
+
+    if not system then
+        return
+    end
+
+    table.insert(system.particles, particle)
+end
+
+function SpaceDock:updateParticleList(type)
+    local system = self:getParticleSystem(type)
+
+    if not system then
+        return
+    end
+
+    local particles = system.particles
+
+    for i = #particles, 1, -1 do
+        local particle = particles[i]
+
+        particle.life = particle.life - 1
+
+        if particle.life <= 0 then
+            table.remove(particles, i)
+        else
+            particle.velocity.speed = particle.velocity.speed * (particle.drag or 1)
+            particle.velocity.direction = self:keepAngleInRange(
+                particle.velocity.direction or 0
+            )
+
+            local components = self:getVectorComponents(particle.velocity)
+
+            particle.position.x = particle.position.x + components.xComp
+            particle.position.y = particle.position.y + components.yComp
+        end
+    end
+end
+
+function SpaceDock:updateParticles()
+    if not self.particles then
+        return
+    end
+
+    self:updateParticleList("explosion")
+end
+
+function SpaceDock:drawParticles(type)
+    local system = self:getParticleSystem(type)
+
+    if not system then
+        return
+    end
+
+    local zoom = game.camera.zoom or 1
+
+    for _, particle in ipairs(system.particles) do
+        local screen_x, screen_y = worldToScreen(
+            particle.position.x,
+            particle.position.y
+        )
+
+        screen_x = math.floor(screen_x)
+        screen_y = math.floor(screen_y)
+
+        if screen_x >= -4 and screen_x <= SCREEN_W + 4 and
+            screen_y >= -4 and screen_y <= SCREEN_H + 4 then
+            local life_fraction = particle.life / particle.max_life
+            local size = math.max(1, math.floor((particle.size or 1) * zoom))
+
+            if life_fraction < 0.35 then
+                size = 1
+            end
+
+            if size <= 1 then
+                pix(screen_x, screen_y, particle.color)
+            else
+                circ(screen_x, screen_y, size, particle.color)
+            end
+        end
+    end
+end
+
+function SpaceDock:spawnParticleBurst(type, origin_x, origin_y, count)
+    local system = self:getParticleSystem(type)
+
+    if not system then
+        return
+    end
+
+    local p      = system.params
+    local colors = system.colors
+
+    count        = count or math.random(p.count_min or 1, p.count_max or 1)
+
+    for i = 1, count do
+        local direction    = randomFloat(0, math.pi * 2)
+        local speed        = randomFloat(p.speed_min or 0.1, p.speed_max or 1)
+        local life         = math.random(p.life_min or 10, p.life_max or 30)
+        local size         = math.random(p.size_min or 1, p.size_max or 1)
+
+        local spawn_radius = p.spawn_radius or 0
+        local spawn_angle  = randomFloat(0, math.pi * 2)
+        local spawn_dist   = randomFloat(0, spawn_radius)
+
+        local sx           = origin_x + math.cos(spawn_angle) * spawn_dist
+        local sy           = origin_y + math.sin(spawn_angle) * spawn_dist
+
+        self:addParticle(type, {
+            position = {
+                x = sx,
+                y = sy,
+            },
+            velocity = {
+                speed     = speed,
+                direction = direction,
+            },
+            life     = life,
+            max_life = life,
+            color    = randomChoice(colors),
+            size     = size,
+            drag     = p.drag or 1,
+        })
+    end
+end
+
+function SpaceDock:explosionEffect()
+    local system = self:getParticleSystem("explosion")
+
+    if not system then
+        return
+    end
+
+    local p = system.params
+    local count = math.random(p.count_min or 120, p.count_max or 180)
+
+    self:spawnParticleBurst(
+        "explosion",
+        self.position.x,
+        self.position.y,
+        count
+    )
+end
 
 -- ==========================================
 -- SPACEDOCK UPDATE
 -- ==========================================
 
--- function SpaceDock:takeDamage(damage, other)
---     -- Docks are solid/harpoonable but not destructible.
---     return false
--- end
+function SpaceDock:update()
+    self:updateTimer()
+
+    -- Explosion particles continue after death.
+    self:updateParticles()
+
+    -- Dead docks no longer orbit.
+    if self.dead or not self.host then
+        return
+    end
+
+    local focus      = self.host.barycenter or self.host.position
+    self.orbit.phase = self.orbit.phase + ((math.pi * 2) / self.orbit.period)
+    if self.orbit.phase > math.pi * 2 then
+        self.orbit.phase = self.orbit.phase - math.pi * 2
+    end
+
+    self:updateOrbitPosition(focus)
+end
 
 -- ==========================================
 -- SPACEDOCK DRAW
@@ -127,44 +317,12 @@ function SpaceDock:drawBody()
 
     -- Simple dock body.
     circ(screen_x, screen_y, r, self.colors.primary)
-
-    -- Small inner detail.
-    if r >= 3 then
-        circ(screen_x, screen_y, math.max(1, r - 2), self.colors.secondary)
-    end
-end
-
-function SpaceDock:drawLabel()
-    local zoom = game.camera.zoom or 1
-
-    -- Labels are only visible when zoomed out.
-    if zoom >= 1 then
-        return
-    end
-
-    local screen_x, screen_y = worldToScreen(self.position.x, self.position.y)
-    screen_x                 = math.floor(screen_x)
-    screen_y                 = math.floor(screen_y)
-
-    local r       = math.max(1, math.floor(self.radius * zoom))
-    local text    = self.name or "SpaceDock"
-    local text_w  = print(text, 0, -100, WHITE, true, 1, true)
-    local label_x = math.floor(screen_x - text_w / 2)
-    local label_y = screen_y + r + 4
-    if label_x > SCREEN_W or label_x + text_w < 0 or
-        label_y > SCREEN_H or label_y + FIXED_CHAR_HEIGHT < 0 then
-        return
-    end
-
-    print(text, label_x + 1, label_y + 1, BLACK, true, 1, true)
-    print(text, label_x, label_y, WHITE, true, 1, true)
 end
 
 function SpaceDock:draw()
-    if self.dead then
-        return
+    if not self.dead then
+        self:drawBody()
     end
 
-    self:drawBody()
-    self:drawLabel()
+    self:drawParticles("explosion")
 end

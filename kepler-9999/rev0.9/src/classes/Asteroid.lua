@@ -49,6 +49,8 @@ function Asteroid:new(params)
     -- Stable polygon shape.
     self.shape = params.shape or self:spawn()
 
+    self.mineable = true
+
     self.particle_systems = {
         explosion = {
             colors = params.explosion_colors or {

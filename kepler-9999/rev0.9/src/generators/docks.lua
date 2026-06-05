@@ -3,28 +3,61 @@
 -- ==========================================
 
 local STATION_MASS        = 10000
-local DOCK_MASS           = 1000
+local DOCK_MASS           = 2000  -- definitely destructable, watch your flying!
 local STATION_RADIUS      = 100
 local STATION_REAL_RADIUS = 25
 local DOCK_RADIUS         = 10
 local DOCK_REAL_RADIUS    = 10
-local DOCK_ORBIT_PADDING  = 55
+local DOCK_ORBIT_PADDING  = 35
 
 function generateSpaceStationName(index)
     return "Station 9999X"
 end
 
 function generateSpaceStationCandidate(index)
+    local temp_station = SpaceStation:new({
+        name = generateSpaceStationName(index or 1),
+        x    = 0,
+        y    = 0,
+    })
+    local margin = getSpaceStationTotalDockReach(temp_station)
+
     return SpaceStation:new({
         name = generateSpaceStationName(index or 1),
-        x    = math.random(0, MAP_PIXELS_W - 1),
-        y    = math.random(0, MAP_PIXELS_H - 1),
+        x    = math.random(math.ceil(margin), math.floor(MAP_PIXELS_W - 1 - margin)),
+        y    = math.random(math.ceil(margin), math.floor(MAP_PIXELS_H - 1 - margin)),
     })
 end
 
+function spaceStationDocksStayOnMap(station)
+    if not station or not station.position then
+        return false
+    end
+
+    local margin = getSpaceStationTotalDockReach(station)
+
+    return
+        station.position.x - margin >= 0 and
+        station.position.y - margin >= 0 and
+        station.position.x + margin < MAP_PIXELS_W and
+        station.position.y + margin < MAP_PIXELS_H
+end
+
 function canPlaceSpaceStation(candidate, planets, star)
+    if not spaceStationDocksStayOnMap(candidate) then
+        return false
+    end
+
     -- SpaceStation is a Planet subclass, so reuse planet placement rules.
     return canPlacePlanet(candidate, planets, star)
+end
+
+function getSpaceStationDockOrbitRadius(station)
+    return getCollisionRadius(station) + DOCK_RADIUS + DOCK_ORBIT_PADDING
+end
+
+function getSpaceStationTotalDockReach(station)
+    return getSpaceStationDockOrbitRadius(station) + DOCK_RADIUS
 end
 
 function generateSpaceStations(planets)
@@ -96,15 +129,14 @@ function generateSpaceStationDock(station, index, total)
     total = total or 6
 
     local phase        = ((index - 1) / total) * math.pi * 2
-    local orbit_radius = getCollisionRadius(station) + DOCK_RADIUS + DOCK_ORBIT_PADDING
+    local orbit_radius = getSpaceStationDockOrbitRadius(station)
 
     return SpaceDock:new({
         name = generateSpaceDockName(station.name or "Station", index),
         host = station,
-
         orbit = {
             semi_major   = orbit_radius,
-            eccentricity = 0, -- circular orbit
+            eccentricity = 0,
             angle        = 0,
             phase        = phase,
             period       = 1800,

@@ -64,6 +64,8 @@ function Comet:new(params)
     self.tail_particles = {}
     self.tail_spawn_carry = 0
 
+    self.mineable = true
+
     return self
 end
 

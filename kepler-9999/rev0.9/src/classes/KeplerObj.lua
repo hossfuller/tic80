@@ -44,6 +44,10 @@ function KeplerObj:new(params)
     self.max_mass  = params.max_mass  or 1    -- (kg)
     self.max_speed = params.max_speed or 1.0
 
+    -- By default all KeplerObj objects are not mineable. We'll change this on a
+    -- object-by-object basis later.
+    self.mineable = false
+
     -- For deflections: 1.0 = perfectly elastic, <1.0 loses speed
     -- More massive bodies have a higher elasticity. Smaller things like ships
     -- have tiny elasticity.

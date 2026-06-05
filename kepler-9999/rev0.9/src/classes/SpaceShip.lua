@@ -559,15 +559,9 @@ function SpaceShip:getMiningTarget()
     end
 
     local target = self.harpoon.target
-
-    if not target then
+    if not target or target.dead or target.mineable == false then
         return nil
     end
-
-    if target.dead then
-        return nil
-    end
-
     if not target.mass or target.mass <= 0 then
         return nil
     end
