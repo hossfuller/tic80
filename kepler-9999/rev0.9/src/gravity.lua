@@ -28,6 +28,10 @@ function getGravitySources()
         end
     end
 
+    for _, station in ipairs(game.play.space_stations or {}) do
+        addSource(station)
+    end
+
     if game.play.player then
         addSource(game.play.player)
     end

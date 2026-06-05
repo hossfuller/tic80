@@ -208,14 +208,19 @@ function checkObjectAgainstLargeBodies(obj)
     end
 
     checkObjectAgainstStar(obj, game.play.star)
-
     if obj.dead then
         return
     end
 
     for _, planet in ipairs(game.play.planets or {}) do
         checkObjectAgainstPlanet(obj, planet)
+        if obj.dead then
+            return
+        end
+    end
 
+    for _, station in ipairs(game.play.space_stations or {}) do
+        checkObjectAgainstPlanet(obj, station)
         if obj.dead then
             return
         end

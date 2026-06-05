@@ -26,6 +26,10 @@ function updatePlay()
         planet:update()
     end
 
+    for _, station in ipairs(game.play.space_stations or {}) do
+        station:update()
+    end
+
     -- Apply gravity before movable objects move this frame.
     updateGravity()
 
@@ -257,6 +261,10 @@ function drawGame()
 
     for _, planet in ipairs(game.play.planets) do
         planet:draw()
+    end
+
+    for _, station in ipairs(game.play.space_stations or {}) do
+        station:draw()
     end
 
     if game.play.comets then

@@ -19,6 +19,7 @@ include "src.generators.planets"
 include "src.generators.moons"
 include "src.generators.comets"
 include "src.generators.asteroids"
+include "src.generators.docks"
 include "src.camera"
 include "src.collisions"
 include "src.gravity"
@@ -42,6 +43,7 @@ include "src.classes.Planet"
 include "src.classes.Moon"
 include "src.classes.Comet"
 include "src.classes.Asteroid"
+include "src.classes.SpaceStation"
 
 -- ==========================================
 -- MAIN TIC FUNCTION

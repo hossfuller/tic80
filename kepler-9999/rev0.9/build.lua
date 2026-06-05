@@ -1556,6 +1556,80 @@ end
 
 -- [/TQ-Bundler: src.generators.asteroids]
 
+-- [TQ-Bundler: src.generators.docks]
+
+-- ==========================================
+-- SPACESTATION AND SPACEDOCS
+-- ==========================================
+
+local STATION_MASS        = 10000
+local DOCK_MASS           = 1000
+local STATION_RADIUS      = 100
+local STATION_REAL_RADIUS = 25
+local DOCK_RADIUS         = 10
+
+function generateSpaceDockName(host_name, index)
+    return host_name .. "-DOCK[" .. index .. "]"
+end
+
+function generateSpaceStationName(index)
+    return "Station 9999X"
+end
+
+function generateSpaceStationCandidate(index)
+    return SpaceStation:new({
+        name = generateSpaceStationName(index or 1),
+        x    = math.random(0, MAP_PIXELS_W - 1),
+        y    = math.random(0, MAP_PIXELS_H - 1),
+    })
+end
+
+function canPlaceSpaceStation(candidate, planets, star)
+    -- SpaceStation is a Planet subclass, so reuse planet placement rules.
+    return canPlacePlanet(candidate, planets, star)
+end
+
+function generateSpaceStations(planets)
+    local stations = {}
+
+    local station_count = 1
+    local max_attempts_per_station = 100
+
+    planets = planets or game.play.planets or {}
+
+    for i = 1, station_count do
+        local placed = false
+        local attempts = 0
+
+        while not placed and attempts < max_attempts_per_station do
+            attempts = attempts + 1
+
+            local candidate = generateSpaceStationCandidate(i)
+
+            -- Reuse planet placement by passing all existing planet-like bodies.
+            local planet_like_objects = {}
+
+            for _, planet in ipairs(planets) do
+                table.insert(planet_like_objects, planet)
+            end
+
+            for _, station in ipairs(stations) do
+                table.insert(planet_like_objects, station)
+            end
+
+            if canPlaceSpaceStation(candidate, planet_like_objects, game.play.star) then
+                table.insert(stations, candidate)
+                placed = true
+            end
+        end
+    end
+
+    return stations
+end
+
+
+-- [/TQ-Bundler: src.generators.docks]
+
 -- [TQ-Bundler: src.camera]
 
 -- ==========================================
@@ -1881,14 +1955,19 @@ function checkObjectAgainstLargeBodies(obj)
     end
 
     checkObjectAgainstStar(obj, game.play.star)
-
     if obj.dead then
         return
     end
 
     for _, planet in ipairs(game.play.planets or {}) do
         checkObjectAgainstPlanet(obj, planet)
+        if obj.dead then
+            return
+        end
+    end
 
+    for _, station in ipairs(game.play.space_stations or {}) do
+        checkObjectAgainstPlanet(obj, station)
         if obj.dead then
             return
         end
@@ -2099,6 +2178,10 @@ function getGravitySources()
                 addSource(moon)
             end
         end
+    end
+
+    for _, station in ipairs(game.play.space_stations or {}) do
+        addSource(station)
     end
 
     if game.play.player then
@@ -2518,12 +2601,13 @@ game = {
 
     -- Gameplay state
     play = {
-        player      = {},
-        star        = {},
-        planets     = {},
-        comets      = {},
-        asteroids   = {},
-        comet_count = 0,
+        player         = {},
+        star           = {},
+        planets        = {},
+        comets         = {},
+        asteroids      = {},
+        comet_count    = 0,
+        space_stations = {},
     },
 }
 
@@ -2539,10 +2623,11 @@ function changeState(newState)
     if newState == STATE.READY then
         generateBackgroundMap()
 
-        game.play.player    = generatePlayer()
-        game.play.star      = generateStar()
-        game.play.planets   = generatePlanets()
-        game.play.asteroids = spawnAsteroids()
+        game.play.player         = generatePlayer()
+        game.play.star           = generateStar()
+        game.play.planets        = generatePlanets()
+        game.play.asteroids      = spawnAsteroids()
+        game.play.space_stations = generateSpaceStations(game.play.planets)
 
         generateMoons()
         generateComets()
@@ -3202,6 +3287,10 @@ function updatePlay()
         planet:update()
     end
 
+    for _, station in ipairs(game.play.space_stations or {}) do
+        station:update()
+    end
+
     -- Apply gravity before movable objects move this frame.
     updateGravity()
 
@@ -3433,6 +3522,10 @@ function drawGame()
 
     for _, planet in ipairs(game.play.planets) do
         planet:draw()
+    end
+
+    for _, station in ipairs(game.play.space_stations or {}) do
+        station:draw()
     end
 
     if game.play.comets then
@@ -7515,6 +7608,156 @@ end
 
 
 -- [/TQ-Bundler: src.classes.Asteroid]
+
+-- [TQ-Bundler: src.classes.SpaceStation]
+
+-- ==========================================
+-- SPACESTATION OBJECT
+-- ==========================================
+
+SpaceStation = setmetatable({}, { __index = Planet })
+SpaceStation.__index = SpaceStation
+
+function SpaceStation:new(params)
+    params = params or {}
+
+    params.name        = params.name or "Station 9999X"
+    params.mass        = params.mass or STATION_MASS
+    params.radius_real = params.radius_real or STATION_RADIUS
+    params.radius      = params.radius or self:getDrawRadiusFromRealRadius(params.radius_real)
+
+    params.has_atmosphere = false
+    params.has_ring = false
+    params.num_rings = 0
+
+    params.colors = params.colors or {
+        primary   = WHITE,
+        secondary = BLUE_MED,
+        tertiary  = RED,
+    }
+
+    params.velocity = {
+        speed = 0,
+        direction = 0,
+    }
+    params.acceleration = 0
+    params.deceleration = 0
+
+    params.exerts_gravity = true
+    params.affected_by_gravity = false
+
+    local self = Planet:new(params)
+    setmetatable(self, SpaceStation)
+
+    self.name        = params.name
+    self.mass        = params.mass
+    self.radius_real = params.radius_real
+    self.radius      = params.radius
+
+    self.exerts_gravity      = true
+    self.affected_by_gravity = false
+
+    self.velocity.speed     = 0
+    self.velocity.direction = 0
+    self.acceleration       = 0
+    self.deceleration       = 0
+
+    self.has_atmosphere = false
+    self.has_ring       = false
+    self.num_rings      = 0
+
+    self.colors = params.colors
+    self.color  = self.colors.primary
+
+    return self
+end
+
+-- ==========================================
+-- SPACESTATION GETTERS
+-- ==========================================
+
+-- Override the normal getDrawRadiusFromRealRadius(radius_real) to get something
+-- more to scale with the player's ship.
+function SpaceStation:getDrawRadiusFromRealRadius(radius_real)
+    return STATION_REAL_RADIUS
+end
+
+-- ==========================================
+-- SPACESTATION UPDATE
+-- ==========================================
+
+function SpaceStation:update()
+    self:updateTimer()
+
+    if self.docks then
+        for _, dock in ipairs(self.docks) do
+            dock:update()
+        end
+    end
+end
+
+-- ==========================================
+-- SPACESTATION DRAW
+-- ==========================================
+
+function SpaceStation:drawBody()
+    local screen_x, screen_y = worldToScreen(self.position.x, self.position.y)
+    local zoom = game.camera.zoom or 1
+
+    screen_x = math.floor(screen_x)
+    screen_y = math.floor(screen_y)
+
+    local r = math.max(1, math.floor(self.radius * zoom))
+
+    -- Skip if comfortably off-screen.
+    if screen_x < -r - 4 or screen_x > SCREEN_W + r + 4 or
+        screen_y < -r - 4 or screen_y > SCREEN_H + r + 4 then
+        return
+    end
+
+    -- SpaceStation body.
+    circ(screen_x, screen_y, r, self.colors.primary)
+    -- Add other decorations
+end
+
+function SpaceStation:drawLabel()
+    local zoom = game.camera.zoom or 1
+
+    -- Labels are only visible when zoomed out.
+    if zoom >= 1 then
+        return
+    end
+
+    local screen_x, screen_y = worldToScreen(self.position.x, self.position.y)
+    screen_x                 = math.floor(screen_x)
+    screen_y                 = math.floor(screen_y)
+
+    local r       = math.max(1, math.floor(self.radius * zoom))
+    local text    = self.name or "SpaceStation"
+    local text_w  = print(text, 0, -100, WHITE, true, 1, true)
+    local label_x = math.floor(screen_x - text_w / 2)
+    local label_y = screen_y + r + 4
+
+    -- Skip labels that are clearly off-screen.
+    if label_x > SCREEN_W or label_x + text_w < 0 or
+        label_y > SCREEN_H or label_y + FIXED_CHAR_HEIGHT < 0 then
+        return
+    end
+
+    -- Shadow.
+    print(text, label_x + 1, label_y + 1, BLACK, true, 1, true)
+
+    -- Label.
+    print(text, label_x, label_y, WHITE, true, 1, true)
+end
+
+function SpaceStation:draw()
+    self:drawBody()
+    self:drawLabel()
+end
+
+
+-- [/TQ-Bundler: src.classes.SpaceStation]
 
 -- ==========================================
 -- MAIN TIC FUNCTION
