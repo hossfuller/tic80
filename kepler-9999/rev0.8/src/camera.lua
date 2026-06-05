@@ -89,3 +89,19 @@ function updateMouseWheelZoom()
     camera.zoom_index = clamp(camera.zoom_index, 1, #camera.zoom_levels)
     camera.zoom = camera.zoom_levels[camera.zoom_index]
 end
+
+function togglePlayZoom()
+    local camera     = game.camera
+
+    local zoomed_out = 0.1
+    local zoomed_in  = 1
+
+    -- Use a threshold instead of exact equality because zoom may become a float.
+    if camera.zoom <= 0.1 then
+        camera.zoom = zoomed_in
+        camera.zoom_index = 5 -- zoom_levels[5] == 1
+    else
+        camera.zoom = zoomed_out
+        camera.zoom_index = 1 -- zoom_levels[1] == 0.1
+    end
+end

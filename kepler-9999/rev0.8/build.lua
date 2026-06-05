@@ -1650,6 +1650,22 @@ function updateMouseWheelZoom()
     camera.zoom = camera.zoom_levels[camera.zoom_index]
 end
 
+function togglePlayZoom()
+    local camera     = game.camera
+
+    local zoomed_out = 0.1
+    local zoomed_in  = 1
+
+    -- Use a threshold instead of exact equality because zoom may become a float.
+    if camera.zoom <= 0.1 then
+        camera.zoom = zoomed_in
+        camera.zoom_index = 5 -- zoom_levels[5] == 1
+    else
+        camera.zoom = zoomed_out
+        camera.zoom_index = 1 -- zoom_levels[1] == 0.1
+    end
+end
+
 
 -- [/TQ-Bundler: src.camera]
 
@@ -2608,106 +2624,107 @@ function drawCenteredText(text, y, color, fixed, scale, smallfont, shadow_color)
 end
 
 function drawStandardOverlayBox(text)
-    local boxW = 120
-    local boxH = 40
-    local boxX = (EDGE_X_RIGHT - boxW) / 2
-    local boxY = (EDGE_Y_BOTTOM - boxH) / 2
+    local box_width  = 120
+    local box_height = 40
+    local box_pos_x  = (EDGE_X_RIGHT - box_width) / 2
+    local box_pos_y  = (EDGE_Y_BOTTOM - box_height) / 2
 
     -- Draw box background
-    rect(boxX, boxY, boxW, boxH, 0)
-    rectb(boxX, boxY, boxW, boxH, 12)
+    rect(box_pos_x, box_pos_y, box_width, box_height, 0)
+    rectb(box_pos_x, box_pos_y, box_width, box_height, 12)
 
     -- Draw text
-    drawCenteredText(text, boxY + 16, WHITE)
+    drawCenteredText(text, box_pos_y + 16, WHITE)
 end
 
 function drawControlsOverlayBox(text)
-    local boxW = EDGE_X_RIGHT - 3 * X_PADDING
-    local boxH = EDGE_Y_BOTTOM - 3 * Y_PADDING
-    local boxX = (EDGE_X_RIGHT - boxW) / 2
-    local boxY = (EDGE_Y_BOTTOM - boxH) / 2
+    local box_width  = EDGE_X_RIGHT - 3 * X_PADDING
+    local box_height = EDGE_Y_BOTTOM - 3 * Y_PADDING
+    local box_pos_x  = (EDGE_X_RIGHT - box_width) / 2
+    local box_pos_y  = (EDGE_Y_BOTTOM - box_height) / 2
 
-    rect(boxX, boxY, boxW, boxH, 0)
-    rectb(boxX, boxY, boxW, boxH, 12)
+    rect(box_pos_x, box_pos_y, box_width, box_height, 0)
+    rectb(box_pos_x, box_pos_y, box_width, box_height, 12)
 
-    drawCenteredText(text, boxY + Y_PADDING, RED, false, 2, false, YELLOW)
-    drawCenteredText("Controls", boxY + 3.5 * Y_PADDING, WHITE)
+    drawCenteredText(text, box_pos_y + Y_PADDING, RED, false, 2, false, YELLOW)
 
     local controls_text = {
         { "Up",         "Forward Thrust" },
         { "Down",       "Inertia Brake" },
         { "Left/Right", "Rotate" },
+        { "Select (A)", "View Space Map" },
         { "Start (S)",  "Pause" },
         { "Z",          "Harpoon/Dock/Release" },
         { "X",          "Mine/Shop" },
     }
 
-    local keyColor = YELLOW
-    local actionColor = WHITE
-    local shadowColor = GRAY_DARK
+    local key_color    = YELLOW
+    local action_color = WHITE
+    local shadow_color = GRAY_DARK
 
-    local scale = 1
-    local fixed = false
+    local scale     = 1
+    local fixed     = false
     local smallfont = false
 
     -- Measure widest text in each column.
-    local maxKeyW = 0
-    local maxActionW = 0
+    local max_key_width    = 0
+    local max_action_width = 0
+
+    drawCenteredText("Controls", box_pos_y + 3.5 * Y_PADDING, action_color, fixed, scale, smallfont, shadow_color)
 
     for _, row in ipairs(controls_text) do
-        local keyText    = row[1]
-        local actionText = row[2]
-        local keyW       = print(keyText, 0, -50, keyColor, fixed, scale, smallfont)
-        local actionW    = print(actionText, 0, -50, actionColor, fixed, scale, smallfont)
-
-        if keyW > maxKeyW then
-            maxKeyW = keyW
+        local key_text     = row[1]
+        local action_text  = row[2]
+        local key_width    = print(key_text, 0, -50, key_color, fixed, scale, smallfont)
+        local action_width = print(action_text, 0, -50, action_color, fixed, scale, smallfont)
+        if key_width > max_key_width then
+            max_key_width = key_width
         end
-        if actionW > maxActionW then
-            maxActionW = actionW
+        if action_width > max_action_width then
+            max_action_width = action_width
         end
     end
 
     -- Table layout.
-    local gapW = 10
-    local leftColPadding = 8
+    local gap_width           = 10
+    local left_column_padding = 8
 
-    local leftColW = maxKeyW + leftColPadding
-    local tableW = leftColW + gapW + maxActionW
+    local left_column_width = max_key_width + left_column_padding
+    local table_width       = left_column_width + gap_width + max_action_width
 
     -- Keep the table inside the overlay box.
-    local maxTableW = boxW - 2 * X_PADDING
-    if tableW > maxTableW then
-        tableW = maxTableW
+    local max_table_width = box_width - 2 * X_PADDING
+    if table_width > max_table_width then
+        table_width = max_table_width
     end
 
-    local tableX = boxX + math.floor((boxW - tableW) / 2)
-    local tableY = boxY + 5 * Y_PADDING
+    local table_pos_x = box_pos_x + math.floor((box_width - table_width) / 2)
+    local table_pos_y = box_pos_y + 5 * Y_PADDING
 
-    local leftColX = tableX
-    local rightColX = tableX + leftColW + gapW
+    local left_column_pos_x  = table_pos_x
+    local right_column_pos_x = table_pos_x + left_column_width + gap_width
 
     local rowH = 10
 
     for i, row in ipairs(controls_text) do
-        local keyText = row[1]
-        local actionText = row[2]
+        local key_text = row[1]
+        local action_text = row[2]
 
-        local y = tableY + (i - 1) * rowH
+        local y = table_pos_y + (i - 1) * rowH
 
         -- Measure left-column/key text.
-        local keyW = print(keyText, 0, -50, keyColor, fixed, scale, smallfont)
+        local key_width = print(key_text, 0, -50, key_color, fixed, scale, smallfont)
 
         -- Center key text inside left column.
-        local keyX = leftColX + math.floor((leftColW - keyW) / 2)
+        local key_pos_x = left_column_pos_x + math.floor((left_column_width - key_width) / 2)
 
         -- Shadow.
-        print(keyText, keyX + 1, y + 1, shadowColor, fixed, scale, smallfont)
-        print(actionText, rightColX + 1, y + 1, shadowColor, fixed, scale, smallfont)
+        print(key_text, key_pos_x + 1, y + 1, shadow_color, fixed, scale, smallfont)
+        print(action_text, right_column_pos_x + 1, y + 1, shadow_color, fixed, scale, smallfont)
 
         -- Actual text.
-        print(keyText, keyX, y, keyColor, fixed, scale, smallfont)
-        print(actionText, rightColX, y, actionColor, fixed, scale, smallfont)
+        print(key_text, key_pos_x, y, key_color, fixed, scale, smallfont)
+        print(action_text, right_column_pos_x, y, action_color, fixed, scale, smallfont)
     end
 end
 
@@ -3164,6 +3181,10 @@ end
 function inputPlay()
     if btnp(BTN_P1_START) then
         changeState(STATE.PAUSE)
+    end
+
+    if btnp(BTN_P1_SELECT) then
+        togglePlayZoom()
     end
 
     updateMouseWheelZoom()
