@@ -123,6 +123,7 @@ local HARPOON_REEL_PADDING = 6
 local HARPOON_RELEASE_PUSH = 0.4
 local HARPOON_MINE_RATE    = 2.0
 
+local SHOP_ENGINE_MAX_MULTIPLIER = 9
 
 -- [/TQ-Bundler: src.constants_game]
 
@@ -3892,8 +3893,27 @@ function shopItemIsAffordable(item)
         return false
     end
 
+    if shopItemIsMaxed(item) then
+        return false
+    end
+
     local cost = game.shop.upgrade_cost or 100
+
     return station.ore_bank.cur >= cost
+end
+
+function shopItemIsMaxed(item)
+    local player = game.play.player
+    if not player or not player.engines or not item or not item.engine_type then
+        return true
+    end
+
+    local engine = player.engines[item.engine_type]
+    if not engine or not engine.mul then
+        return true
+    end
+
+    return engine.mul >= SHOP_ENGINE_MAX_MULTIPLIER
 end
 
 function getNextSelectableShopIndex(start_index, direction)
@@ -3958,7 +3978,7 @@ function purchaseSelectedShopItem()
     end
 
     local cost = game.shop.upgrade_cost or 100
-    if station.ore_bank.cur < cost then
+    if not shopItemIsAffordable(item) then
         return false
     end
 
@@ -4117,18 +4137,19 @@ function drawShopOverlayBox(station)
     local price_x = option_x + max_option_w + gap_price
 
     for i, item in ipairs(items) do
-        local y = list_y + (i - 1) * row_h
+        local y          = list_y + (i - 1) * row_h
+        local maxed      = shopItemIsMaxed(item)
         local affordable = shopItemIsAffordable(item)
-        local selected = i == game.shop.selected and affordable
+        local selected   = i == game.shop.selected and affordable
 
         local row_option_color = WHITE
-        local row_price_color = YELLOW
-        local shadow_color = GRAY_DARK
+        local row_price_color  = YELLOW
+        local shadow_color     = GRAY_DARK
 
         if not affordable then
             row_option_color = GRAY_MED
-            row_price_color = GRAY_MED
-            shadow_color = BLACK
+            row_price_color  = GRAY_MED
+            shadow_color     = BLACK
         end
 
         if selected then
@@ -4137,6 +4158,9 @@ function drawShopOverlayBox(station)
         end
 
         local price_text = tostring(cost) .. " ORE"
+        if maxed then
+            price_text = "MAXED OUT"
+        end
 
         -- Shadow.
         print(item.name, option_x + 1, y + 1, shadow_color, fixed, scale, smallfont)

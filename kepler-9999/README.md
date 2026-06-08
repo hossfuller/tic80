@@ -75,7 +75,7 @@ The different revisions implement separate features. This list is ever changing.
     - [x] When docked, a spaceship's attributes are refilled. The current ore bank is displayed in the upper-left corner of the screen.
     - [x] Colors, effects, and sounds indicate successful docking.
     - [x] The spaceship can deposit the mined mass in the game bank.
-    - [ ] Harpooning the space station puts the game into the `STATE.SHOP` state.
+    - [x] Harpooning the space station puts the game into the `STATE.SHOP` state.
     - [ ] Mined mass can be traded for upgrades to the engines or to refill the engines.
 - [ ] **REV1.0**: NPC Ships
     - [ ] A freighter travels from dock to dock collecting ore deposits and transferring them to the space station.
