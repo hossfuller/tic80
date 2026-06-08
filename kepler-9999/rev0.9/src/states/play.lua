@@ -56,17 +56,13 @@ function updatePlay()
 
     -- If ship is dead, count down and respawn or gameover
     if player.dead then
-        player.mortality.respawn_timer = player.mortality.respawn_timer - 1
-
-        if player.mortality.respawn_timer <= 0 then
-            if player.mortality.num_lives <= 0 then
-                changeState(STATE.GAMEOVER)
-                return
-
-            -- We'll figure this out later
-            -- else
-            --     player:respawn()
-            end
+        if player.mortality and
+            player.mortality.num_lives <= 0 and
+            player.mortality.respawn_timer <= 0 and
+            player:isFinished()
+        then
+            changeState(STATE.GAMEOVER)
+            return
         end
     else
         updateCollisions()

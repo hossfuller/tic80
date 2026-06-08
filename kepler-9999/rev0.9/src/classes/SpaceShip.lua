@@ -1491,7 +1491,13 @@ function SpaceShip:depositOreToDock(dock)
         return false
     end
 
-    local transfer_amount = math.min(cargo.cur, free_ore_bank_space)
+    -- 60 points per second at 60 FPS = 1 point per TIC.
+    local transfer_rate_per_tick = 1
+    local transfer_amount = math.min(
+        transfer_rate_per_tick,
+        cargo.cur,
+        free_ore_bank_space
+    )
 
     dock.ore_bank.cur = dock.ore_bank.cur + transfer_amount
     cargo.cur = cargo.cur - transfer_amount

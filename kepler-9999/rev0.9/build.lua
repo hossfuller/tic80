@@ -3445,17 +3445,13 @@ function updatePlay()
 
     -- If ship is dead, count down and respawn or gameover
     if player.dead then
-        player.mortality.respawn_timer = player.mortality.respawn_timer - 1
-
-        if player.mortality.respawn_timer <= 0 then
-            if player.mortality.num_lives <= 0 then
-                changeState(STATE.GAMEOVER)
-                return
-
-            -- We'll figure this out later
-            -- else
-            --     player:respawn()
-            end
+        if player.mortality and
+            player.mortality.num_lives <= 0 and
+            player.mortality.respawn_timer <= 0 and
+            player:isFinished()
+        then
+            changeState(STATE.GAMEOVER)
+            return
         end
     else
         updateCollisions()
@@ -5653,7 +5649,13 @@ function SpaceShip:depositOreToDock(dock)
         return false
     end
 
-    local transfer_amount = math.min(cargo.cur, free_ore_bank_space)
+    -- 60 points per second at 60 FPS = 1 point per TIC.
+    local transfer_rate_per_tick = 1
+    local transfer_amount = math.min(
+        transfer_rate_per_tick,
+        cargo.cur,
+        free_ore_bank_space
+    )
 
     dock.ore_bank.cur = dock.ore_bank.cur + transfer_amount
     cargo.cur = cargo.cur - transfer_amount

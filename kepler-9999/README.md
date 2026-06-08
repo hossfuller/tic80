@@ -69,8 +69,8 @@ The different revisions implement separate features. This list is ever changing.
 - [ ] **REV0.9**: The Space Station and various colony space docks
     - [x] There is a single space station in the game that orbits the sun like a planet.
     - [x] All other planets have space docks.
-    - [ ] Harpooning the space station or docks puts the game into the `STATE.SHOP` state.
-    - [ ] Space docks and station have an ore hold that the spaceship can deposit into.
+    - [ ] Harpooning the space station puts the game into the `STATE.SHOP` state.
+    - [x] Space docks and station have an ore hold that the spaceship can deposit into.
     - [ ] Docks attached to space station automatically transfer their ore to the main station bank.
     - [ ] If the dock is destroyed, that ore is lost.
     - [ ] When docked, a spaceship's attributes are refilled. The current ore bank is displayed in the upper-left corner of the screen.
