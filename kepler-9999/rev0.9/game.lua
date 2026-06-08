@@ -1556,6 +1556,188 @@ end
 
 -- [/TQ-Bundler: src.generators.asteroids]
 
+-- [TQ-Bundler: src.generators.docks]
+
+-- ==========================================
+-- SPACESTATION AND SPACEDOCS
+-- ==========================================
+
+local STATION_MASS        = 10000
+local DOCK_MASS           = 2000  -- definitely destructable, watch your flying!
+local STATION_RADIUS      = 100
+local STATION_REAL_RADIUS = 25
+local DOCK_RADIUS         = 10
+local DOCK_REAL_RADIUS    = 10
+local DOCK_ORBIT_PADDING  = 35
+
+local STATION_ORE_BANK_MAX = 100000
+local DOCK_ORE_BANK_MAX    = 10000
+
+function generateSpaceStationName(index)
+    return "Station 9999X"
+end
+
+function generateSpaceStationCandidate(index)
+    local temp_station = SpaceStation:new({
+        name = generateSpaceStationName(index or 1),
+        x    = 0,
+        y    = 0,
+    })
+    local margin = getSpaceStationTotalDockReach(temp_station)
+
+    return SpaceStation:new({
+        name = generateSpaceStationName(index or 1),
+        x    = math.random(math.ceil(margin), math.floor(MAP_PIXELS_W - 1 - margin)),
+        y    = math.random(math.ceil(margin), math.floor(MAP_PIXELS_H - 1 - margin)),
+    })
+end
+
+function spaceStationDocksStayOnMap(station)
+    if not station or not station.position then
+        return false
+    end
+
+    local margin = getSpaceStationTotalDockReach(station)
+
+    return
+        station.position.x - margin >= 0 and
+        station.position.y - margin >= 0 and
+        station.position.x + margin < MAP_PIXELS_W and
+        station.position.y + margin < MAP_PIXELS_H
+end
+
+function canPlaceSpaceStation(candidate, planets, star)
+    if not spaceStationDocksStayOnMap(candidate) then
+        return false
+    end
+
+    -- SpaceStation is a Planet subclass, so reuse planet placement rules.
+    return canPlacePlanet(candidate, planets, star)
+end
+
+function getSpaceStationDockOrbitRadius(station)
+    return getCollisionRadius(station) + DOCK_RADIUS + DOCK_ORBIT_PADDING
+end
+
+function getSpaceStationTotalDockReach(station)
+    return getSpaceStationDockOrbitRadius(station) + DOCK_RADIUS
+end
+
+function generateSpaceStations(planets)
+    local stations = {}
+
+    local station_count = 1
+    local max_attempts_per_station = 100
+
+    planets = planets or game.play.planets or {}
+
+    for i = 1, station_count do
+        local placed = false
+        local attempts = 0
+
+        while not placed and attempts < max_attempts_per_station do
+            attempts = attempts + 1
+
+            local candidate = generateSpaceStationCandidate(i)
+
+            -- Reuse planet placement by passing all existing planet-like bodies.
+            local planet_like_objects = {}
+
+            for _, planet in ipairs(planets) do
+                table.insert(planet_like_objects, planet)
+            end
+
+            for _, station in ipairs(stations) do
+                table.insert(planet_like_objects, station)
+            end
+
+            if canPlaceSpaceStation(candidate, planet_like_objects, game.play.star) then
+                table.insert(stations, candidate)
+                placed = true
+            end
+        end
+    end
+
+    return stations
+end
+
+function generateSpaceDockName(host_name, index)
+    return host_name .. "-DOCK[" .. index .. "]"
+end
+
+function generatePlanetSpaceDock(planet, index)
+    index = index or 1
+
+    local orbit_radius =
+        getCollisionRadius(planet) +
+        DOCK_RADIUS +
+        35
+
+    return SpaceDock:new({
+        name = generateSpaceDockName(planet.name or "Planet", index),
+        host = planet,
+
+        orbit = {
+            semi_major   = orbit_radius,
+            eccentricity = 0.15,
+            angle        = randomFloat(0, math.pi * 2),
+            phase        = randomFloat(0, math.pi * 2),
+            period       = math.random(1200, 2400),
+        },
+    })
+end
+
+function generateSpaceStationDock(station, index, total)
+    index = index or 1
+    total = total or 6
+
+    local phase        = ((index - 1) / total) * math.pi * 2
+    local orbit_radius = getSpaceStationDockOrbitRadius(station)
+
+    return SpaceDock:new({
+        name = generateSpaceDockName(station.name or "Station", index),
+        host = station,
+        orbit = {
+            semi_major   = orbit_radius,
+            eccentricity = 0,
+            angle        = 0,
+            phase        = phase,
+            period       = 1800,
+        },
+    })
+end
+
+function addSpaceDocksToPlanets(planets)
+    planets = planets or {}
+
+    for _, planet in ipairs(planets) do
+        planet.docks = planet.docks or {}
+
+        -- Each planet gets exactly one dock.
+        if #planet.docks <= 0 then
+            table.insert(planet.docks, generatePlanetSpaceDock(planet, 1))
+        end
+    end
+end
+
+function addSpaceDocksToStations(stations)
+    stations = stations or {}
+
+    for _, station in ipairs(stations) do
+        station.docks = station.docks or {}
+
+        -- Each SpaceStation gets exactly six docks.
+        if #station.docks <= 0 then
+            for i = 1, 6 do
+                table.insert(station.docks, generateSpaceStationDock(station, i, 6))
+            end
+        end
+    end
+end
+
+
+-- [/TQ-Bundler: src.generators.docks]
+
 -- [TQ-Bundler: src.camera]
 
 -- ==========================================
@@ -1865,14 +2047,31 @@ function checkObjectAgainstPlanet(obj, planet)
         return
     end
 
-    if planet.moons then
-        for _, moon in ipairs(planet.moons) do
-            if objectsCollide(obj, moon) then
-                applyCollisionDamage(obj, moon)
-                return
-            end
+    if checkObjectAgainstOrbiters(obj, planet.moons) then
+        return
+    end
+    if checkObjectAgainstOrbiters(obj, planet.docks) then
+        return
+    end
+end
+
+function checkObjectAgainstOrbiters(obj, orbiters)
+    if not obj or obj.dead then
+        return false
+    end
+
+    if not orbiters then
+        return false
+    end
+
+    for _, orbiter in ipairs(orbiters) do
+        if objectsCollide(obj, orbiter) then
+            applyCollisionDamage(obj, orbiter)
+            return true
         end
     end
+
+    return false
 end
 
 function checkObjectAgainstLargeBodies(obj)
@@ -1881,14 +2080,19 @@ function checkObjectAgainstLargeBodies(obj)
     end
 
     checkObjectAgainstStar(obj, game.play.star)
-
     if obj.dead then
         return
     end
 
     for _, planet in ipairs(game.play.planets or {}) do
         checkObjectAgainstPlanet(obj, planet)
+        if obj.dead then
+            return
+        end
+    end
 
+    for _, station in ipairs(game.play.space_stations or {}) do
+        checkObjectAgainstPlanet(obj, station)
         if obj.dead then
             return
         end
@@ -2099,6 +2303,10 @@ function getGravitySources()
                 addSource(moon)
             end
         end
+    end
+
+    for _, station in ipairs(game.play.space_stations or {}) do
+        addSource(station)
     end
 
     if game.play.player then
@@ -2518,12 +2726,13 @@ game = {
 
     -- Gameplay state
     play = {
-        player      = {},
-        star        = {},
-        planets     = {},
-        comets      = {},
-        asteroids   = {},
-        comet_count = 0,
+        player         = {},
+        star           = {},
+        planets        = {},
+        comets         = {},
+        asteroids      = {},
+        comet_count    = 0,
+        space_stations = {},
     },
 }
 
@@ -2539,13 +2748,17 @@ function changeState(newState)
     if newState == STATE.READY then
         generateBackgroundMap()
 
-        game.play.player    = generatePlayer()
-        game.play.star      = generateStar()
-        game.play.planets   = generatePlanets()
-        game.play.asteroids = spawnAsteroids()
+        game.play.player         = generatePlayer()
+        game.play.star           = generateStar()
+        game.play.planets        = generatePlanets()
+        game.play.asteroids      = spawnAsteroids()
+        game.play.space_stations = generateSpaceStations(game.play.planets)
 
         generateMoons()
         generateComets()
+
+        addSpaceDocksToPlanets(game.play.planets)
+        addSpaceDocksToStations(game.play.space_stations)
 
         resetPlayerAndCamera()
     end
@@ -3202,6 +3415,10 @@ function updatePlay()
         planet:update()
     end
 
+    for _, station in ipairs(game.play.space_stations or {}) do
+        station:update()
+    end
+
     -- Apply gravity before movable objects move this frame.
     updateGravity()
 
@@ -3228,17 +3445,13 @@ function updatePlay()
 
     -- If ship is dead, count down and respawn or gameover
     if player.dead then
-        player.mortality.respawn_timer = player.mortality.respawn_timer - 1
-
-        if player.mortality.respawn_timer <= 0 then
-            if player.mortality.num_lives <= 0 then
-                changeState(STATE.GAMEOVER)
-                return
-
-            -- We'll figure this out later
-            -- else
-            --     player:respawn()
-            end
+        if player.mortality and
+            player.mortality.num_lives <= 0 and
+            player.mortality.respawn_timer <= 0 and
+            player:isFinished()
+        then
+            changeState(STATE.GAMEOVER)
+            return
         end
     else
         updateCollisions()
@@ -3422,6 +3635,61 @@ function drawShipStatusHud()
     end
 end
 
+function drawShipLivesHud()
+    local player = game.play.player
+    if not player or not player.mortality then
+        return
+    end
+
+    local lives = player.mortality.num_lives or 0
+    if lives <= 0 then
+        return
+    end
+
+    -- Same fixed-small-font character width used by the HUD bars.
+    local bar_w = print("E", -100, -100, WHITE, true, 1, true) + 1
+
+    -- Same baseline as drawShipCargoHoldHud() and drawShipStatusHud().
+    local bottom_y = EDGE_Y_BOTTOM - 8
+
+    -- Lives column goes immediately to the right of the status bars.
+    local cargo_bar_x = EDGE_X_LEFT + 3
+    local status_start_x = cargo_bar_x + bar_w
+    local status_bar_count = 4
+
+    local lives_x = status_start_x + status_bar_count * bar_w
+
+    -- Keep triangle no wider than one fixed-font character.
+    local tri_w = math.max(3, bar_w - 1)
+    local tri_h = 5
+    local gap = 1
+
+    -- Center the triangle inside its one-character column.
+    local tri_x = lives_x + math.floor((bar_w - tri_w) / 2)
+
+    -- Bottom triangle lines up with the printed HUD characters at bottom_y.
+    -- The triangle's vertical center is placed near the character's center.
+    local char_h = FIXED_CHAR_HEIGHT
+    local first_top_y = bottom_y + math.floor((char_h - tri_h) / 2)
+
+    for i = 1, lives do
+        -- Bottom life is first, additional lives stack upward.
+        local y = first_top_y - (i - 1) * (tri_h + gap)
+        local x1 = tri_x + math.floor(tri_w / 2)
+        local y1 = y
+        local x2 = tri_x
+        local y2 = y + tri_h
+        local x3 = tri_x + tri_w
+        local y3 = y + tri_h
+
+        -- Shadow.
+        tri(x1 + 1, y1 + 1, x2 + 1, y2 + 1, x3 + 1, y3 + 1, BLACK)
+
+        -- Life marker.
+        tri(x1, y1, x2, y2, x3, y3, WHITE)
+    end
+end
+
 function drawGame()
     cls(BLACK)
 
@@ -3433,6 +3701,10 @@ function drawGame()
 
     for _, planet in ipairs(game.play.planets) do
         planet:draw()
+    end
+
+    for _, station in ipairs(game.play.space_stations or {}) do
+        station:draw()
     end
 
     if game.play.comets then
@@ -3448,8 +3720,11 @@ function drawGame()
     local player = game.play.player
     player:draw()
 
-    drawShipCargoHoldHud()
-    drawShipStatusHud()
+    if game.camera.zoom >= 0.5 then
+        drawShipCargoHoldHud()
+        drawShipStatusHud()
+        drawShipLivesHud()
+    end
 end
 
 function drawPlay()
@@ -3656,6 +3931,10 @@ function KeplerObj:new(params)
 
     self.max_mass  = params.max_mass  or 1    -- (kg)
     self.max_speed = params.max_speed or 1.0
+
+    -- By default all KeplerObj objects are not mineable. We'll change this on a
+    -- object-by-object basis later.
+    self.mineable = false
 
     -- For deflections: 1.0 = perfectly elastic, <1.0 loses speed
     -- More massive bodies have a higher elasticity. Smaller things like ships
@@ -4008,11 +4287,16 @@ function SpaceShip:new(params)
     }
 
     self.mortality = {
-        num_lives     = params.num_lives or 1,
+        num_lives     = params.num_lives or 3,
         invulnerable  = 0,
         dead          = false,
         exploded      = false,
         respawn_timer = 0,
+    }
+    self.spawn = {
+        x        = self.position.x,
+        y        = self.position.y,
+        rotation = self.rotation,
     }
 
     self.harpoon    = {
@@ -4225,6 +4509,25 @@ end
 
 function SpaceShip:getTotalMassFraction()
     return self:getTotalMass() / self.max_mass
+end
+
+function SpaceShip:isFinished()
+    -- If the ship still has lives, it is not truly finished.
+    if self.mortality and self.mortality.num_lives > 0 then
+        return false
+    end
+
+    -- No lives left. Optionally wait for particles to finish before considering
+    -- the ship fully finished.
+    if self.particles then
+        for _, system in pairs(self.particles) do
+            if system.particles and #system.particles > 0 then
+                return false
+            end
+        end
+    end
+
+    return self.dead
 end
 
 -- ==========================================
@@ -4494,15 +4797,9 @@ function SpaceShip:getMiningTarget()
     end
 
     local target = self.harpoon.target
-
-    if not target then
+    if not target or target.dead or target.mineable == false then
         return nil
     end
-
-    if target.dead then
-        return nil
-    end
-
     if not target.mass or target.mass <= 0 then
         return nil
     end
@@ -4950,6 +5247,11 @@ function SpaceShip:takeDamage(damage, other)
         return false
     end
 
+    -- Docked/harpooned ships are protected while attached to SpaceDock.
+    if self:isHarpoonedToSpaceDock() then
+        return false
+    end
+
     -- Optional: ignore damage while invulnerable.
     if self.mortality and self.mortality.invulnerable > 0 then
         return false
@@ -5023,6 +5325,19 @@ function SpaceShip:isHarpoonAttachedTo(obj)
     end
 
     return self.harpoon.attached and self.harpoon.target == obj
+end
+
+function SpaceShip:isHarpoonedToSpaceDock()
+    if not self.harpoon or not self.harpoon.attached then
+        return false
+    end
+
+    local target = self.harpoon.target
+    if not target or target.dead then
+        return false
+    end
+
+    return SpaceDock ~= nil and getmetatable(target) == SpaceDock
 end
 
 function SpaceShip:clearHarpoon()
@@ -5129,6 +5444,22 @@ function SpaceShip:getHarpoonTargets()
     for _, asteroid in ipairs(game.play.asteroids or {}) do
         if self:canHarpoonTarget(asteroid) then
             table.insert(targets, asteroid)
+        end
+    end
+
+    -- Space Docks orbiting planets and attached to the space station.
+    for _, planet in ipairs(game.play.planets or {}) do
+        for _, dock in ipairs(planet.docks or {}) do
+            if self:canHarpoonTarget(dock) then
+                table.insert(targets, dock)
+            end
+        end
+    end
+    for _, station in ipairs(game.play.space_stations or {}) do
+        for _, dock in ipairs(station.docks or {}) do
+            if self:canHarpoonTarget(dock) then
+                table.insert(targets, dock)
+            end
         end
     end
 
@@ -5321,6 +5652,152 @@ function SpaceShip:reelHarpoon()
 end
 
 -- ==========================================
+-- SPACESHIP DOCKING
+-- ==========================================
+
+function SpaceShip:getDockedSpaceDock()
+    if not self.harpoon or not self.harpoon.attached then
+        return nil
+    end
+
+    local target = self.harpoon.target
+    if not target or target.dead then
+        return nil
+    end
+    if SpaceDock ~= nil and getmetatable(target) == SpaceDock then
+        return target
+    end
+
+    return nil
+end
+
+function SpaceShip:replenishEnginesWhileDocked()
+    -- 60 points per second at 60 FPS = 1 point per TIC.
+    local replenish_amount = 1
+
+    local energy = self.engines.energy
+    energy.cur = math.min(energy.max, energy.cur + replenish_amount)
+
+    local life_support = self.engines.life_support
+    life_support.cur = math.min(life_support.max, life_support.cur + replenish_amount)
+
+    local shield = self.engines.shield
+    shield.cur = math.min(shield.max, shield.cur + replenish_amount)
+end
+
+function SpaceShip:depositOreToDock(dock)
+    if not dock or not dock.ore_bank then
+        return false
+    end
+
+    if self.cargo_has_ore ~= true then
+        return false
+    end
+
+    local cargo = self.holds.cargo
+    if cargo.cur <= 0 then
+        self.cargo_has_ore = false
+        return false
+    end
+
+    local free_ore_bank_space = math.max(0, dock.ore_bank.max - dock.ore_bank.cur)
+    if free_ore_bank_space <= 0 then
+        return false
+    end
+
+    -- 60 points per second at 60 FPS = 1 point per TIC.
+    local transfer_rate_per_tick = 1
+    local transfer_amount = math.min(
+        transfer_rate_per_tick,
+        cargo.cur,
+        free_ore_bank_space
+    )
+
+    dock.ore_bank.cur = dock.ore_bank.cur + transfer_amount
+    cargo.cur = cargo.cur - transfer_amount
+    if cargo.cur <= 0 then
+        cargo.cur = 0
+        self.cargo_has_ore = false
+    end
+
+    return transfer_amount > 0
+end
+
+function SpaceShip:updateDocking()
+    local dock = self:getDockedSpaceDock()
+    if not dock then
+        return
+    end
+
+    self:replenishEnginesWhileDocked()
+    self:depositOreToDock(dock)
+end
+
+function SpaceShip:drawDockingHud()
+    local dock = self:getDockedSpaceDock()
+
+    if not dock or not dock.ore_bank then
+        return
+    end
+
+    local lines = {}
+
+    table.insert(
+        lines,
+        "Dock Ore: " ..
+        tostring(math.floor(dock.ore_bank.cur)) ..
+        "/" ..
+        tostring(math.floor(dock.ore_bank.max))
+    )
+
+    -- If this SpaceDock is attached to a SpaceStation, also show the station's
+    -- total ore deposits.
+    local station = dock.host
+
+    if (
+        station and
+        SpaceStation ~= nil and
+        getmetatable(station) == SpaceStation and
+        station.ore_bank
+    ) then
+        table.insert(
+            lines,
+            "Station Ore: " ..
+            tostring(math.floor(station.ore_bank.cur)) ..
+            "/" ..
+            tostring(math.floor(station.ore_bank.max))
+        )
+    end
+
+    local x_padding = 4
+    local y = 4
+    local line_h = FIXED_CHAR_HEIGHT + 1
+
+    -- Find widest line so the whole HUD can be right-aligned.
+    local max_text_w = 0
+
+    for _, text in ipairs(lines) do
+        local text_w = print(text, 0, -100, WHITE, true, 1, true)
+
+        if text_w > max_text_w then
+            max_text_w = text_w
+        end
+    end
+
+    local x = SCREEN_W - max_text_w - x_padding
+
+    for i, text in ipairs(lines) do
+        local line_y = y + (i - 1) * line_h
+
+        -- Shadow.
+        print(text, x + 1, line_y + 1, BLACK, true, 1, true)
+
+        -- Text.
+        print(text, x, line_y, WHITE, true, 1, true)
+    end
+end
+
+-- ==========================================
 -- SPACESHIP INPUT
 -- ==========================================
 
@@ -5423,37 +5900,139 @@ end
 -- SPACESHIP UPDATE
 -- ==========================================
 
+
 function SpaceShip:move()
     self:updateTimer()
 
-    if not self.dead then
-        if self.harpoon and self.harpoon.attached then
-            self:updateHarpoonLock()
-        else
-            self.position = self:movePointByVelocity()
-
-            self.position.x = clamp(self.position.x, 0, MAP_PIXELS_W - 1)
-            self.position.y = clamp(self.position.y, 0, MAP_PIXELS_H - 1)
-        end
-
-        self:regenerateEnginesOnTimer()
-
-        -- Emit smoke if life support is damaged enough.
-        self:smokeEffect()
-    end
-
     -- Particles continue moving even after the ship dies.
     self:updateParticles()
+
+    -- If dead, wait for respawn if lives remain.
+    if self.dead then
+        self:updateRespawn()
+        return
+    end
+
+    self:updateInvulnerability()
+
+    if self.harpoon and self.harpoon.attached then
+        self:updateHarpoonLock()
+    else
+        self.position = self:movePointByVelocity()
+
+        self.position.x = clamp(self.position.x, 0, MAP_PIXELS_W - 1)
+        self.position.y = clamp(self.position.y, 0, MAP_PIXELS_H - 1)
+    end
+
+    self:regenerateEnginesOnTimer()
+
+    -- Docking behavior while harpooned to a SpaceDock.
+    self:updateDocking()
+
+    -- Emit smoke if life support is damaged enough.
+    self:smokeEffect()
 end
 
 function SpaceShip:kill()
     if self.dead then
         return
     end
+
     self.dead = true
-    self.mortality.num_lives = self.mortality.num_lives - 1
-    self.mortality.respawn_timer = 90
+    self.exploded = false
+
+    if self.mortality then
+        self.mortality.dead = true
+        self.mortality.exploded = false
+        self.mortality.num_lives = math.max(0, self.mortality.num_lives - 1)
+
+        if self.mortality.num_lives > 0 then
+            self.mortality.respawn_timer = 90
+        else
+            self.mortality.respawn_timer = 0
+        end
+    end
+
+    -- Detach harpoon on death.
+    if self.harpoon then
+        self.harpoon.attached = false
+        self.harpoon.target = nil
+        self.harpoon.offset_x = 0
+        self.harpoon.offset_y = 0
+    end
+
     self:explode()
+end
+
+function SpaceShip:hasLivesRemaining()
+    return self.mortality and self.mortality.num_lives > 0
+end
+
+function SpaceShip:resetForRespawn()
+    -- Restore core lifecycle flags.
+    self.dead = false
+    self.exploded = false
+
+    if self.mortality then
+        self.mortality.dead = false
+        self.mortality.exploded = false
+        self.mortality.respawn_timer = 0
+
+        -- Short invulnerability after respawn.
+        self.mortality.invulnerable = 180
+    end
+
+    -- Reset position/velocity.
+    self.position.x = self.spawn and self.spawn.x or math.floor(EDGE_X_RIGHT / 2)
+    self.position.y = self.spawn and self.spawn.y or math.floor(EDGE_Y_BOTTOM / 2)
+
+    self.velocity.speed = 0
+    self.velocity.direction = 0
+
+    self.rotation = self.spawn and self.spawn.rotation or 0
+
+    -- Clear harpoon attachment.
+    if self.harpoon then
+        self.harpoon.attached = false
+        self.harpoon.target = nil
+        self.harpoon.offset_x = 0
+        self.harpoon.offset_y = 0
+    end
+
+    -- Refill engines on respawn.
+    self.engines.energy.cur = self.engines.energy.max
+    self.engines.life_support.cur = self.engines.life_support.max
+    self.engines.shield.cur = self.engines.shield.max
+end
+
+function SpaceShip:updateRespawn()
+    if not self.dead then
+        return
+    end
+
+    if not self.mortality then
+        return
+    end
+
+    if self.mortality.respawn_timer <= 0 then
+        return
+    end
+
+    self.mortality.respawn_timer = self.mortality.respawn_timer - 1
+
+    if self.mortality.respawn_timer <= 0 and self:hasLivesRemaining() then
+        self:resetForRespawn()
+    end
+end
+
+function SpaceShip:updateInvulnerability()
+    if not self.mortality then
+        return
+    end
+
+    if self.mortality.invulnerable > 0 then
+        self.mortality.invulnerable = self.mortality.invulnerable - 1
+    end
 end
 
 -- ==========================================
@@ -5560,6 +6139,10 @@ function SpaceShip:draw()
 
     self:drawParticles("smoke")
     self:drawParticles("spark")
+
+    if not self.dead then
+        self:drawDockingHud()
+    end
 end
 
 function SpaceShip:explode()
@@ -6021,6 +6604,12 @@ function Planet:update()
             moon:update()
         end
     end
+
+    if self.docks then
+        for _, dock in ipairs(self.docks) do
+            dock:update()
+        end
+    end
 end
 
 -- ==========================================
@@ -6177,27 +6766,23 @@ function Planet:drawClouds(screen_x, screen_y, r, zoom)
     end
 end
 
-function Planet:drawMoonsBehind()
+function Planet:drawMoons()
     if not self.moons then
         return
     end
 
     for _, moon in ipairs(self.moons) do
-        if moon.orbit_depth and moon.orbit_depth < 0 then
-            moon:draw()
-        end
+        moon:draw()
     end
 end
 
-function Planet:drawMoonsInFront()
-    if not self.moons then
+function Planet:drawDocks()
+    if not self.docks then
         return
     end
 
-    for _, moon in ipairs(self.moons) do
-        if not moon.orbit_depth or moon.orbit_depth >= 0 then
-            moon:draw()
-        end
+    for _, dock in ipairs(self.docks) do
+        dock:draw()
     end
 end
 
@@ -6268,16 +6853,11 @@ function Planet:drawLabel()
 end
 
 function Planet:draw()
-    -- Moons on the far side are drawn first, so the planet can eclipse them.
-    self:drawMoonsBehind()
-
-    -- Planet body/rings/clouds/etc.
     self:drawBody()
 
-    -- Moons on the near side are drawn after, so they can eclipse the planet.
-    self:drawMoonsInFront()
+    self:drawMoons()
+    self:drawDocks()
 
-    -- Labels still go on top.
     self:drawLabel()
 end
 
@@ -6332,9 +6912,9 @@ function Moon:new(params)
         self.orbit.semi_major *
         math.sqrt(1 - self.orbit.eccentricity * self.orbit.eccentricity)
 
+    self.mineable       = true
     self.dust_particles = {}
-
-    self.dust = {
+    self.dust           = {
         colors = params.dust_colors or {
             GRAY_DARK,
             GRAY_MED,
@@ -6392,10 +6972,6 @@ function Moon:updateOrbitPosition(focus)
     -- Focus-relative version shifts x by -a*e.
     local local_x = a * math.cos(E) - a * e
     local local_y = b * math.sin(E)
-
-    -- Used only for draw order.
-    -- Negative means "behind" the planet, positive means "in front".
-    self.orbit_depth = local_y
 
     -- Rotate ellipse.
     local cos_a = math.cos(orbit.angle)
@@ -6666,6 +7242,8 @@ function Comet:new(params)
 
     self.tail_particles = {}
     self.tail_spawn_carry = 0
+
+    self.mineable = true
 
     return self
 end
@@ -7026,6 +7604,8 @@ function Asteroid:new(params)
 
     -- Stable polygon shape.
     self.shape = params.shape or self:spawn()
+
+    self.mineable = true
 
     self.particle_systems = {
         explosion = {
@@ -7515,6 +8095,1039 @@ end
 
 
 -- [/TQ-Bundler: src.classes.Asteroid]
+
+-- [TQ-Bundler: src.classes.SpaceStation]
+
+-- ==========================================
+-- SPACESTATION OBJECT
+-- ==========================================
+
+SpaceStation = setmetatable({}, { __index = Planet })
+SpaceStation.__index = SpaceStation
+
+function SpaceStation:new(params)
+    params = params or {}
+
+    params.name        = params.name or "Station 9999X"
+    params.mass        = params.mass or STATION_MASS
+    params.radius_real = params.radius_real or STATION_REAL_RADIUS
+    params.radius      = params.radius or SpaceStation:getDrawRadiusFromRealRadius(params.radius_real)
+
+    params.has_atmosphere = false
+    params.has_ring = false
+    params.num_rings = 0
+
+    params.colors = params.colors or {
+        primary   = WHITE,
+        secondary = GRAY_MED,
+        tertiary  = BLUE_LITE,
+    }
+
+    params.velocity = {
+        speed = 0,
+        direction = 0,
+    }
+    params.acceleration = 0
+    params.deceleration = 0
+
+    params.exerts_gravity = true
+    params.affected_by_gravity = false
+
+    local self = Planet:new(params)
+    setmetatable(self, SpaceStation)
+
+    self.name        = params.name
+    self.mass        = params.mass
+    self.radius_real = params.radius_real
+    self.radius      = params.radius
+
+    self.exerts_gravity      = true
+    self.affected_by_gravity = false
+
+    self.velocity.speed     = 0
+    self.velocity.direction = 0
+    self.acceleration       = 0
+    self.deceleration       = 0
+
+    self.has_atmosphere = false
+    self.has_ring       = false
+    self.num_rings      = 0
+
+    self.colors      = params.colors
+    self.color       = self.colors.primary
+    self.tube_colors = {
+        shadow = params.tube_shadow_color or GRAY_DARK,
+        body   = params.tube_body_color   or GRAY_LITE,
+        stripe = params.tube_stripe_color or WHITE,
+        light  = params.tube_light_color  or CYAN,
+    }
+
+    self.ore_bank = {
+        cur = 0,
+        max = STATION_ORE_BANK_MAX,
+    }
+
+    return self
+end
+
+-- ==========================================
+-- SPACESTATION GETTERS
+-- ==========================================
+
+-- Override the normal getDrawRadiusFromRealRadius(radius_real) to get something
+-- more to scale with the player's ship.
+function SpaceStation:getDrawRadiusFromRealRadius(radius_real)
+    return STATION_REAL_RADIUS
+end
+
+-- ==========================================
+-- SPACESTATION UPDATE
+-- ==========================================
+
+function SpaceStation:update()
+    self:updateTimer()
+
+    if self.docks then
+        for _, dock in ipairs(self.docks) do
+            dock:update()
+        end
+    end
+end
+
+-- ==========================================
+-- SPACESTATION DRAW
+-- ==========================================
+
+function SpaceStation:drawDocks()
+    if not self.docks then
+        return
+    end
+
+    for _, dock in ipairs(self.docks) do
+        dock:draw()
+    end
+end
+
+function SpaceStation:drawThickLine(x1, y1, x2, y2, thickness, color)
+    thickness = thickness or 1
+
+    if thickness <= 1 then
+        line(x1, y1, x2, y2, color)
+        return
+    end
+
+    local dx = x2 - x1
+    local dy = y2 - y1
+    local len = math.sqrt(dx * dx + dy * dy)
+
+    if len <= 0 then
+        circ(x1, y1, math.floor(thickness / 2), color)
+        return
+    end
+
+    -- Perpendicular unit vector.
+    local nx = -dy / len
+    local ny = dx / len
+
+    local half = math.floor(thickness / 2)
+
+    for offset = -half, half do
+        local ox = math.floor(nx * offset)
+        local oy = math.floor(ny * offset)
+
+        line(x1 + ox, y1 + oy, x2 + ox, y2 + oy, color)
+    end
+end
+
+function SpaceStation:drawTubeDetailLine(x1, y1, x2, y2, t, size, color)
+    local px = math.floor(x1 + (x2 - x1) * t)
+    local py = math.floor(y1 + (y2 - y1) * t)
+
+    local dx = x2 - x1
+    local dy = y2 - y1
+    local len = math.sqrt(dx * dx + dy * dy)
+
+    if len <= 0 then
+        return
+    end
+
+    local nx = -dy / len
+    local ny = dx / len
+
+    local sx = math.floor(nx * size)
+    local sy = math.floor(ny * size)
+
+    line(px - sx, py - sy, px + sx, py + sy, color)
+end
+
+function SpaceStation:drawDockTubes()
+    if not self.docks then
+        return
+    end
+
+    local zoom                 = game.camera.zoom or 1
+
+    local station_x, station_y = worldToScreen(self.position.x, self.position.y)
+    station_x                  = math.floor(station_x)
+    station_y                  = math.floor(station_y)
+
+    local station_r            = math.max(1, math.floor((self.radius or 10) * zoom))
+    local tube_thickness       = math.max(1, math.floor(station_r * 0.16))
+    local shadow_thickness     = tube_thickness + 2
+
+    -- At very low zoom, keep tubes readable but not huge.
+    if zoom <= 0.35 then
+        tube_thickness = 1
+        shadow_thickness = 2
+    end
+
+    local timer = self.timer or 0
+
+    for dock_index, dock in ipairs(self.docks) do
+        if dock and not dock.dead and dock.position then
+            local dock_x, dock_y = worldToScreen(dock.position.x, dock.position.y)
+            dock_x               = math.floor(dock_x)
+            dock_y               = math.floor(dock_y)
+
+            local dx             = dock_x - station_x
+            local dy             = dock_y - station_y
+            local len            = math.sqrt(dx * dx + dy * dy)
+
+            if len > 0 then
+                -- Draw from station edge-ish to dock edge-ish, so the line does
+                -- not visually flood the station/dock centers too much.
+                local dock_r = math.max(1, math.floor((dock.radius or 6) * zoom))
+
+                local ux = dx / len
+                local uy = dy / len
+
+                local start_x = math.floor(station_x + ux * math.max(0, station_r * 0.45))
+                local start_y = math.floor(station_y + uy * math.max(0, station_r * 0.45))
+
+                local end_x = math.floor(dock_x - ux * math.max(0, dock_r * 0.35))
+                local end_y = math.floor(dock_y - uy * math.max(0, dock_r * 0.35))
+
+                -- Dark structural shadow/backing.
+                self:drawThickLine(start_x, start_y, end_x, end_y, shadow_thickness, self.tube_colors.shadow)
+
+                -- Main tube.
+                self:drawThickLine(start_x, start_y, end_x, end_y, tube_thickness, self.tube_colors.body)
+
+                -- Bright central conduit.
+                if tube_thickness >= 3 then
+                    line(start_x, start_y, end_x, end_y, self.tube_colors.stripe)
+                end
+
+                -- Tube panel bands.
+                if zoom > 0.25 then
+                    local detail_size = math.max(1, math.floor(tube_thickness * 0.9))
+
+                    for s = 1, 4 do
+                        local t = s / 5
+                        self:drawTubeDetailLine(start_x, start_y, end_x, end_y, t, detail_size, self.colors.secondary)
+                    end
+                end
+
+                -- Animated guide lights along the tube.
+                if zoom > 0.2 then
+                    local light_phase = ((timer + dock_index * 11) % 60) / 60
+
+                    for l = 0, 2 do
+                        local t = (light_phase + l / 3) % 1
+
+                        -- Keep lights away from the very ends.
+                        t = 0.12 + t * 0.76
+
+                        local lx = math.floor(start_x + (end_x - start_x) * t)
+                        local ly = math.floor(start_y + (end_y - start_y) * t)
+
+                        pix(lx, ly, self.tube_colors.light)
+
+                        if tube_thickness >= 3 then
+                            pix(lx + 1, ly, self.colors.secondary)
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+function SpaceStation:drawBody()
+    local screen_x, screen_y = worldToScreen(self.position.x, self.position.y)
+    local zoom = game.camera.zoom or 1
+
+    screen_x = math.floor(screen_x)
+    screen_y = math.floor(screen_y)
+
+    local r = math.max(1, math.floor(self.radius * zoom))
+
+    -- Decorations extend beyond the base radius.
+    local visual_r = math.floor(r * 1.55)
+
+    -- Skip if comfortably off-screen.
+    if screen_x < -visual_r - 8 or screen_x > SCREEN_W + visual_r + 8 or
+        screen_y < -visual_r - 8 or screen_y > SCREEN_H + visual_r + 8 then
+        return
+    end
+
+    local primary   = self.colors.primary or self.tube_colors.body
+    local secondary = self.colors.secondary or GRAY_MED
+    local tertiary  = self.colors.tertiary or BLUE_LITE
+
+    local timer     = self.timer or 0
+
+    -- Very low zoom: readable station marker.
+    if r <= 2 then
+        pix(screen_x, screen_y, primary)
+        pix(screen_x - 1, screen_y, self.colors.primary)
+        pix(screen_x + 1, screen_y, self.colors.primary)
+        pix(screen_x, screen_y - 1, self.tube_colors.light)
+        pix(screen_x, screen_y + 1, self.tube_colors.light)
+        return
+    end
+
+    -- ==========================================
+    -- Outer station frame/ring
+    -- ==========================================
+
+    local outer_r = math.max(2, math.floor(r * 1.25))
+    local ring_r  = math.max(1, math.floor(r * 0.95))
+    local core_r  = math.max(1, math.floor(r * 0.48))
+    local inner_r = math.max(1, math.floor(r * 0.26))
+
+    -- Outer dark backing.
+    circ(screen_x, screen_y, outer_r + 1, self.tube_colors.shadow)
+
+    -- Outer hull.
+    circ(screen_x, screen_y, outer_r, primary)
+
+    -- Cut inward with darker band to imply a ring/constructed hull.
+    circ(screen_x, screen_y, ring_r, BLACK)
+
+    -- Mid hub.
+    circ(screen_x, screen_y, math.floor(r * 0.78), secondary)
+
+    -- Inner machinery/core.
+    circ(screen_x, screen_y, core_r, self.tube_colors.shadow)
+
+    -- Central command core.
+    circ(screen_x, screen_y, inner_r, tertiary)
+
+    -- Bright command pixel.
+    pix(screen_x, screen_y, self.tube_colors.stripe)
+
+    -- ==========================================
+    -- Radial spokes
+    -- ==========================================
+
+    if r >= 5 then
+        local spoke_count = 8
+        local spoke_inner = math.floor(core_r * 0.85)
+        local spoke_outer = math.floor(outer_r * 0.95)
+
+        for i = 1, spoke_count do
+            local a = ((i - 1) / spoke_count) * math.pi * 2
+
+            local x1 = screen_x + math.floor(math.cos(a) * spoke_inner)
+            local y1 = screen_y + math.floor(math.sin(a) * spoke_inner)
+
+            local x2 = screen_x + math.floor(math.cos(a) * spoke_outer)
+            local y2 = screen_y + math.floor(math.sin(a) * spoke_outer)
+
+            line(x1, y1, x2, y2, self.tube_colors.body)
+
+            -- Alternate darker reinforcement lines.
+            if i % 2 == 0 then
+                local a2 = a + 0.045
+                local rx1 = screen_x + math.floor(math.cos(a2) * spoke_inner)
+                local ry1 = screen_y + math.floor(math.sin(a2) * spoke_inner)
+                local rx2 = screen_x + math.floor(math.cos(a2) * spoke_outer)
+                local ry2 = screen_y + math.floor(math.sin(a2) * spoke_outer)
+
+                line(rx1, ry1, rx2, ry2, self.colors.secondary)
+            end
+        end
+    end
+
+    -- Re-draw center after spokes so the hub is clean.
+    circ(screen_x, screen_y, core_r, self.tube_colors.shadow)
+    circ(screen_x, screen_y, inner_r, tertiary)
+    pix(screen_x, screen_y, self.tube_colors.stripe)
+
+    -- ==========================================
+    -- Hull panels around outer ring
+    -- ==========================================
+
+    if r >= 6 then
+        local panel_count = 12
+        local panel_dist = math.floor(outer_r * 0.82)
+        local panel_size = math.max(1, math.floor(r * 0.08))
+
+        for i = 1, panel_count do
+            local a = ((i - 1) / panel_count) * math.pi * 2
+            local px = screen_x + math.floor(math.cos(a) * panel_dist)
+            local py = screen_y + math.floor(math.sin(a) * panel_dist)
+
+            local color = self.colors.secondary
+
+            if i % 3 == 0 then
+                color = self.tube_colors.body
+            elseif i % 2 == 0 then
+                color = self.tube_colors.shadow
+            end
+
+            circ(px, py, panel_size, color)
+        end
+    end
+
+    -- ==========================================
+    -- Solar/radiator panels
+    -- ==========================================
+
+    if r >= 7 then
+        local panel_w = math.max(3, math.floor(r * 0.65))
+        local panel_h = math.max(2, math.floor(r * 0.22))
+        local gap = math.floor(outer_r * 0.95)
+
+        -- Left/right blue radiator panels.
+        rect(screen_x - gap - panel_w, screen_y - math.floor(panel_h / 2), panel_w, panel_h, BLUE_DARK)
+        rect(screen_x + gap, screen_y - math.floor(panel_h / 2), panel_w, panel_h, BLUE_DARK)
+        line(screen_x - gap - panel_w, screen_y, screen_x - gap, screen_y, self.colors.tertiary)
+        line(screen_x + gap, screen_y, screen_x + gap + panel_w, screen_y, self.colors.tertiary)
+
+        -- Panel subdivision lines.
+        local divisions = 3
+        for i = 1, divisions - 1 do
+            local ox = math.floor(panel_w * i / divisions)
+
+            line(
+                screen_x - gap - panel_w + ox,
+                screen_y - math.floor(panel_h / 2),
+                screen_x - gap - panel_w + ox,
+                screen_y + math.floor(panel_h / 2),
+                self.tube_colors.light
+            )
+
+            line(
+                screen_x + gap + ox,
+                screen_y - math.floor(panel_h / 2),
+                screen_x + gap + ox,
+                screen_y + math.floor(panel_h / 2),
+                self.tube_colors.light
+            )
+        end
+    end
+
+    -- ==========================================
+    -- Navigation/blinking lights
+    -- ==========================================
+
+    if r >= 4 then
+        local light_dist = math.floor(outer_r * 1.05)
+        local blink_on = (math.floor(timer / 24) % 2) == 0
+        local blink_color = blink_on and YELLOW or ORANGE
+
+        -- Four cardinal lights.
+        pix(screen_x + light_dist, screen_y, GREEN_LITE)
+        pix(screen_x - light_dist, screen_y, RED)
+        pix(screen_x, screen_y - light_dist, blink_color)
+        pix(screen_x, screen_y + light_dist, blink_color)
+
+        -- Diagonal white/blue lights.
+        if r >= 7 then
+            local d = math.floor(light_dist * 0.72)
+
+            pix(screen_x + d, screen_y + d, self.colors.primary)
+            pix(screen_x - d, screen_y - d, self.colors.primary)
+            pix(screen_x + d, screen_y - d, self.tube_colors.light)
+            pix(screen_x - d, screen_y + d, self.tube_colors.light)
+        end
+    end
+
+    -- ==========================================
+    -- Rotating scanner/beacon
+    -- ==========================================
+
+    if r >= 6 then
+        local beacon_angle = (timer * 0.035) % (math.pi * 2)
+        local b1 = math.floor(inner_r * 0.8)
+        local b2 = math.floor(outer_r * 1.15)
+
+        local bx1 = screen_x + math.floor(math.cos(beacon_angle) * b1)
+        local by1 = screen_y + math.floor(math.sin(beacon_angle) * b1)
+
+        local bx2 = screen_x + math.floor(math.cos(beacon_angle) * b2)
+        local by2 = screen_y + math.floor(math.sin(beacon_angle) * b2)
+
+        line(bx1, by1, bx2, by2, self.tube_colors.light)
+        pix(bx2, by2, self.colors.primary)
+    end
+end
+
+function SpaceStation:drawLabel()
+    local zoom = game.camera.zoom or 1
+
+    -- Labels are only visible when zoomed out.
+    if zoom >= 1 then
+        return
+    end
+
+    local screen_x, screen_y = worldToScreen(self.position.x, self.position.y)
+    screen_x                 = math.floor(screen_x)
+    screen_y                 = math.floor(screen_y)
+
+    local r       = math.max(1, math.floor(self.radius * zoom))
+    local text    = self.name or "SpaceStation"
+    local text_w  = print(text, 0, -100, WHITE, true, 1, true)
+    local label_x = math.floor(screen_x - text_w / 2)
+    local label_y = screen_y + r + 4
+
+    -- Skip labels that are clearly off-screen.
+    if label_x > SCREEN_W or label_x + text_w < 0 or
+        label_y > SCREEN_H or label_y + FIXED_CHAR_HEIGHT < 0 then
+        return
+    end
+
+    -- Shadow.
+    print(text, label_x + 1, label_y + 1, BLACK, true, 1, true)
+
+    -- Label.
+    print(text, label_x, label_y, WHITE, true, 1, true)
+end
+
+function SpaceStation:draw()
+    self:drawDockTubes()
+    self:drawDocks()
+    self:drawBody()
+    self:drawLabel()
+end
+
+
+-- [/TQ-Bundler: src.classes.SpaceStation]
+
+-- [TQ-Bundler: src.classes.SpaceDock]
+
+-- ==========================================
+-- SPACEDOCK OBJECT
+-- ==========================================
+
+SpaceDock = setmetatable({}, { __index = Moon })
+SpaceDock.__index = SpaceDock
+
+function SpaceDock:new(params)
+    params                = params or {}
+
+    params.name        = params.name or "SpaceDock"
+    params.mass        = params.mass        or DOCK_MASS
+    params.radius_real = params.radius_real or DOCK_REAL_RADIUS
+    params.radius      = params.radius      or SpaceDock:getDrawRadiusFromRealRadius(params.radius_real)
+    params.colors      = params.colors or {
+        primary   = GRAY_LITE,
+        secondary = GRAY_MED,
+        tertiary  = BLUE_LITE,
+    }
+
+    params.has_atmosphere      = false
+    params.has_ring            = false
+    params.num_rings           = 0
+    params.exerts_gravity      = true
+    params.affected_by_gravity = false
+
+    -- SpaceDocks are moon-like orbital bodies.
+    local self            = Moon:new(params)
+    setmetatable(self, SpaceDock)
+
+    self.name = params.name or "SpaceDock"
+    self.mass = DOCK_MASS
+    self.host = params.host
+
+    self.colors              = {
+        primary   = params.colors and params.colors.primary or GRAY_LITE,
+        secondary = params.colors and params.colors.secondary or GRAY_MED,
+        tertiary  = params.colors and params.colors.tertiary or BLUE_LITE,
+    }
+
+    self.has_atmosphere      = false
+    self.has_ring            = false
+    self.num_rings           = 0
+    self.exerts_gravity      = false
+    self.affected_by_gravity = false
+
+    local orbit = params.orbit or {}
+    self.orbit  = {
+        semi_major   = orbit.semi_major or 100,
+        eccentricity = orbit.eccentricity or 0,
+        angle        = orbit.angle or 0,
+        phase        = orbit.phase or 0,
+        period       = orbit.period or 1800,
+    }
+
+    self.orbit.semi_minor =
+        self.orbit.semi_major *
+        math.sqrt(1 - self.orbit.eccentricity * self.orbit.eccentricity)
+
+    -- You can't mine a SpaceDock! But the NPC freighter can gather it up for
+    -- transport to the station.
+    self.mineable = false
+
+    self.ore_bank = {
+        cur = 0,
+        max = DOCK_ORE_BANK_MAX,
+    }
+
+    -- SpaceDocks do not use Moon dust effects. Instead they have SpaceShip-like
+    -- explosion effects.
+    self.dust_particles = {}
+    self.dust           = nil
+    self.particles           = {
+        explosion = {
+            colors = params.explosion_colors or {
+                WHITE,
+                YELLOW,
+                ORANGE,
+                RED,
+                GRAY_LITE,
+                GRAY_MED,
+                GRAY_DARK,
+            },
+            params = {
+                count_min    = 130,
+                count_max    = 190,
+                speed_min    = 1.0,
+                speed_max    = 5.2,
+                life_min     = 45,
+                life_max     = 120,
+                size_min     = 1,
+                size_max     = 4,
+                drag         = 0.97,
+                spawn_radius = (self.radius or DOCK_RADIUS or 10) * 2.4,
+            },
+            particles = {},
+        },
+    }
+
+    -- Initialize dock position immediately if it has a host.
+    if self.host then
+        local focus = self.host.barycenter or self.host.position
+        self:updateOrbitPosition(focus)
+    end
+
+    return self
+end
+
+-- ==========================================
+-- SPACEDOCK GETTERS
+-- ==========================================
+
+function SpaceDock:isFinished()
+    local explosion = self.particles and self.particles.explosion
+    if not explosion then
+        return self.dead
+    end
+    return self.dead and #explosion.particles <= 0
+end
+
+function SpaceDock:getDrawRadiusFromRealRadius(radius_real)
+    return DOCK_REAL_RADIUS
+end
+
+function SpaceDock:getHostSpaceStation()
+    if not self.host then
+        return nil
+    end
+
+    if SpaceStation ~= nil and getmetatable(self.host) == SpaceStation then
+        return self.host
+    end
+
+    return nil
+end
+
+function SpaceDock:transferOreToHostStation()
+    local station = self:getHostSpaceStation()
+
+    if not station then
+        return false
+    end
+
+    if not self.ore_bank or not station.ore_bank then
+        return false
+    end
+
+    if self.ore_bank.cur <= 0 then
+        return false
+    end
+
+    local station_free_space = math.max(
+        0,
+        station.ore_bank.max - station.ore_bank.cur
+    )
+
+    if station_free_space <= 0 then
+        return false
+    end
+
+    local transfer_amount = math.min(
+        self.ore_bank.cur,
+        station_free_space
+    )
+
+    station.ore_bank.cur = station.ore_bank.cur + transfer_amount
+    self.ore_bank.cur = self.ore_bank.cur - transfer_amount
+
+    if self.ore_bank.cur <= 0 then
+        self.ore_bank.cur = 0
+    end
+
+    return transfer_amount > 0
+end
+
+-- ==========================================
+-- SPACEDOCK PARTICLE EFFECTS
+-- ==========================================
+
+function SpaceDock:getParticleSystem(type)
+    if not self.particles then
+        return nil
+    end
+
+    return self.particles[type]
+end
+
+function SpaceDock:addParticle(type, particle)
+    local system = self:getParticleSystem(type)
+
+    if not system then
+        return
+    end
+
+    table.insert(system.particles, particle)
+end
+
+function SpaceDock:updateParticleList(type)
+    local system = self:getParticleSystem(type)
+
+    if not system then
+        return
+    end
+
+    local particles = system.particles
+
+    for i = #particles, 1, -1 do
+        local particle = particles[i]
+
+        particle.life = particle.life - 1
+
+        if particle.life <= 0 then
+            table.remove(particles, i)
+        else
+            particle.velocity.speed = particle.velocity.speed * (particle.drag or 1)
+            particle.velocity.direction = self:keepAngleInRange(
+                particle.velocity.direction or 0
+            )
+
+            local components = self:getVectorComponents(particle.velocity)
+
+            particle.position.x = particle.position.x + components.xComp
+            particle.position.y = particle.position.y + components.yComp
+        end
+    end
+end
+
+function SpaceDock:updateParticles()
+    if not self.particles then
+        return
+    end
+
+    self:updateParticleList("explosion")
+end
+
+function SpaceDock:drawParticles(type)
+    local system = self:getParticleSystem(type)
+
+    if not system then
+        return
+    end
+
+    local zoom = game.camera.zoom or 1
+
+    for _, particle in ipairs(system.particles) do
+        local screen_x, screen_y = worldToScreen(
+            particle.position.x,
+            particle.position.y
+        )
+
+        screen_x = math.floor(screen_x)
+        screen_y = math.floor(screen_y)
+
+        if screen_x >= -4 and screen_x <= SCREEN_W + 4 and
+            screen_y >= -4 and screen_y <= SCREEN_H + 4 then
+            local life_fraction = particle.life / particle.max_life
+            local size = math.max(1, math.floor((particle.size or 1) * zoom))
+
+            if life_fraction < 0.35 then
+                size = 1
+            end
+
+            if size <= 1 then
+                pix(screen_x, screen_y, particle.color)
+            else
+                circ(screen_x, screen_y, size, particle.color)
+            end
+        end
+    end
+end
+
+function SpaceDock:spawnParticleBurst(type, origin_x, origin_y, count)
+    local system = self:getParticleSystem(type)
+
+    if not system then
+        return
+    end
+
+    local p      = system.params
+    local colors = system.colors
+
+    count        = count or math.random(p.count_min or 1, p.count_max or 1)
+
+    for i = 1, count do
+        local direction    = randomFloat(0, math.pi * 2)
+        local speed        = randomFloat(p.speed_min or 0.1, p.speed_max or 1)
+        local life         = math.random(p.life_min or 10, p.life_max or 30)
+        local size         = math.random(p.size_min or 1, p.size_max or 1)
+
+        local spawn_radius = p.spawn_radius or 0
+        local spawn_angle  = randomFloat(0, math.pi * 2)
+        local spawn_dist   = randomFloat(0, spawn_radius)
+
+        local sx           = origin_x + math.cos(spawn_angle) * spawn_dist
+        local sy           = origin_y + math.sin(spawn_angle) * spawn_dist
+
+        self:addParticle(type, {
+            position = {
+                x = sx,
+                y = sy,
+            },
+            velocity = {
+                speed     = speed,
+                direction = direction,
+            },
+            life     = life,
+            max_life = life,
+            color    = randomChoice(colors),
+            size     = size,
+            drag     = p.drag or 1,
+        })
+    end
+end
+
+function SpaceDock:explosionEffect()
+    local system = self:getParticleSystem("explosion")
+
+    if not system then
+        return
+    end
+
+    local p = system.params
+    local count = math.random(p.count_min or 120, p.count_max or 180)
+
+    self:spawnParticleBurst(
+        "explosion",
+        self.position.x,
+        self.position.y,
+        count
+    )
+end
+
+-- ==========================================
+-- SPACEDOCK UPDATE
+-- ==========================================
+
+function SpaceDock:update()
+    self:updateTimer()
+
+    -- Explosion particles continue after death.
+    self:updateParticles()
+
+    -- Dead docks no longer orbit or transfer ore.
+    if self.dead then
+        return
+    end
+
+    -- If this dock is attached to a SpaceStation, instantly transfer any stored
+    -- ore into the station, up to the station's capacity.
+    self:transferOreToHostStation()
+
+    -- Docks without hosts cannot orbit.
+    if not self.host then
+        return
+    end
+
+    local focus      = self.host.barycenter or self.host.position
+    self.orbit.phase = self.orbit.phase + ((math.pi * 2) / self.orbit.period)
+    if self.orbit.phase > math.pi * 2 then
+        self.orbit.phase = self.orbit.phase - math.pi * 2
+    end
+
+    self:updateOrbitPosition(focus)
+end
+
+-- ==========================================
+-- SPACEDOCK DRAW
+-- ==========================================
+
+function SpaceDock:drawBody()
+    if self.dead then
+        return
+    end
+
+    local zoom = game.camera.zoom or 1
+
+    local screen_x, screen_y = worldToScreen(self.position.x, self.position.y)
+
+    screen_x = math.floor(screen_x)
+    screen_y = math.floor(screen_y)
+
+    local r = math.max(1, math.floor(self.radius * zoom))
+
+    -- Skip if comfortably off-screen.
+    if screen_x < -r - 8 or screen_x > SCREEN_W + r + 8 or
+        screen_y < -r - 8 or screen_y > SCREEN_H + r + 8 then
+        return
+    end
+
+    -- Very low zoom: keep it readable as a bright marker.
+    if r <= 2 then
+        pix(screen_x, screen_y, self.colors.primary or WHITE)
+        pix(screen_x - 1, screen_y, GRAY_LITE)
+        pix(screen_x + 1, screen_y, GRAY_LITE)
+        pix(screen_x, screen_y - 1, WHITE)
+        pix(screen_x, screen_y + 1, WHITE)
+        return
+    end
+
+    local primary      = self.colors.primary or GRAY_LITE
+    local secondary    = self.colors.secondary or WHITE
+    local tertiary     = self.colors.tertiary or BLUE_LITE
+
+    local outer_r      = r
+    local mid_r        = math.max(1, math.floor(r * 0.72))
+    local inner_r      = math.max(1, math.floor(r * 0.38))
+
+    -- Slight animation for beacon/lights.
+    local timer        = self.timer or 0
+    local beacon_angle = (timer * 0.06) % (math.pi * 2)
+
+    -- ==========================================
+    -- Main body ring
+    -- ==========================================
+
+    -- Outer hull.
+    circ(screen_x, screen_y, outer_r, primary)
+
+    -- Slight inner band.
+    circ(screen_x, screen_y, mid_r, secondary)
+
+    -- Dark interior/core.
+    circ(screen_x, screen_y, inner_r, BLACK)
+
+    -- Inner hatch.
+    local hatch_r = math.max(1, math.floor(inner_r * 0.45))
+    circ(screen_x, screen_y, hatch_r, tertiary)
+
+    -- Cross / docking guide lines.
+    line(screen_x - inner_r, screen_y, screen_x + inner_r, screen_y, GRAY_DARK)
+    line(screen_x, screen_y - inner_r, screen_x, screen_y + inner_r, GRAY_DARK)
+
+    -- Small bright center.
+    pix(screen_x, screen_y, WHITE)
+
+    -- ==========================================
+    -- Ring panel details
+    -- ==========================================
+
+    if r >= 5 then
+        local panel_count = 8
+        local panel_r = math.max(1, math.floor(r * 0.10))
+        local panel_dist = math.floor(r * 0.82)
+
+        for i = 1, panel_count do
+            local a = ((i - 1) / panel_count) * math.pi * 2
+            local px = screen_x + math.floor(math.cos(a) * panel_dist)
+            local py = screen_y + math.floor(math.sin(a) * panel_dist)
+
+            local color = GRAY_DARK
+
+            -- Alternating hull panels.
+            if i % 2 == 0 then
+                color = GRAY_MED
+            end
+
+            circ(px, py, panel_r, color)
+        end
+    end
+
+    -- ==========================================
+    -- Lights
+    -- ==========================================
+
+    if r >= 4 then
+        local light_dist = math.floor(r * 1.18)
+
+        -- Blinking lights.
+        local blink_on = (math.floor(timer / 20) % 2) == 0
+        local blink_color = blink_on and YELLOW or ORANGE
+
+        local lx1 = screen_x + math.floor(math.cos(math.pi * 0.25) * light_dist)
+        local ly1 = screen_y + math.floor(math.sin(math.pi * 0.25) * light_dist)
+
+        local lx2 = screen_x + math.floor(math.cos(math.pi * 1.25) * light_dist)
+        local ly2 = screen_y + math.floor(math.sin(math.pi * 1.25) * light_dist)
+
+        pix(lx1, ly1, blink_color)
+        pix(lx2, ly2, blink_color)
+
+        -- Fixed navigation lights.
+        local lx3 = screen_x + math.floor(math.cos(math.pi * 0.75) * light_dist)
+        local ly3 = screen_y + math.floor(math.sin(math.pi * 0.75) * light_dist)
+
+        local lx4 = screen_x + math.floor(math.cos(math.pi * 1.75) * light_dist)
+        local ly4 = screen_y + math.floor(math.sin(math.pi * 1.75) * light_dist)
+
+        pix(lx3, ly3, RED)
+        pix(lx4, ly4, GREEN_LITE)
+    end
+
+    -- ==========================================
+    -- Rotating beacon arm
+    -- ==========================================
+
+    if r >= 5 then
+        local beacon_inner = math.floor(r * 0.45)
+        local beacon_outer = math.floor(r * 1.25)
+
+        local bx1 = screen_x + math.floor(math.cos(beacon_angle) * beacon_inner)
+        local by1 = screen_y + math.floor(math.sin(beacon_angle) * beacon_inner)
+
+        local bx2 = screen_x + math.floor(math.cos(beacon_angle) * beacon_outer)
+        local by2 = screen_y + math.floor(math.sin(beacon_angle) * beacon_outer)
+
+        line(bx1, by1, bx2, by2, CYAN)
+        circ(bx2, by2, 1, WHITE)
+    end
+end
+
+function SpaceDock:draw()
+    if not self.dead then
+        self:drawBody()
+    end
+
+    self:drawParticles("explosion")
+end
+
+
+-- [/TQ-Bundler: src.classes.SpaceDock]
 
 -- ==========================================
 -- MAIN TIC FUNCTION

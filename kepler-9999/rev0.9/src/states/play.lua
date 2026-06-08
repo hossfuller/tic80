@@ -11,6 +11,10 @@ function inputPlay()
         togglePlayZoom()
     end
 
+    if btnp(BTN_P1_B) then
+        changeState(STATE.SHOP)
+    end
+
     updateMouseWheelZoom()
 
     -- Push all button monitoring off on the player class.

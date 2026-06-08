@@ -2668,6 +2668,7 @@ STATE = {
     READY      = "READY",
     PLAY       = "PLAY",
     PAUSE      = "PAUSE",
+    SHOP       = "SHOP",
     GAMEOVER   = "GAMEOVER",
 }
 
@@ -3400,6 +3401,10 @@ function inputPlay()
         togglePlayZoom()
     end
 
+    if btnp(BTN_P1_B) then
+        changeState(STATE.SHOP)
+    end
+
     updateMouseWheelZoom()
 
     -- Push all button monitoring off on the player class.
@@ -3811,6 +3816,40 @@ end
 
 -- [/TQ-Bundler: src.states.pause]
 
+-- [TQ-Bundler: src.states.shop]
+
+-- ==========================================
+-- STATE: SHOP
+-- ==========================================
+
+function inputShop()
+    if btnp(BTN_P1_A) then
+        -- Select an option
+    end
+    if btnp(BTN_P1_B) then
+        changeState(STATE.PLAY)
+    end
+end
+
+function updateShop()
+
+end
+
+function drawShop()
+    drawCenteredText("SHOP", EDGE_Y_TOP + Y_PADDING, WHITE, false, 2, false, GRAY_MED)
+
+
+
+
+
+
+
+    drawCenteredText("Press X to exit shop", EDGE_Y_BOTTOM - Y_PADDING, WHITE, false, 1, true, GRAY_MED)
+end
+
+
+-- [/TQ-Bundler: src.states.shop]
+
 -- [TQ-Bundler: src.states.gameover]
 
 -- ==========================================
@@ -3847,12 +3886,12 @@ states = {
     [STATE.START] = {
         input  = inputStart,
         update = updateStart,
-        draw = drawStart,
+        draw   = drawStart,
     },
     [STATE.OPTIONS] = {
         input  = inputOptions,
         update = updateOptions,
-        draw = drawOptions,
+        draw   = drawOptions,
     },
     [STATE.HIGHSCORES] = {
         input  = inputHighScores,
@@ -3862,22 +3901,27 @@ states = {
     [STATE.READY] = {
         input  = inputReady,
         update = updateReady,
-        draw = drawReady,
+        draw   = drawReady,
     },
     [STATE.PLAY] = {
         input  = inputPlay,
         update = updatePlay,
-        draw = drawPlay,
+        draw   = drawPlay,
     },
     [STATE.PAUSE] = {
         input  = inputPause,
         update = updatePause,
-        draw = drawPause,
+        draw   = drawPause,
+    },
+    [STATE.SHOP] = {
+        input  = inputShop,
+        update = updateShop,
+        draw   = drawShop,
     },
     [STATE.GAMEOVER] = {
         input  = inputGameover,
         update = updateGameover,
-        draw = drawGameover,
+        draw   = drawGameover,
     },
 }
 

@@ -6,12 +6,12 @@ states = {
     [STATE.START] = {
         input  = inputStart,
         update = updateStart,
-        draw = drawStart,
+        draw   = drawStart,
     },
     [STATE.OPTIONS] = {
         input  = inputOptions,
         update = updateOptions,
-        draw = drawOptions,
+        draw   = drawOptions,
     },
     [STATE.HIGHSCORES] = {
         input  = inputHighScores,
@@ -21,21 +21,26 @@ states = {
     [STATE.READY] = {
         input  = inputReady,
         update = updateReady,
-        draw = drawReady,
+        draw   = drawReady,
     },
     [STATE.PLAY] = {
         input  = inputPlay,
         update = updatePlay,
-        draw = drawPlay,
+        draw   = drawPlay,
     },
     [STATE.PAUSE] = {
         input  = inputPause,
         update = updatePause,
-        draw = drawPause,
+        draw   = drawPause,
+    },
+    [STATE.SHOP] = {
+        input  = inputShop,
+        update = updateShop,
+        draw   = drawShop,
     },
     [STATE.GAMEOVER] = {
         input  = inputGameover,
         update = updateGameover,
-        draw = drawGameover,
+        draw   = drawGameover,
     },
 }

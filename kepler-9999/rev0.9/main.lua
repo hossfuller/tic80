@@ -33,6 +33,7 @@ include "src.states.highscores"
 include "src.states.ready"
 include "src.states.play"
 include "src.states.pause"
+include "src.states.shop"
 include "src.states.gameover"
 include "src.state_machine"
 

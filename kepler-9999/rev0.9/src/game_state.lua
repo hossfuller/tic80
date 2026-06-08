@@ -9,6 +9,7 @@ STATE = {
     READY      = "READY",
     PLAY       = "PLAY",
     PAUSE      = "PAUSE",
+    SHOP       = "SHOP",
     GAMEOVER   = "GAMEOVER",
 }
 
