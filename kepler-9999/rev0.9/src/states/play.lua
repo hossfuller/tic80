@@ -12,7 +12,12 @@ function inputPlay()
     end
 
     if btnp(BTN_P1_B) then
-        changeState(STATE.SHOP)
+        local dock = game.play.player:getDockedSpaceDock()
+        if dock and dock.host and SpaceStation ~= nil and getmetatable(dock.host) == SpaceStation then
+            game.shop.selected = 1
+            changeState(STATE.SHOP)
+            return
+        end
     end
 
     updateMouseWheelZoom()

@@ -46,6 +46,35 @@ game = {
         },
     },
 
+    -- Shop state
+    shop = {
+        selected = 1,
+        upgrade_cost = 100,
+        items = {
+            {
+                name = "Upgrade Energy Generator",
+                engine_type = "energy",
+                apply = function(player)
+                    return player:upgradeEnergyEngine()
+                end,
+            },
+            {
+                name = "Upgrade Life Support",
+                engine_type = "life_support",
+                apply = function(player)
+                    return player:upgradeLifeSupportEngine()
+                end,
+            },
+            {
+                name = "Upgrade Shields",
+                engine_type = "shield",
+                apply = function(player)
+                    return player:upgradeShieldEngine()
+                end,
+            },
+        },
+    },
+
     -- High scores
     hiscores = {},
 
