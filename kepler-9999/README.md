@@ -66,7 +66,7 @@ The different revisions implement separate features. This list is ever changing.
     - [x] While attached to the object, holding `BTN_P1_B` extracts mass from the object. This mass goes into any available space in the cargo hold.
     - [x] Moons need to implode if they've been mined clean. Since this is the only way to kill moons, do it in `Moon::explosionEffect()`
     - [x] Update the `STATE.READY` and `STATE.PAUSE` screens to display controls instructions.
-- [ ] **REV0.9**: The Space Station and various colony space docks
+- [x] **REV0.9**: The Space Station and various colony space docks
     - [x] There is a single space station in the game that orbits the sun like a planet.
     - [x] All other planets have space docks.
     - [x] Space docks and station have an ore hold that the spaceship can deposit into.
@@ -76,17 +76,17 @@ The different revisions implement separate features. This list is ever changing.
     - [x] Colors, effects, and sounds indicate successful docking.
     - [x] The spaceship can deposit the mined mass in the game bank.
     - [x] Harpooning the space station puts the game into the `STATE.SHOP` state.
-    - [ ] Mined mass can be traded for upgrades to the engines or to refill the engines.
-- [ ] **REV1.0**: NPC Ships
-    - [ ] A freighter travels from dock to dock collecting ore deposits and transferring them to the space station.
-    - [ ] The freighter can be lost, and if so, that ore is gone but also a new freighter spawns somewhere else.
+    - [x] Mined mass can be traded for upgrades to the engines or to refill the engines.
 - [ ] **REV1.0**: Game objectives
     - [ ] While docked at the space station or any of the planets' space docks, pick up cargo/passengers/contraband for delivery.
     - [ ] Use the `pickup`/`deliver` functions to meddle with the ship's mass.
-- [ ] **REV1.1**: High Scores
+- [ ] **REV1.1**: NPC Ships
+    - [ ] A freighter travels from dock to dock collecting ore deposits and transferring them to the space station.
+    - [ ] The freighter can be lost, and if so, that ore is gone but also a new freighter spawns somewhere else.
+    - [ ] A passenger ship travels from dock to dock delivering passengers.
+- [ ] **REV1.2**: High Scores
     - [ ] Track date, ore mined/delivered, cargo delivered, passengers delivered, contraband delivered, and engine levels.
     - [ ] Sound effects for everything.
-- [ ] **REV1.2**: tbd
 - [ ] **REV1.3**: tbd
 - [ ] **REV1.4**: tbd
 

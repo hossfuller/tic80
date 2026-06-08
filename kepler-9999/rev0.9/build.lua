@@ -2709,7 +2709,7 @@ game = {
     -- Shop state
     shop = {
         selected = 1,
-        upgrade_cost = 100,
+        upgrade_base_cost = 100,
         items = {
             {
                 name = "Upgrade Energy Generator",
@@ -3887,6 +3887,27 @@ function canUseShop()
     return getShopStation() ~= nil
 end
 
+function getShopItemCost(item)
+    local player = game.play.player
+
+    if not player or not player.engines or not item or not item.engine_type then
+        return 0
+    end
+
+    local engine = player.engines[item.engine_type]
+
+    if not engine or not engine.mul then
+        return 0
+    end
+
+    local base_cost = game.shop.upgrade_base_cost or 100
+
+    -- Buying from mul 1 -> 2 costs 200.
+    -- Buying from mul 2 -> 3 costs 400.
+    -- Buying from mul 3 -> 4 costs 800.
+    return math.floor(base_cost * (2 ^ engine.mul))
+end
+
 function shopItemIsAffordable(item)
     local station = getShopStation()
     if not station or not station.ore_bank then
@@ -3897,7 +3918,7 @@ function shopItemIsAffordable(item)
         return false
     end
 
-    local cost = game.shop.upgrade_cost or 100
+    local cost = getShopItemCost(item)
 
     return station.ore_bank.cur >= cost
 end
@@ -3977,7 +3998,7 @@ function purchaseSelectedShopItem()
         return false
     end
 
-    local cost = game.shop.upgrade_cost or 100
+    local cost = getShopItemCost(item)
     if not shopItemIsAffordable(item) then
         return false
     end
@@ -4050,7 +4071,6 @@ end
 
 function drawShopOverlayBox(station)
     local items = game.shop.items
-    local cost = game.shop.upgrade_cost or 100
 
     local title = "SHOP"
     local ore_text = "Station Ore: " ..
@@ -4077,8 +4097,15 @@ function drawShopOverlayBox(station)
     local max_price_w = 0
 
     for _, item in ipairs(items) do
+        local item_cost = getShopItemCost(item)
+        local price_text = tostring(item_cost) .. " ORE"
+
+        if shopItemIsMaxed(item) then
+            price_text = "MAXED OUT"
+        end
+
         local option_w = print(item.name, 0, -50, option_color, fixed, scale, smallfont)
-        local price_w = print(tostring(cost) .. " ORE", 0, -50, price_color, fixed, scale, smallfont)
+        local price_w = print(price_text, 0, -50, price_color, fixed, scale, smallfont)
 
         if option_w > max_option_w then
             max_option_w = option_w
@@ -4157,7 +4184,8 @@ function drawShopOverlayBox(station)
             print(">", list_x, y, YELLOW, fixed, scale, smallfont)
         end
 
-        local price_text = tostring(cost) .. " ORE"
+        local item_cost = getShopItemCost(item)
+        local price_text = tostring(item_cost) .. " ORE"
         if maxed then
             price_text = "MAXED OUT"
         end

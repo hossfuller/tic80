@@ -49,7 +49,7 @@ game = {
     -- Shop state
     shop = {
         selected = 1,
-        upgrade_cost = 100,
+        upgrade_base_cost = 100,
         items = {
             {
                 name = "Upgrade Energy Generator",
