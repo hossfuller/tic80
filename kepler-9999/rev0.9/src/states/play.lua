@@ -246,6 +246,61 @@ function drawShipStatusHud()
     end
 end
 
+function drawShipLivesHud()
+    local player = game.play.player
+    if not player or not player.mortality then
+        return
+    end
+
+    local lives = player.mortality.num_lives or 0
+    if lives <= 0 then
+        return
+    end
+
+    -- Same fixed-small-font character width used by the HUD bars.
+    local bar_w = print("E", -100, -100, WHITE, true, 1, true) + 1
+
+    -- Same baseline as drawShipCargoHoldHud() and drawShipStatusHud().
+    local bottom_y = EDGE_Y_BOTTOM - 8
+
+    -- Lives column goes immediately to the right of the status bars.
+    local cargo_bar_x = EDGE_X_LEFT + 3
+    local status_start_x = cargo_bar_x + bar_w
+    local status_bar_count = 4
+
+    local lives_x = status_start_x + status_bar_count * bar_w
+
+    -- Keep triangle no wider than one fixed-font character.
+    local tri_w = math.max(3, bar_w - 1)
+    local tri_h = 5
+    local gap = 1
+
+    -- Center the triangle inside its one-character column.
+    local tri_x = lives_x + math.floor((bar_w - tri_w) / 2)
+
+    -- Bottom triangle lines up with the printed HUD characters at bottom_y.
+    -- The triangle's vertical center is placed near the character's center.
+    local char_h = FIXED_CHAR_HEIGHT
+    local first_top_y = bottom_y + math.floor((char_h - tri_h) / 2)
+
+    for i = 1, lives do
+        -- Bottom life is first, additional lives stack upward.
+        local y = first_top_y - (i - 1) * (tri_h + gap)
+        local x1 = tri_x + math.floor(tri_w / 2)
+        local y1 = y
+        local x2 = tri_x
+        local y2 = y + tri_h
+        local x3 = tri_x + tri_w
+        local y3 = y + tri_h
+
+        -- Shadow.
+        tri(x1 + 1, y1 + 1, x2 + 1, y2 + 1, x3 + 1, y3 + 1, BLACK)
+
+        -- Life marker.
+        tri(x1, y1, x2, y2, x3, y3, WHITE)
+    end
+end
+
 function drawGame()
     cls(BLACK)
 
@@ -279,6 +334,7 @@ function drawGame()
     if game.camera.zoom >= 0.5 then
         drawShipCargoHoldHud()
         drawShipStatusHud()
+        drawShipLivesHud()
     end
 end
 
