@@ -73,11 +73,16 @@ function SpaceShip:new(params)
     }
 
     self.mortality = {
-        num_lives     = params.num_lives or 1,
+        num_lives     = params.num_lives or 3,
         invulnerable  = 0,
         dead          = false,
         exploded      = false,
         respawn_timer = 0,
+    }
+    self.spawn = {
+        x        = self.position.x,
+        y        = self.position.y,
+        rotation = self.rotation,
     }
 
     self.harpoon    = {
@@ -290,6 +295,25 @@ end
 
 function SpaceShip:getTotalMassFraction()
     return self:getTotalMass() / self.max_mass
+end
+
+function SpaceShip:isFinished()
+    -- If the ship still has lives, it is not truly finished.
+    if self.mortality and self.mortality.num_lives > 0 then
+        return false
+    end
+
+    -- No lives left. Optionally wait for particles to finish before considering
+    -- the ship fully finished.
+    if self.particles then
+        for _, system in pairs(self.particles) do
+            if system.particles and #system.particles > 0 then
+                return false
+            end
+        end
+    end
+
+    return self.dead
 end
 
 -- ==========================================
@@ -1414,6 +1438,105 @@ function SpaceShip:reelHarpoon()
 end
 
 -- ==========================================
+-- SPACESHIP DOCKING
+-- ==========================================
+
+function SpaceShip:getDockedSpaceDock()
+    if not self.harpoon or not self.harpoon.attached then
+        return nil
+    end
+
+    local target = self.harpoon.target
+    if not target or target.dead then
+        return nil
+    end
+    if SpaceDock ~= nil and getmetatable(target) == SpaceDock then
+        return target
+    end
+
+    return nil
+end
+
+function SpaceShip:replenishEnginesWhileDocked()
+    -- 60 points per second at 60 FPS = 1 point per TIC.
+    local replenish_amount = 1
+
+    local energy = self.engines.energy
+    energy.cur = math.min(energy.max, energy.cur + replenish_amount)
+
+    local life_support = self.engines.life_support
+    life_support.cur = math.min(life_support.max, life_support.cur + replenish_amount)
+
+    local shield = self.engines.shield
+    shield.cur = math.min(shield.max, shield.cur + replenish_amount)
+end
+
+function SpaceShip:depositOreToDock(dock)
+    if not dock or not dock.ore_bank then
+        return false
+    end
+
+    if self.cargo_has_ore ~= true then
+        return false
+    end
+
+    local cargo = self.holds.cargo
+    if cargo.cur <= 0 then
+        self.cargo_has_ore = false
+        return false
+    end
+
+    local free_ore_bank_space = math.max(0, dock.ore_bank.max - dock.ore_bank.cur)
+    if free_ore_bank_space <= 0 then
+        return false
+    end
+
+    local transfer_amount = math.min(cargo.cur, free_ore_bank_space)
+
+    dock.ore_bank.cur = dock.ore_bank.cur + transfer_amount
+    cargo.cur = cargo.cur - transfer_amount
+    if cargo.cur <= 0 then
+        cargo.cur = 0
+        self.cargo_has_ore = false
+    end
+
+    return transfer_amount > 0
+end
+
+function SpaceShip:updateDocking()
+    local dock = self:getDockedSpaceDock()
+    if not dock then
+        return
+    end
+
+    self:replenishEnginesWhileDocked()
+    self:depositOreToDock(dock)
+end
+
+function SpaceShip:drawDockingHud()
+    local dock = self:getDockedSpaceDock()
+    if not dock or not dock.ore_bank then
+        return
+    end
+
+    local text =
+        "Deposited Ore: " ..
+        tostring(math.floor(dock.ore_bank.cur)) ..
+        "/" ..
+        tostring(math.floor(dock.ore_bank.max))
+
+    local text_w = print(text, 0, -100, WHITE, true, 1, true)
+    local x = SCREEN_W - text_w - 4
+    local y = 4
+
+    -- Shadow.
+    print(text, x + 1, y + 1, BLACK, true, 1, true)
+
+    -- Text.
+    print(text, x, y, WHITE, true, 1, true)
+end
+
+-- ==========================================
 -- SPACESHIP INPUT
 -- ==========================================
 
@@ -1516,37 +1639,139 @@ end
 -- SPACESHIP UPDATE
 -- ==========================================
 
+
 function SpaceShip:move()
     self:updateTimer()
 
-    if not self.dead then
-        if self.harpoon and self.harpoon.attached then
-            self:updateHarpoonLock()
-        else
-            self.position = self:movePointByVelocity()
-
-            self.position.x = clamp(self.position.x, 0, MAP_PIXELS_W - 1)
-            self.position.y = clamp(self.position.y, 0, MAP_PIXELS_H - 1)
-        end
-
-        self:regenerateEnginesOnTimer()
-
-        -- Emit smoke if life support is damaged enough.
-        self:smokeEffect()
-    end
-
     -- Particles continue moving even after the ship dies.
     self:updateParticles()
+
+    -- If dead, wait for respawn if lives remain.
+    if self.dead then
+        self:updateRespawn()
+        return
+    end
+
+    self:updateInvulnerability()
+
+    if self.harpoon and self.harpoon.attached then
+        self:updateHarpoonLock()
+    else
+        self.position = self:movePointByVelocity()
+
+        self.position.x = clamp(self.position.x, 0, MAP_PIXELS_W - 1)
+        self.position.y = clamp(self.position.y, 0, MAP_PIXELS_H - 1)
+    end
+
+    self:regenerateEnginesOnTimer()
+
+    -- Docking behavior while harpooned to a SpaceDock.
+    self:updateDocking()
+
+    -- Emit smoke if life support is damaged enough.
+    self:smokeEffect()
 end
 
 function SpaceShip:kill()
     if self.dead then
         return
     end
+
     self.dead = true
-    self.mortality.num_lives = self.mortality.num_lives - 1
-    self.mortality.respawn_timer = 90
+    self.exploded = false
+
+    if self.mortality then
+        self.mortality.dead = true
+        self.mortality.exploded = false
+        self.mortality.num_lives = math.max(0, self.mortality.num_lives - 1)
+
+        if self.mortality.num_lives > 0 then
+            self.mortality.respawn_timer = 90
+        else
+            self.mortality.respawn_timer = 0
+        end
+    end
+
+    -- Detach harpoon on death.
+    if self.harpoon then
+        self.harpoon.attached = false
+        self.harpoon.target = nil
+        self.harpoon.offset_x = 0
+        self.harpoon.offset_y = 0
+    end
+
     self:explode()
+end
+
+function SpaceShip:hasLivesRemaining()
+    return self.mortality and self.mortality.num_lives > 0
+end
+
+function SpaceShip:resetForRespawn()
+    -- Restore core lifecycle flags.
+    self.dead = false
+    self.exploded = false
+
+    if self.mortality then
+        self.mortality.dead = false
+        self.mortality.exploded = false
+        self.mortality.respawn_timer = 0
+
+        -- Short invulnerability after respawn.
+        self.mortality.invulnerable = 180
+    end
+
+    -- Reset position/velocity.
+    self.position.x = self.spawn and self.spawn.x or math.floor(EDGE_X_RIGHT / 2)
+    self.position.y = self.spawn and self.spawn.y or math.floor(EDGE_Y_BOTTOM / 2)
+
+    self.velocity.speed = 0
+    self.velocity.direction = 0
+
+    self.rotation = self.spawn and self.spawn.rotation or 0
+
+    -- Clear harpoon attachment.
+    if self.harpoon then
+        self.harpoon.attached = false
+        self.harpoon.target = nil
+        self.harpoon.offset_x = 0
+        self.harpoon.offset_y = 0
+    end
+
+    -- Refill engines on respawn.
+    self.engines.energy.cur = self.engines.energy.max
+    self.engines.life_support.cur = self.engines.life_support.max
+    self.engines.shield.cur = self.engines.shield.max
+end
+
+function SpaceShip:updateRespawn()
+    if not self.dead then
+        return
+    end
+
+    if not self.mortality then
+        return
+    end
+
+    if self.mortality.respawn_timer <= 0 then
+        return
+    end
+
+    self.mortality.respawn_timer = self.mortality.respawn_timer - 1
+
+    if self.mortality.respawn_timer <= 0 and self:hasLivesRemaining() then
+        self:resetForRespawn()
+    end
+end
+
+function SpaceShip:updateInvulnerability()
+    if not self.mortality then
+        return
+    end
+
+    if self.mortality.invulnerable > 0 then
+        self.mortality.invulnerable = self.mortality.invulnerable - 1
+    end
 end
 
 -- ==========================================
@@ -1653,6 +1878,10 @@ function SpaceShip:draw()
 
     self:drawParticles("smoke")
     self:drawParticles("spark")
+
+    if not self.dead then
+        self:drawDockingHud()
+    end
 end
 
 function SpaceShip:explode()
