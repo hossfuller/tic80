@@ -1521,25 +1521,66 @@ end
 
 function SpaceShip:drawDockingHud()
     local dock = self:getDockedSpaceDock()
+
     if not dock or not dock.ore_bank then
         return
     end
 
-    local text =
-        "Deposited Ore: " ..
+    local lines = {}
+
+    table.insert(
+        lines,
+        "Dock Ore: " ..
         tostring(math.floor(dock.ore_bank.cur)) ..
         "/" ..
         tostring(math.floor(dock.ore_bank.max))
+    )
 
-    local text_w = print(text, 0, -100, WHITE, true, 1, true)
-    local x = SCREEN_W - text_w - 4
+    -- If this SpaceDock is attached to a SpaceStation, also show the station's
+    -- total ore deposits.
+    local station = dock.host
+
+    if (
+        station and
+        SpaceStation ~= nil and
+        getmetatable(station) == SpaceStation and
+        station.ore_bank
+    ) then
+        table.insert(
+            lines,
+            "Station Ore: " ..
+            tostring(math.floor(station.ore_bank.cur)) ..
+            "/" ..
+            tostring(math.floor(station.ore_bank.max))
+        )
+    end
+
+    local x_padding = 4
     local y = 4
+    local line_h = FIXED_CHAR_HEIGHT + 1
 
-    -- Shadow.
-    print(text, x + 1, y + 1, BLACK, true, 1, true)
+    -- Find widest line so the whole HUD can be right-aligned.
+    local max_text_w = 0
 
-    -- Text.
-    print(text, x, y, WHITE, true, 1, true)
+    for _, text in ipairs(lines) do
+        local text_w = print(text, 0, -100, WHITE, true, 1, true)
+
+        if text_w > max_text_w then
+            max_text_w = text_w
+        end
+    end
+
+    local x = SCREEN_W - max_text_w - x_padding
+
+    for i, text in ipairs(lines) do
+        local line_y = y + (i - 1) * line_h
+
+        -- Shadow.
+        print(text, x + 1, line_y + 1, BLACK, true, 1, true)
+
+        -- Text.
+        print(text, x, line_y, WHITE, true, 1, true)
+    end
 end
 
 -- ==========================================

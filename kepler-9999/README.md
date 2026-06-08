@@ -69,13 +69,13 @@ The different revisions implement separate features. This list is ever changing.
 - [ ] **REV0.9**: The Space Station and various colony space docks
     - [x] There is a single space station in the game that orbits the sun like a planet.
     - [x] All other planets have space docks.
-    - [ ] Harpooning the space station puts the game into the `STATE.SHOP` state.
     - [x] Space docks and station have an ore hold that the spaceship can deposit into.
-    - [ ] Docks attached to space station automatically transfer their ore to the main station bank.
-    - [ ] If the dock is destroyed, that ore is lost.
-    - [ ] When docked, a spaceship's attributes are refilled. The current ore bank is displayed in the upper-left corner of the screen.
-    - [ ] Colors, effects, and sounds indicate successful docking.
-    - [ ] The spaceship can deposit the mined mass in the game bank.
+    - [x] Docks attached to space station automatically transfer their ore to the main station bank.
+    - [x] If the dock is destroyed, that ore is lost.
+    - [x] When docked, a spaceship's attributes are refilled. The current ore bank is displayed in the upper-left corner of the screen.
+    - [x] Colors, effects, and sounds indicate successful docking.
+    - [x] The spaceship can deposit the mined mass in the game bank.
+    - [ ] Harpooning the space station puts the game into the `STATE.SHOP` state.
     - [ ] Mined mass can be traded for upgrades to the engines or to refill the engines.
 - [ ] **REV1.0**: NPC Ships
     - [ ] A freighter travels from dock to dock collecting ore deposits and transferring them to the space station.
@@ -85,6 +85,7 @@ The different revisions implement separate features. This list is ever changing.
     - [ ] Use the `pickup`/`deliver` functions to meddle with the ship's mass.
 - [ ] **REV1.1**: High Scores
     - [ ] Track date, ore mined/delivered, cargo delivered, passengers delivered, contraband delivered, and engine levels.
+    - [ ] Sound effects for everything.
 - [ ] **REV1.2**: tbd
 - [ ] **REV1.3**: tbd
 - [ ] **REV1.4**: tbd

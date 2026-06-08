@@ -122,6 +122,57 @@ function SpaceDock:getDrawRadiusFromRealRadius(radius_real)
     return DOCK_REAL_RADIUS
 end
 
+function SpaceDock:getHostSpaceStation()
+    if not self.host then
+        return nil
+    end
+
+    if SpaceStation ~= nil and getmetatable(self.host) == SpaceStation then
+        return self.host
+    end
+
+    return nil
+end
+
+function SpaceDock:transferOreToHostStation()
+    local station = self:getHostSpaceStation()
+
+    if not station then
+        return false
+    end
+
+    if not self.ore_bank or not station.ore_bank then
+        return false
+    end
+
+    if self.ore_bank.cur <= 0 then
+        return false
+    end
+
+    local station_free_space = math.max(
+        0,
+        station.ore_bank.max - station.ore_bank.cur
+    )
+
+    if station_free_space <= 0 then
+        return false
+    end
+
+    local transfer_amount = math.min(
+        self.ore_bank.cur,
+        station_free_space
+    )
+
+    station.ore_bank.cur = station.ore_bank.cur + transfer_amount
+    self.ore_bank.cur = self.ore_bank.cur - transfer_amount
+
+    if self.ore_bank.cur <= 0 then
+        self.ore_bank.cur = 0
+    end
+
+    return transfer_amount > 0
+end
+
 -- ==========================================
 -- SPACEDOCK PARTICLE EFFECTS
 -- ==========================================
@@ -289,8 +340,17 @@ function SpaceDock:update()
     -- Explosion particles continue after death.
     self:updateParticles()
 
-    -- Dead docks no longer orbit.
-    if self.dead or not self.host then
+    -- Dead docks no longer orbit or transfer ore.
+    if self.dead then
+        return
+    end
+
+    -- If this dock is attached to a SpaceStation, instantly transfer any stored
+    -- ore into the station, up to the station's capacity.
+    self:transferOreToHostStation()
+
+    -- Docks without hosts cannot orbit.
+    if not self.host then
         return
     end
 
