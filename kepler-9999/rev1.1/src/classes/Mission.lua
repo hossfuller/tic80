@@ -17,7 +17,7 @@ function Mission:new(params)
     self.destination = params.destination or nil
 
     self.type   = params.type   or MISSION_TYPE.CARGO
-    self.status = params.status or MISSION_STATUS.AVAILABLE
+    self.status = params.status or MISSION_STATUS.IN_PROGRESS
 
     self.deadline = params.deadline or nil
 
@@ -153,10 +153,8 @@ function Mission:getTypeLabel()
 end
 
 function Mission:getStatusLabel()
-    if self.status == MISSION_STATUS.AVAILABLE then
-        return "Available"
-    elseif self.status == MISSION_STATUS.ACCEPTED then
-        return "Accepted"
+    if self.status == MISSION_STATUS.IN_PROGRESS then
+        return "In Progress"
     elseif self.status == MISSION_STATUS.COMPLETED then
         return "Completed"
     elseif self.status == MISSION_STATUS.FAILED then
@@ -184,12 +182,8 @@ end
 -- MISSION STATUS
 -- ==========================================
 
-function Mission:isAvailable()
-    return self.status == MISSION_STATUS.AVAILABLE
-end
-
-function Mission:isAccepted()
-    return self.status == MISSION_STATUS.ACCEPTED
+function Mission:isInProgress()
+    return self.status == MISSION_STATUS.IN_PROGRESS
 end
 
 function Mission:isCompleted()
@@ -205,16 +199,7 @@ function Mission:isTerminal()
 end
 
 function Mission:canAct()
-    return not self:isTerminal()
-end
-
-function Mission:accept()
-    if self.status ~= MISSION_STATUS.AVAILABLE then
-        return false
-    end
-
-    self.status = MISSION_STATUS.ACCEPTED
-    return true
+    return self:isInProgress()
 end
 
 function Mission:fail()
@@ -232,7 +217,7 @@ function Mission:fail()
 end
 
 function Mission:canComplete()
-    if self.status ~= MISSION_STATUS.ACCEPTED then
+    if self.status ~= MISSION_STATUS.IN_PROGRESS then
         return false
     end
 

@@ -1762,10 +1762,9 @@ local MISSION_TYPE = {
 }
 
 local MISSION_STATUS = {
-    AVAILABLE = "available",
-    ACCEPTED  = "accepted",
-    COMPLETED = "completed",
-    FAILED    = "failed",
+    IN_PROGRESS = "in-progress",
+    COMPLETED   = "completed",
+    FAILED      = "failed",
 }
 
 function generateMissionId(length)
@@ -1793,9 +1792,6 @@ function getRandomMissionType()
     return types[math.random(1, #types)]
 end
 
-
-
-
 function createRandomMission(source)
     local destinations = getMissionDestinationsForSource(source)
 
@@ -1810,7 +1806,7 @@ function createRandomMission(source)
         source = source,
         destination = destination,
         type = mission_type,
-        status = MISSION_STATUS.AVAILABLE,
+        status = MISSION_STATUS.IN_PROGRESS,
     }
 
     if mission_type == MISSION_TYPE.PASSENGER or
@@ -1902,20 +1898,6 @@ function getMissionDestinationsForSource(source)
     end
 
     return destinations
-end
-
-function getAllPlanetSpaceDocksExceptDock(source_dock)
-    local docks = {}
-
-    for _, planet in ipairs(game.play.planets or {}) do
-        for _, dock in ipairs(planet.docks or {}) do
-            if dock ~= source_dock and isPlanetDock(dock) then
-                table.insert(docks, dock)
-            end
-        end
-    end
-
-    return docks
 end
 
 function allMissionsAreTerminal()
@@ -3692,7 +3674,7 @@ function drawControlsOverlayBox(text)
         { "Down",       "Inertia Brake" },
         { "Left/Right", "Rotate" },
         { "Select (A)", "View Space Map" },
-        { "Start (S)",  "Pause/Missions" },
+        { "Start (S)",  "Pause/Missions List" },
         { "Z",          "Harpoon/Dock/Release" },
         { "X",          "Mine/Station Shop" },
     }
@@ -4267,7 +4249,7 @@ function getMissionSourceForDock(dock)
     return dock
 end
 
-function getAvailableMissionsForSource(source)
+function getInProgressMissionsForSource(source)
     local missions = {}
 
     if not source then
@@ -4275,7 +4257,7 @@ function getAvailableMissionsForSource(source)
     end
 
     for _, mission in ipairs(game.play.missions or {}) do
-        if mission.source == source and mission.status == MISSION_STATUS.AVAILABLE then
+        if mission.source == source and mission.status == MISSION_STATUS.IN_PROGRESS then
             table.insert(missions, mission)
         end
     end
@@ -4283,10 +4265,10 @@ function getAvailableMissionsForSource(source)
     return missions
 end
 
-function getAvailableMissionsForDock(dock)
+function getInProgressMissionsForDock(dock)
     local source = getMissionSourceForDock(dock)
 
-    return getAvailableMissionsForSource(source)
+    return getInProgressMissionsForSource(source)
 end
 
 function inputPause()
@@ -4316,7 +4298,7 @@ function drawPause()
     drawStandardOverlayBox("MISSION BOARD")
 
     local dock = game.play.player:getDockedSpaceDock()
-    local missions = getAvailableMissionsForDock(dock)
+    local missions = getInProgressMissionsForDock(dock)
 
 
     drawCenteredText("Press 'START' (S) to Resume", EDGE_Y_BOTTOM - 2* Y_PADDING, WHITE, false, 1, true, GRAY_MED)
@@ -10032,7 +10014,7 @@ function Mission:new(params)
     self.destination = params.destination or nil
 
     self.type   = params.type   or MISSION_TYPE.CARGO
-    self.status = params.status or MISSION_STATUS.AVAILABLE
+    self.status = params.status or MISSION_STATUS.IN_PROGRESS
 
     self.deadline = params.deadline or nil
 
@@ -10168,10 +10150,8 @@ function Mission:getTypeLabel()
 end
 
 function Mission:getStatusLabel()
-    if self.status == MISSION_STATUS.AVAILABLE then
-        return "Available"
-    elseif self.status == MISSION_STATUS.ACCEPTED then
-        return "Accepted"
+    if self.status == MISSION_STATUS.IN_PROGRESS then
+        return "In Progress"
     elseif self.status == MISSION_STATUS.COMPLETED then
         return "Completed"
     elseif self.status == MISSION_STATUS.FAILED then
@@ -10199,12 +10179,8 @@ end
 -- MISSION STATUS
 -- ==========================================
 
-function Mission:isAvailable()
-    return self.status == MISSION_STATUS.AVAILABLE
-end
-
-function Mission:isAccepted()
-    return self.status == MISSION_STATUS.ACCEPTED
+function Mission:isInProgress()
+    return self.status == MISSION_STATUS.IN_PROGRESS
 end
 
 function Mission:isCompleted()
@@ -10220,16 +10196,7 @@ function Mission:isTerminal()
 end
 
 function Mission:canAct()
-    return not self:isTerminal()
-end
-
-function Mission:accept()
-    if self.status ~= MISSION_STATUS.AVAILABLE then
-        return false
-    end
-
-    self.status = MISSION_STATUS.ACCEPTED
-    return true
+    return self:isInProgress()
 end
 
 function Mission:fail()
@@ -10247,7 +10214,7 @@ function Mission:fail()
 end
 
 function Mission:canComplete()
-    if self.status ~= MISSION_STATUS.ACCEPTED then
+    if self.status ~= MISSION_STATUS.IN_PROGRESS then
         return false
     end
 

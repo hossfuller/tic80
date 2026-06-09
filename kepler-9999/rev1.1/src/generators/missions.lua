@@ -19,10 +19,9 @@ local MISSION_TYPE = {
 }
 
 local MISSION_STATUS = {
-    AVAILABLE = "available",
-    ACCEPTED  = "accepted",
-    COMPLETED = "completed",
-    FAILED    = "failed",
+    IN_PROGRESS = "in-progress",
+    COMPLETED   = "completed",
+    FAILED      = "failed",
 }
 
 function generateMissionId(length)
@@ -50,9 +49,6 @@ function getRandomMissionType()
     return types[math.random(1, #types)]
 end
 
-
-
-
 function createRandomMission(source)
     local destinations = getMissionDestinationsForSource(source)
 
@@ -67,7 +63,7 @@ function createRandomMission(source)
         source = source,
         destination = destination,
         type = mission_type,
-        status = MISSION_STATUS.AVAILABLE,
+        status = MISSION_STATUS.IN_PROGRESS,
     }
 
     if mission_type == MISSION_TYPE.PASSENGER or
@@ -159,20 +155,6 @@ function getMissionDestinationsForSource(source)
     end
 
     return destinations
-end
-
-function getAllPlanetSpaceDocksExceptDock(source_dock)
-    local docks = {}
-
-    for _, planet in ipairs(game.play.planets or {}) do
-        for _, dock in ipairs(planet.docks or {}) do
-            if dock ~= source_dock and isPlanetDock(dock) then
-                table.insert(docks, dock)
-            end
-        end
-    end
-
-    return docks
 end
 
 function allMissionsAreTerminal()

@@ -18,7 +18,7 @@ function getMissionSourceForDock(dock)
     return dock
 end
 
-function getAvailableMissionsForSource(source)
+function getInProgressMissionsForSource(source)
     local missions = {}
 
     if not source then
@@ -26,7 +26,7 @@ function getAvailableMissionsForSource(source)
     end
 
     for _, mission in ipairs(game.play.missions or {}) do
-        if mission.source == source and mission.status == MISSION_STATUS.AVAILABLE then
+        if mission.source == source and mission.status == MISSION_STATUS.IN_PROGRESS then
             table.insert(missions, mission)
         end
     end
@@ -34,10 +34,10 @@ function getAvailableMissionsForSource(source)
     return missions
 end
 
-function getAvailableMissionsForDock(dock)
+function getInProgressMissionsForDock(dock)
     local source = getMissionSourceForDock(dock)
 
-    return getAvailableMissionsForSource(source)
+    return getInProgressMissionsForSource(source)
 end
 
 function inputPause()
@@ -67,7 +67,7 @@ function drawPause()
     drawStandardOverlayBox("MISSION BOARD")
 
     local dock = game.play.player:getDockedSpaceDock()
-    local missions = getAvailableMissionsForDock(dock)
+    local missions = getInProgressMissionsForDock(dock)
 
 
     drawCenteredText("Press 'START' (S) to Resume", EDGE_Y_BOTTOM - 2* Y_PADDING, WHITE, false, 1, true, GRAY_MED)

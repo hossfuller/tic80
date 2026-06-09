@@ -41,7 +41,7 @@ function drawControlsOverlayBox(text)
         { "Down",       "Inertia Brake" },
         { "Left/Right", "Rotate" },
         { "Select (A)", "View Space Map" },
-        { "Start (S)",  "Pause/Missions" },
+        { "Start (S)",  "Pause/Missions List" },
         { "Z",          "Harpoon/Dock/Release" },
         { "X",          "Mine/Station Shop" },
     }
