@@ -97,6 +97,8 @@ function updatePlay()
             game.play.mass_delivered_notification = nil
         end
     end
+
+    maintainMissionGeneration()
 end
 
 function notifyMassDelivered()

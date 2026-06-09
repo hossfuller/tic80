@@ -104,6 +104,7 @@ game = {
         asteroids      = {},
         comet_count    = 0,
         space_stations = {},
+        missions       = {},
     },
 }
 
@@ -130,6 +131,8 @@ function changeState(newState)
 
         addSpaceDocksToPlanets(game.play.planets)
         addSpaceDocksToStations(game.play.space_stations)
+
+        generateInitialMissions()
 
         resetPlayerAndCamera()
 
