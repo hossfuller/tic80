@@ -1792,6 +1792,24 @@ function SpaceShip:kill()
         end
     end
 
+    -- Losing a life destroys all carried cargo/passengers/smuggled goods.
+    if self.holds then
+        if self.holds.cargo then
+            self.holds.cargo.cur = 0
+        end
+
+        if self.holds.passengers then
+            self.holds.passengers.cur = 0
+        end
+
+        if self.holds.smuggled then
+            self.holds.smuggled.cur = 0
+        end
+    end
+
+    -- Cargo is no longer ore after cargo is destroyed.
+    self.cargo_has_ore = false
+
     -- Detach harpoon on death.
     if self.harpoon then
         self.harpoon.attached = false

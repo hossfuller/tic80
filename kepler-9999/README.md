@@ -79,8 +79,8 @@ The different revisions implement separate features. This list is ever changing.
     - [x] Mined mass can be traded for upgrades to the engines or to refill the engines.
 - [ ] **REV1.0**: Game objectives and high scores
     - [ ] Refine SpaceStation and SpaceDock look. It's currently a bit much.
-    - [ ] A player's score is the amount of mass they deliver (mass of ore, cargo, contraband, and passengers)
-    - [ ] Track date, mass delivered, and engine levels.
+    - [x] A player's score is the amount of mass they deliver (mass of ore, cargo, contraband, and passengers)
+    - [x] Track date, mass delivered, and engine levels.
     - [ ] While docked at the space station or any of the planets' space docks, pick up cargo/passengers/contraband for delivery.
     - [ ] Use the `pickup`/`deliver` functions to meddle with the ship's mass.
 - [ ] **REV1.1**: NPC Ships
