@@ -46,6 +46,11 @@ game = {
         },
     },
 
+    -- Mission Board state
+    pause = {
+        selected_mission = 1,
+    },
+
     -- Shop state
     shop = {
         selected = 1,
@@ -137,6 +142,11 @@ function changeState(newState)
         resetPlayerAndCamera()
 
         game.play.high_score_saved = false
+
+    elseif newState == STATE.PAUSE then
+        if game.pause then
+            game.pause.selected_mission = 1
+        end
 
     elseif newState == STATE.HIGHSCORES then
         enterHighScores()

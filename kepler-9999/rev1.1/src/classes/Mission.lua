@@ -152,6 +152,20 @@ function Mission:getTypeLabel()
     return tostring(self.type)
 end
 
+function Mission:getShortTypeLabel()
+    if self.type == MISSION_TYPE.CARGO then
+        return "Cargo"
+    elseif self.type == MISSION_TYPE.PASSENGER then
+        return "Pax"
+    elseif self.type == MISSION_TYPE.CONTRABAND_CARGO then
+        return "Contra Cargo"
+    elseif self.type == MISSION_TYPE.CONTRABAND_PASSENGER then
+        return "Contra Pax"
+    end
+
+    return tostring(self.type)
+end
+
 function Mission:getStatusLabel()
     if self.status == MISSION_STATUS.IN_PROGRESS then
         return "In Progress"

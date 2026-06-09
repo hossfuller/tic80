@@ -5,6 +5,7 @@
 function inputPlay()
     if btnp(BTN_P1_START) then
         changeState(STATE.PAUSE)
+        return
     end
 
     if btnp(BTN_P1_SELECT) then
