@@ -41,9 +41,9 @@ function drawControlsOverlayBox(text)
         { "Down",       "Inertia Brake" },
         { "Left/Right", "Rotate" },
         { "Select (A)", "View Space Map" },
-        { "Start (S)",  "Pause" },
+        { "Start (S)",  "Pause/Missions" },
         { "Z",          "Harpoon/Dock/Release" },
-        { "X",          "Mine/Shop" },
+        { "X",          "Mine/Station Shop" },
     }
 
     local key_color        = YELLOW
