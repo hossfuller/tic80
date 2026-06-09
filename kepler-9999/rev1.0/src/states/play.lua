@@ -67,11 +67,17 @@ function updatePlay()
     if player.dead then
         if player.mortality and
             player.mortality.num_lives <= 0 and
-            player.mortality.respawn_timer <= 0 and
-            player:isFinished()
+            player.mortality.respawn_timer <= 0
         then
-            changeState(STATE.GAMEOVER)
-            return
+            if not game.play.high_score_saved then
+                saveCurrentScore(player)
+                game.play.high_score_saved = true
+            end
+
+            if player:isFinished() then
+                changeState(STATE.GAMEOVER)
+                return
+            end
         end
     else
         updateCollisions()

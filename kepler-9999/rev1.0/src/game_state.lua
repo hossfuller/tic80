@@ -76,7 +76,7 @@ game = {
     },
 
     -- High scores
-    hiscores = {},
+    high_scores = {},
 
     -- Game Parameters
     params = {
@@ -132,5 +132,10 @@ function changeState(newState)
         addSpaceDocksToStations(game.play.space_stations)
 
         resetPlayerAndCamera()
+
+        game.play.high_score_saved = false
+
+    elseif newState == STATE.HIGHSCORES then
+        enterHighScores()
     end
 end

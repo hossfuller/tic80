@@ -9,6 +9,17 @@ function getOrDefault(value, default)
     return value
 end
 
+function getUnixTimestampSeconds()
+    local ts = tstamp()
+
+    -- TIC-80 tstamp() is commonly milliseconds.
+    if ts > 100000000000 then
+        ts = math.floor(ts / 1000)
+    end
+
+    return ts
+end
+
 -- ==========================================
 -- RANDOMIZATION HELPERS
 -- ==========================================

@@ -6,7 +6,13 @@ function inputPause()
     if btnp(BTN_P1_START) then
         changeState(STATE.PLAY)
     end
+
     if btnp(BTN_P1_SELECT) then
+        if not game.play.high_score_saved then
+            saveCurrentScore(game.play.player)
+            game.play.high_score_saved = true
+        end
+
         changeState(STATE.GAMEOVER)
     end
 end

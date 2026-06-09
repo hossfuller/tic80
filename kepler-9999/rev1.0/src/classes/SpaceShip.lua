@@ -57,6 +57,8 @@ function SpaceShip:new(params)
     self.max_mass   = params.max_mass   or 1300  -- (kg)
     self.max_speed  = params.max_speed  or 2.5
 
+    self.mass_delivered = 0  -- (kg) this is basically the score
+
     -- The default SpaceShip shape
     self.shape = params.shape or {
         { x = 8,  y = 0 },
@@ -295,6 +297,11 @@ end
 
 function SpaceShip:getTotalMassFraction()
     return self:getTotalMass() / self.max_mass
+end
+
+function SpaceShip:getMassDelivered()
+    -- this is basically the user's score.
+    return self.mass_delivered
 end
 
 function SpaceShip:isFinished()
@@ -540,10 +547,21 @@ function SpaceShip:pickupCargo(cargo_mass)
 end
 
 function SpaceShip:deliverCargo(cargo_mass)
-    local delivered = self:updateHoldMass("cargo", -cargo_mass)
+    cargo_mass = cargo_mass or 0
 
-    if delivered and self:getCargoMass() <= 0 then
-        self.cargo_has_ore = false
+    local before = self:getCargoMass()
+    local amount = math.min(cargo_mass, before)
+    if amount <= 0 then
+        return false
+    end
+
+    local delivered = self:updateHoldMass("cargo", -amount)
+    if delivered then
+        self:updateMassDelivered(amount)
+
+        if self:getCargoMass() <= 0 then
+            self.cargo_has_ore = false
+        end
     end
 
     return delivered
@@ -554,7 +572,21 @@ function SpaceShip:pickupPassengers(num_passengers)
 end
 
 function SpaceShip:deliverPassengers(num_passengers)
-    return self:updateHoldMass("passengers", -num_passengers * PASSENGER_TOTAL_MASS)
+    num_passengers = num_passengers or 0
+
+    local requested_mass = num_passengers * PASSENGER_TOTAL_MASS
+    local before = self:getPassengerMass()
+    local amount = math.min(requested_mass, before)
+    if amount <= 0 then
+        return false
+    end
+
+    local delivered = self:updateHoldMass("passengers", -amount)
+    if delivered then
+        self:updateMassDelivered(amount)
+    end
+
+    return delivered
 end
 
 function SpaceShip:pickupSmuggledGoods(smuggled_mass)
@@ -562,7 +594,20 @@ function SpaceShip:pickupSmuggledGoods(smuggled_mass)
 end
 
 function SpaceShip:deliverSmuggledGoods(smuggled_mass)
-    return self:updateHoldMass("smuggled", -smuggled_mass)
+    smuggled_mass = smuggled_mass or 0
+
+    local before = self:getSmuggledMass()
+    local amount = math.min(smuggled_mass, before)
+    if amount <= 0 then
+        return false
+    end
+
+    local delivered = self:updateHoldMass("smuggled", -amount)
+    if delivered then
+        self:updateMassDelivered(amount)
+    end
+
+    return delivered
 end
 
 -- ==========================================
@@ -1501,6 +1546,10 @@ function SpaceShip:depositOreToDock(dock)
 
     dock.ore_bank.cur = dock.ore_bank.cur + transfer_amount
     cargo.cur = cargo.cur - transfer_amount
+
+    -- Count ore deposited into a dock/station as delivered mass/score.
+    self:updateMassDelivered(transfer_amount)
+
     if cargo.cur <= 0 then
         cargo.cur = 0
         self.cargo_has_ore = false
@@ -1686,6 +1735,10 @@ end
 -- SPACESHIP UPDATE
 -- ==========================================
 
+function SpaceShip:updateMassDelivered(delivered_mass)
+    self.mass_delivered = self.mass_delivered + delivered_mass
+    return self.mass_delivered
+end
 
 function SpaceShip:move()
     self:updateTimer()
