@@ -489,23 +489,6 @@ function SpaceDock:drawBody()
         pix(lx4, ly4, GREEN_LITE)
     end
 
-    -- ==========================================
-    -- Rotating beacon arm
-    -- ==========================================
-
-    if r >= 5 then
-        local beacon_inner = math.floor(r * 0.45)
-        local beacon_outer = math.floor(r * 1.25)
-
-        local bx1 = screen_x + math.floor(math.cos(beacon_angle) * beacon_inner)
-        local by1 = screen_y + math.floor(math.sin(beacon_angle) * beacon_inner)
-
-        local bx2 = screen_x + math.floor(math.cos(beacon_angle) * beacon_outer)
-        local by2 = screen_y + math.floor(math.sin(beacon_angle) * beacon_outer)
-
-        line(bx1, by1, bx2, by2, CYAN)
-        circ(bx2, by2, 1, WHITE)
-    end
 end
 
 function SpaceDock:draw()

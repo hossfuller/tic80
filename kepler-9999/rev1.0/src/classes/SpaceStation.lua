@@ -382,44 +382,6 @@ function SpaceStation:drawBody()
     end
 
     -- ==========================================
-    -- Solar/radiator panels
-    -- ==========================================
-
-    if r >= 7 then
-        local panel_w = math.max(3, math.floor(r * 0.65))
-        local panel_h = math.max(2, math.floor(r * 0.22))
-        local gap = math.floor(outer_r * 0.95)
-
-        -- Left/right blue radiator panels.
-        rect(screen_x - gap - panel_w, screen_y - math.floor(panel_h / 2), panel_w, panel_h, BLUE_DARK)
-        rect(screen_x + gap, screen_y - math.floor(panel_h / 2), panel_w, panel_h, BLUE_DARK)
-        line(screen_x - gap - panel_w, screen_y, screen_x - gap, screen_y, self.colors.tertiary)
-        line(screen_x + gap, screen_y, screen_x + gap + panel_w, screen_y, self.colors.tertiary)
-
-        -- Panel subdivision lines.
-        local divisions = 3
-        for i = 1, divisions - 1 do
-            local ox = math.floor(panel_w * i / divisions)
-
-            line(
-                screen_x - gap - panel_w + ox,
-                screen_y - math.floor(panel_h / 2),
-                screen_x - gap - panel_w + ox,
-                screen_y + math.floor(panel_h / 2),
-                self.tube_colors.light
-            )
-
-            line(
-                screen_x + gap + ox,
-                screen_y - math.floor(panel_h / 2),
-                screen_x + gap + ox,
-                screen_y + math.floor(panel_h / 2),
-                self.tube_colors.light
-            )
-        end
-    end
-
-    -- ==========================================
     -- Navigation/blinking lights
     -- ==========================================
 
@@ -443,25 +405,6 @@ function SpaceStation:drawBody()
             pix(screen_x + d, screen_y - d, self.tube_colors.light)
             pix(screen_x - d, screen_y + d, self.tube_colors.light)
         end
-    end
-
-    -- ==========================================
-    -- Rotating scanner/beacon
-    -- ==========================================
-
-    if r >= 6 then
-        local beacon_angle = (timer * 0.035) % (math.pi * 2)
-        local b1 = math.floor(inner_r * 0.8)
-        local b2 = math.floor(outer_r * 1.15)
-
-        local bx1 = screen_x + math.floor(math.cos(beacon_angle) * b1)
-        local by1 = screen_y + math.floor(math.sin(beacon_angle) * b1)
-
-        local bx2 = screen_x + math.floor(math.cos(beacon_angle) * b2)
-        local by2 = screen_y + math.floor(math.sin(beacon_angle) * b2)
-
-        line(bx1, by1, bx2, by2, self.tube_colors.light)
-        pix(bx2, by2, self.colors.primary)
     end
 end
 

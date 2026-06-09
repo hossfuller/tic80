@@ -3,7 +3,7 @@
 -- ==========================================
 
 -- Persistent memory has 255 slots.
-MAX_HIGH_SCORES     = 19
+MAX_HIGH_SCORES     = 29
 PMEM_CHUNK_ELEMENTS = 5
 
 -- We'll store our high scores in this table.

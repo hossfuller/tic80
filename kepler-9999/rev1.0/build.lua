@@ -3095,7 +3095,7 @@ end
 -- ==========================================
 
 -- Persistent memory has 255 slots.
-MAX_HIGH_SCORES     = 19
+MAX_HIGH_SCORES     = 29
 PMEM_CHUNK_ELEMENTS = 5
 
 -- We'll store our high scores in this table.
@@ -3606,8 +3606,28 @@ function updatePlay()
     if player.mortality.invulnerable > 0 then
         player.mortality.invulnerable = player.mortality.invulnerable - 1
     end
+
+    -- Update mass-delivered notification.
+    if game.play.mass_delivered_notification then
+        game.play.mass_delivered_notification.timer =
+            game.play.mass_delivered_notification.timer - 1
+
+        if game.play.mass_delivered_notification.timer <= 0 then
+            game.play.mass_delivered_notification = nil
+        end
+    end
 end
 
+function notifyMassDelivered()
+    if not game or not game.play or not game.play.player then
+        return
+    end
+
+    game.play.mass_delivered_notification = {
+        timer = 180, -- 3 seconds at 60 FPS
+        score = game.play.player:getMassDelivered()
+    }
+end
 
 function drawStarMap()
     local camera = game.camera
@@ -3835,6 +3855,49 @@ function drawShipLivesHud()
     end
 end
 
+function drawMassDeliveredNotification()
+    local notification = game.play.mass_delivered_notification
+    if not notification then
+        return
+    end
+
+    local player = game.play.player
+    if not player then
+        return
+    end
+
+    -- Same fixed-small-font character width used by the HUD bars.
+    local bar_w = print("E", -100, -100, WHITE, true, 1, true) + 1
+
+    -- Same baseline as drawShipCargoHoldHud(), drawShipStatusHud(), and drawShipLivesHud().
+    local bottom_y = EDGE_Y_BOTTOM - 8
+
+    -- Same layout math as drawShipLivesHud().
+    local cargo_bar_x = EDGE_X_LEFT + 3
+    local status_start_x = cargo_bar_x + bar_w
+    local status_bar_count = 4
+    local lives_x = status_start_x + status_bar_count * bar_w
+
+    -- Notification goes immediately to the right of the lives column.
+    local x = lives_x + bar_w + 3
+    local y = bottom_y
+
+    local score = math.floor(notification.score or player:getMassDelivered() or 0)
+    local text = "Mass Delivered: " .. tostring(score) .. "kg"
+
+    -- Optional fade/blink near the end.
+    local color = WHITE
+    if notification.timer < 45 then
+        color = GRAY_LITE
+    end
+
+    -- Shadow.
+    print(text, x + 1, y + 1, BLACK, true, 1, true)
+
+    -- Text.
+    print(text, x, y, color, true, 1, true)
+end
+
 function drawGame()
     cls(BLACK)
 
@@ -3869,6 +3932,7 @@ function drawGame()
         drawShipCargoHoldHud()
         drawShipStatusHud()
         drawShipLivesHud()
+        drawMassDeliveredNotification()
     end
 end
 
@@ -6279,6 +6343,11 @@ function SpaceShip:depositOreToDock(dock)
 
     -- Count ore deposited into a dock/station as delivered mass/score.
     self:updateMassDelivered(transfer_amount)
+
+    -- Show score notification.
+    if notifyMassDelivered then
+        notifyMassDelivered()
+    end
 
     if cargo.cur <= 0 then
         cargo.cur = 0
@@ -9069,44 +9138,6 @@ function SpaceStation:drawBody()
     end
 
     -- ==========================================
-    -- Solar/radiator panels
-    -- ==========================================
-
-    if r >= 7 then
-        local panel_w = math.max(3, math.floor(r * 0.65))
-        local panel_h = math.max(2, math.floor(r * 0.22))
-        local gap = math.floor(outer_r * 0.95)
-
-        -- Left/right blue radiator panels.
-        rect(screen_x - gap - panel_w, screen_y - math.floor(panel_h / 2), panel_w, panel_h, BLUE_DARK)
-        rect(screen_x + gap, screen_y - math.floor(panel_h / 2), panel_w, panel_h, BLUE_DARK)
-        line(screen_x - gap - panel_w, screen_y, screen_x - gap, screen_y, self.colors.tertiary)
-        line(screen_x + gap, screen_y, screen_x + gap + panel_w, screen_y, self.colors.tertiary)
-
-        -- Panel subdivision lines.
-        local divisions = 3
-        for i = 1, divisions - 1 do
-            local ox = math.floor(panel_w * i / divisions)
-
-            line(
-                screen_x - gap - panel_w + ox,
-                screen_y - math.floor(panel_h / 2),
-                screen_x - gap - panel_w + ox,
-                screen_y + math.floor(panel_h / 2),
-                self.tube_colors.light
-            )
-
-            line(
-                screen_x + gap + ox,
-                screen_y - math.floor(panel_h / 2),
-                screen_x + gap + ox,
-                screen_y + math.floor(panel_h / 2),
-                self.tube_colors.light
-            )
-        end
-    end
-
-    -- ==========================================
     -- Navigation/blinking lights
     -- ==========================================
 
@@ -9130,25 +9161,6 @@ function SpaceStation:drawBody()
             pix(screen_x + d, screen_y - d, self.tube_colors.light)
             pix(screen_x - d, screen_y + d, self.tube_colors.light)
         end
-    end
-
-    -- ==========================================
-    -- Rotating scanner/beacon
-    -- ==========================================
-
-    if r >= 6 then
-        local beacon_angle = (timer * 0.035) % (math.pi * 2)
-        local b1 = math.floor(inner_r * 0.8)
-        local b2 = math.floor(outer_r * 1.15)
-
-        local bx1 = screen_x + math.floor(math.cos(beacon_angle) * b1)
-        local by1 = screen_y + math.floor(math.sin(beacon_angle) * b1)
-
-        local bx2 = screen_x + math.floor(math.cos(beacon_angle) * b2)
-        local by2 = screen_y + math.floor(math.sin(beacon_angle) * b2)
-
-        line(bx1, by1, bx2, by2, self.tube_colors.light)
-        pix(bx2, by2, self.colors.primary)
     end
 end
 
@@ -9686,23 +9698,6 @@ function SpaceDock:drawBody()
         pix(lx4, ly4, GREEN_LITE)
     end
 
-    -- ==========================================
-    -- Rotating beacon arm
-    -- ==========================================
-
-    if r >= 5 then
-        local beacon_inner = math.floor(r * 0.45)
-        local beacon_outer = math.floor(r * 1.25)
-
-        local bx1 = screen_x + math.floor(math.cos(beacon_angle) * beacon_inner)
-        local by1 = screen_y + math.floor(math.sin(beacon_angle) * beacon_inner)
-
-        local bx2 = screen_x + math.floor(math.cos(beacon_angle) * beacon_outer)
-        local by2 = screen_y + math.floor(math.sin(beacon_angle) * beacon_outer)
-
-        line(bx1, by1, bx2, by2, CYAN)
-        circ(bx2, by2, 1, WHITE)
-    end
 end
 
 function SpaceDock:draw()

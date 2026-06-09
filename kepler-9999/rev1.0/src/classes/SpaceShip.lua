@@ -1550,6 +1550,11 @@ function SpaceShip:depositOreToDock(dock)
     -- Count ore deposited into a dock/station as delivered mass/score.
     self:updateMassDelivered(transfer_amount)
 
+    -- Show score notification.
+    if notifyMassDelivered then
+        notifyMassDelivered()
+    end
+
     if cargo.cur <= 0 then
         cargo.cur = 0
         self.cargo_has_ore = false

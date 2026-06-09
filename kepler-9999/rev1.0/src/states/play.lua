@@ -87,8 +87,28 @@ function updatePlay()
     if player.mortality.invulnerable > 0 then
         player.mortality.invulnerable = player.mortality.invulnerable - 1
     end
+
+    -- Update mass-delivered notification.
+    if game.play.mass_delivered_notification then
+        game.play.mass_delivered_notification.timer =
+            game.play.mass_delivered_notification.timer - 1
+
+        if game.play.mass_delivered_notification.timer <= 0 then
+            game.play.mass_delivered_notification = nil
+        end
+    end
 end
 
+function notifyMassDelivered()
+    if not game or not game.play or not game.play.player then
+        return
+    end
+
+    game.play.mass_delivered_notification = {
+        timer = 180, -- 3 seconds at 60 FPS
+        score = game.play.player:getMassDelivered()
+    }
+end
 
 function drawStarMap()
     local camera = game.camera
@@ -316,6 +336,49 @@ function drawShipLivesHud()
     end
 end
 
+function drawMassDeliveredNotification()
+    local notification = game.play.mass_delivered_notification
+    if not notification then
+        return
+    end
+
+    local player = game.play.player
+    if not player then
+        return
+    end
+
+    -- Same fixed-small-font character width used by the HUD bars.
+    local bar_w = print("E", -100, -100, WHITE, true, 1, true) + 1
+
+    -- Same baseline as drawShipCargoHoldHud(), drawShipStatusHud(), and drawShipLivesHud().
+    local bottom_y = EDGE_Y_BOTTOM - 8
+
+    -- Same layout math as drawShipLivesHud().
+    local cargo_bar_x = EDGE_X_LEFT + 3
+    local status_start_x = cargo_bar_x + bar_w
+    local status_bar_count = 4
+    local lives_x = status_start_x + status_bar_count * bar_w
+
+    -- Notification goes immediately to the right of the lives column.
+    local x = lives_x + bar_w + 3
+    local y = bottom_y
+
+    local score = math.floor(notification.score or player:getMassDelivered() or 0)
+    local text = "Mass Delivered: " .. tostring(score) .. "kg"
+
+    -- Optional fade/blink near the end.
+    local color = WHITE
+    if notification.timer < 45 then
+        color = GRAY_LITE
+    end
+
+    -- Shadow.
+    print(text, x + 1, y + 1, BLACK, true, 1, true)
+
+    -- Text.
+    print(text, x, y, color, true, 1, true)
+end
+
 function drawGame()
     cls(BLACK)
 
@@ -350,6 +413,7 @@ function drawGame()
         drawShipCargoHoldHud()
         drawShipStatusHud()
         drawShipLivesHud()
+        drawMassDeliveredNotification()
     end
 end
 
