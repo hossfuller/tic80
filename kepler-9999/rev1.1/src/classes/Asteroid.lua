@@ -167,7 +167,6 @@ end
 
 function Asteroid:spawnParticleBurst(type, x, y, direction, spread, count)
     local system = self:getParticleSystem(type)
-
     if not system then
         return
     end
@@ -175,14 +174,21 @@ function Asteroid:spawnParticleBurst(type, x, y, direction, spread, count)
     local p = system.params
     local particles = system.particles
 
-    direction = direction or 0
-    spread    = spread or math.pi * 2
+    spread = spread or math.pi * 2
+    count  = count or math.random(p.count_min or 1, p.count_max or 1)
 
     for i = 1, count do
-        local particle_direction = direction - spread / 2 + math.random() * spread
-        local spawn_radius       = p.spawn_radius or 0
-        local spawn_angle        = math.random() * math.pi * 2
-        local spawn_distance     = math.random() * spawn_radius
+        local particle_direction
+        if direction ~= nil then
+            particle_direction = direction - spread / 2 + math.random() * spread
+        else
+            particle_direction = randomFloat(0, math.pi * 2)
+        end
+        particle_direction = self:keepAngleInRange(particle_direction)
+
+        local spawn_radius = p.spawn_radius or 0
+        local spawn_angle = randomFloat(0, math.pi * 2)
+        local spawn_distance = randomFloat(0, spawn_radius)
 
         local px = x + math.cos(spawn_angle) * spawn_distance
         local py = y + math.sin(spawn_angle) * spawn_distance
