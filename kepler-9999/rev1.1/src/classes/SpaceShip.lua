@@ -1775,7 +1775,6 @@ function SpaceShip:kill()
     self.exploded = false
 
     if self.mortality then
-        self.mortality.dead = true
         self.mortality.exploded = false
         self.mortality.num_lives = math.max(0, self.mortality.num_lives - 1)
 
@@ -1825,7 +1824,6 @@ function SpaceShip:resetForRespawn()
     self.exploded = false
 
     if self.mortality then
-        self.mortality.dead = false
         self.mortality.exploded = false
         self.mortality.respawn_timer = 0
 
