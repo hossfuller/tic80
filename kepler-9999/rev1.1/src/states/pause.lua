@@ -451,17 +451,22 @@ function drawSelectedMissionDetails(missions, content)
         return
     end
 
-    local progress_text = mission:getProgressText()
-    local status_text   = mission:getStatusLabel()
-    local type_text     = mission:getTypeLabel()
+    local type_text = mission:getTypeLabel()
+
+    local active_text = nil
+    if mission:isPassengerMission() then
+        active_text = tostring(math.floor(mission.passengers.active or 0)) ..
+            "/" .. tostring(math.floor(mission.passengers.total or 0)) .. " pass."
+    else
+        active_text = tostring(math.floor(mission.mass.active or 0)) ..
+            "/" .. tostring(math.floor(mission.mass.total or 0)) .. "kg"
+    end
 
     local text = mission.id ..
-        " | " ..
+        ": " ..
         type_text ..
-        " | " ..
-        status_text ..
-        " | " ..
-        progress_text
+        " | currently carrying " ..
+        active_text
 
     print(text, content.left, content.bottom - 4 * Y_PADDING, GRAY_LITE, false, 1, true)
 end
@@ -579,7 +584,6 @@ function drawMissionBoardList(missions, dock)
         else
             accept_text = "Dock to accept missions"
         end
-
         drawCenteredText(
             accept_text,
             content.bottom - Y_PADDING,
