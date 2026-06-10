@@ -91,6 +91,84 @@ function getMissionCompletionPercent(mission)
     return math.floor(fraction * 100)
 end
 
+function getMissionLocationName(obj)
+    if not obj then
+        return "?"
+    end
+
+    -- If the object is a SpaceDock, display the host planet/station name.
+    if isSpaceDock(obj) then
+        if obj.host then
+            if obj.host.name then
+                return obj.host.name
+            end
+
+            -- Fallback labels if host has no name field.
+            if isPlanet(obj.host) then
+                return "Planet"
+            elseif isSpaceStation(obj.host) then
+                return "Station"
+            end
+        end
+
+        return "Dock"
+    end
+
+    -- If the object is a SpaceStation, display its name.
+    if isSpaceStation(obj) then
+        return obj.name or "Station"
+    end
+
+    -- If the object is a Planet, display its name.
+    if isPlanet(obj) then
+        return obj.name or "Planet"
+    end
+
+    return obj.name or "?"
+end
+
+function getMissionTransportText(mission)
+    if not mission then
+        return "0/0"
+    end
+
+    if mission:isPassengerMission() then
+        return tostring(math.floor(mission.passengers.transported or 0)) ..
+            "/" ..
+            tostring(math.floor(mission.passengers.total or 0))
+    end
+
+    return tostring(math.floor(mission.mass.transported or 0)) ..
+        "/" ..
+        tostring(math.floor(mission.mass.total or 0))
+end
+
+function getMissionDoneText(mission)
+    if not mission then
+        return "0%"
+    end
+
+    local transported = 0
+    local total = 0
+
+    if mission:isPassengerMission() then
+        transported = mission.passengers.transported or 0
+        total = mission.passengers.total or 0
+    else
+        transported = mission.mass.transported or 0
+        total = mission.mass.total or 0
+    end
+
+    if total <= 0 then
+        return "0%"
+    end
+
+    local fraction = transported / total
+    fraction = clamp(fraction, 0, 1)
+
+    return tostring(math.ceil(fraction * 100)) .. "%"
+end
+
 function inputPause()
     if btnp(BTN_P1_START) then
         changeState(STATE.PLAY)
@@ -132,7 +210,7 @@ function updatePause()
 
 end
 
-function drawSelectedMissionDetails(missions)
+function drawSelectedMissionDetails(missions, content)
     if not missions or #missions <= 0 then
         return
     end
@@ -146,8 +224,8 @@ function drawSelectedMissionDetails(missions)
     end
 
     local progress_text = mission:getProgressText()
-    local status_text = mission:getStatusLabel()
-    local type_text = mission:getTypeLabel()
+    local status_text   = mission:getStatusLabel()
+    local type_text     = mission:getTypeLabel()
 
     local text = mission.id ..
         " | " ..
@@ -157,158 +235,150 @@ function drawSelectedMissionDetails(missions)
         " | " ..
         progress_text
 
-    print(
-        text,
-        EDGE_X_LEFT + 16,
-        EDGE_Y_BOTTOM - 4 * Y_PADDING,
-        GRAY_LITE,
-        false,
-        1,
-        true
-    )
+    print(text, content.left, content.bottom - 4 * Y_PADDING, GRAY_LITE, false, 1, true)
 end
 
 function drawMissionBoardList(missions, dock)
-    local box_x = EDGE_X_LEFT + 16
-    local box_y = EDGE_Y_TOP + 28
-    local line_h = 8
+    drawInfoOverlayBox("MISSION BOARD", function(content)
+        local line_h   = 8
+        local box_x    = content.left
+        local box_y    = content.top
 
-    local id_x = box_x
-    local type_x = box_x + 42
-    local status_x = box_x + 112
-    local pct_x = box_x + 190
+        -- Columns:
+        -- TYPE | SRC | DEST | TRANS | DONE
+        local type_x   = box_x
+        local src_x    = box_x + 52
+        local dest_x   = box_x + 94
+        local trans_x  = box_x + 138
+        local done_x   = box_x + 190
 
-    local subtitle = nil
-
-    if dock then
-        subtitle = "Dock Missions"
-    else
-        subtitle = "Active Mission Progress"
-    end
-
-    print(subtitle, box_x, box_y - 10, GRAY_LITE, false, 1, true)
-
-    local header_y = box_y
-
-    print("ID", id_x, header_y, YELLOW, false, 1, true)
-    print("TYPE", type_x, header_y, YELLOW, false, 1, true)
-    print("STATUS", status_x, header_y, YELLOW, false, 1, true)
-    print("DONE", pct_x, header_y, YELLOW, false, 1, true)
-
-    local start_y = header_y + line_h + 2
-
-    if #missions <= 0 then
-        local empty_text = nil
+        local subtitle = nil
 
         if dock then
-            empty_text = "No missions at this dock."
+            subtitle = "Dock Missions"
         else
-            empty_text = "No active mission progress."
+            subtitle = "Active Mission Progress"
         end
 
-        print(empty_text, box_x, start_y, WHITE, false, 1, true)
-        return
-    end
+        print(subtitle, box_x, box_y - 8, GRAY_LITE, false, 1, true)
 
-    local max_visible = math.floor((EDGE_Y_BOTTOM - start_y - 24) / line_h)
+        local header_y = box_y + 4
 
-    if max_visible < 1 then
-        max_visible = 1
-    end
+        print("TYPE", type_x, header_y, YELLOW, false, 1, true)
+        print("SRC", src_x, header_y, YELLOW, false, 1, true)
+        print("DEST", dest_x, header_y, YELLOW, false, 1, true)
+        print("TRANS", trans_x, header_y, YELLOW, false, 1, true)
+        print("DONE", done_x, header_y, YELLOW, false, 1, true)
 
-    local selected = game.pause.selected_mission or 1
-    selected = clamp(selected, 1, #missions)
-    game.pause.selected_mission = selected
+        local start_y = header_y + line_h + 2
 
-    local first = 1
+        if #missions <= 0 then
+            local empty_text = nil
 
-    if selected > max_visible then
-        first = selected - max_visible + 1
-    end
+            if dock then
+                empty_text = "No missions at this dock."
+            else
+                empty_text = "No active mission progress."
+            end
 
-    local last = math.min(#missions, first + max_visible - 1)
-
-    for i = first, last do
-        local mission = missions[i]
-        local row = i - first
-        local y = start_y + row * line_h
-
-        local color = WHITE
-
-        if mission.status == MISSION_STATUS.COMPLETED then
-            color = GREEN_MED
-        elseif mission.status == MISSION_STATUS.FAILED then
-            color = RED
-        elseif mission.status == MISSION_STATUS.IN_PROGRESS then
-            color = WHITE
+            print(empty_text, box_x, start_y, WHITE, false, 1, true)
+            return
         end
 
-        if i == selected then
-            rect(
-                box_x - 3,
-                y - 1,
-                EDGE_X_RIGHT - box_x - 12,
-                line_h,
-                GRAY_DARK
+        -- Leave bottom space for selected mission details and footer controls.
+        local reserved_bottom_h = 5 * Y_PADDING
+        local max_visible = math.floor((content.bottom - reserved_bottom_h - start_y) / line_h)
+        if max_visible < 1 then
+            max_visible = 1
+        end
+
+        local selected = game.pause.selected_mission or 1
+        selected = clamp(selected, 1, #missions)
+        game.pause.selected_mission = selected
+
+        local first = 1
+        if selected > max_visible then
+            first = selected - max_visible + 1
+        end
+
+        local last = math.min(#missions, first + max_visible - 1)
+
+        for i = first, last do
+            local mission = missions[i]
+            local row     = i - first
+            local y       = start_y + row * line_h
+            local color   = WHITE
+
+            if mission.status == MISSION_STATUS.COMPLETED then
+                color = GREEN_MED
+            elseif mission.status == MISSION_STATUS.FAILED then
+                color = RED
+            elseif mission.status == MISSION_STATUS.IN_PROGRESS then
+                color = WHITE
+            end
+
+            if i == selected then
+                rect(box_x - 3, y - 1, content.w - 2 * X_PADDING + 6, line_h, GRAY_DARK)
+            end
+
+            local type_label = mission.getShortTypeLabel and
+                mission:getShortTypeLabel() or
+                mission:getTypeLabel()
+
+            local src_text   = getMissionLocationName(mission.source)
+            local dest_text  = getMissionLocationName(mission.destination)
+            local trans_text = getMissionTransportText(mission)
+            local done_text  = getMissionDoneText(mission)
+
+            print(type_label, type_x, y, color, false, 1, true)
+            print(src_text, src_x, y, color, false, 1, true)
+            print(dest_text, dest_x, y, color, false, 1, true)
+            print(trans_text, trans_x, y, color, false, 1, true)
+            print(done_text, done_x, y, color, false, 1, true)
+        end
+
+        drawSelectedMissionDetails(missions, content)
+
+        if #missions > max_visible then
+            local scroll_text = tostring(selected) .. "/" .. tostring(#missions)
+            local scroll_w = print(scroll_text, -100, -100, GRAY_LITE, false, 1, true)
+
+            print(
+                scroll_text,
+                content.right - scroll_w,
+                content.bottom - 4 * Y_PADDING,
+                GRAY_LITE, false, 1, true
             )
         end
 
-        local pct = getMissionCompletionPercent(mission)
-        local pct_text = tostring(pct) .. "%"
-
-        local type_label = mission.getShortTypeLabel and
-            mission:getShortTypeLabel() or
-            mission:getTypeLabel()
-
-        print(mission.id, id_x, y, color, false, 1, true)
-        print(type_label, type_x, y, color, false, 1, true)
-        print(mission:getStatusLabel(), status_x, y, color, false, 1, true)
-        print(pct_text, pct_x, y, color, false, 1, true)
-    end
-
-    drawSelectedMissionDetails(missions)
-
-    if #missions > max_visible then
-        local scroll_text = tostring(selected) .. "/" .. tostring(#missions)
-        local scroll_w = print(scroll_text, -100, -100, GRAY_LITE, false, 1, true)
-
-        print(
-            scroll_text,
-            EDGE_X_RIGHT - scroll_w - X_PADDING,
-            EDGE_Y_BOTTOM - 3 * Y_PADDING,
-            GRAY_LITE,
-            false,
-            1,
-            true
+        drawCenteredText(
+            "UP/DOWN: Select",
+            -- content.bottom - 3 * Y_PADDING,
+            content.bottom - 2 * Y_PADDING,
+            WHITE, false, 1, true, GRAY_MED
         )
-    end
+
+        drawCenteredText(
+            "Z: Accept manifest",
+            -- content.bottom - 2 * Y_PADDING,
+            content.bottom - Y_PADDING,
+            WHITE, false, 1, true, GRAY_MED
+        )
+
+        drawCenteredText(
+            "Press 'START' (S) to Resume",
+            -- content.bottom - Y_PADDING,
+            content.bottom,
+            WHITE, false, 1, true, GRAY_MED
+        )
+    end)
 end
 
 function drawPause()
     -- Draw the game state frozen behind the overlay.
     drawGame()
 
-    drawStandardOverlayBox("MISSION BOARD")
-
     local missions, dock = getMissionBoardMissions()
 
     drawMissionBoardList(missions, dock)
-
-    drawCenteredText(
-        "UP/DOWN: Select",
-        EDGE_Y_BOTTOM - 3 * Y_PADDING,
-        WHITE, false, 1, true, GRAY_MED
-    )
-
-    drawCenteredText(
-        "Press 'START' (S) to Resume",
-        EDGE_Y_BOTTOM - 2 * Y_PADDING,
-        WHITE, false, 1, true, GRAY_MED
-    )
-
-    drawCenteredText(
-        "Press 'SELECT' (A) to Quit",
-        EDGE_Y_BOTTOM - Y_PADDING,
-        WHITE, false, 1, true, GRAY_MED
-    )
 end

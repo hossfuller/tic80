@@ -1613,27 +1613,16 @@ function SpaceShip:drawDockingHud()
     local y = 4
     local line_h = FIXED_CHAR_HEIGHT + 1
 
-    -- Find widest line so the whole HUD can be right-aligned.
-    local max_text_w = 0
-
-    for _, text in ipairs(lines) do
-        local text_w = print(text, 0, -100, WHITE, true, 1, true)
-
-        if text_w > max_text_w then
-            max_text_w = text_w
-        end
-    end
-
-    local x = SCREEN_W - max_text_w - x_padding
-
     for i, text in ipairs(lines) do
         local line_y = y + (i - 1) * line_h
+        local text_w = print(text, 0, -100, WHITE, true, 1, true)
+        local line_x = SCREEN_W - text_w - x_padding
 
         -- Shadow.
-        print(text, x + 1, line_y + 1, BLACK, true, 1, true)
+        print(text, line_x + 1, line_y + 1, BLACK, true, 1, true)
 
         -- Text.
-        print(text, x, line_y, WHITE, true, 1, true)
+        print(text, line_x, line_y, WHITE, true, 1, true)
     end
 end
 

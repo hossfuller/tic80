@@ -89,3 +89,36 @@ function drawStandardOverlayBox(text)
     -- Draw text
     drawCenteredText(text, box_pos_y + 16, WHITE)
 end
+
+function drawInfoOverlayBox(title, draw_content_fn)
+    local box_pos_x  = X_PADDING
+    local box_pos_y  = Y_PADDING
+    local box_width  = EDGE_X_RIGHT - 2 * X_PADDING
+    local box_height = EDGE_Y_BOTTOM - 2 * Y_PADDING
+
+    -- Background.
+    rect(box_pos_x, box_pos_y, box_width, box_height, BLACK)
+    rectb(box_pos_x, box_pos_y, box_width, box_height, 12)
+
+    -- Title.
+    if title then
+        drawCenteredText(title, box_pos_y + Y_PADDING, RED, false, 2, false, YELLOW)
+    end
+
+    local content = {
+        x      = box_pos_x,
+        y      = box_pos_y,
+        w      = box_width,
+        h      = box_height,
+        left   = box_pos_x + X_PADDING,
+        right  = box_pos_x + box_width - X_PADDING,
+        top    = box_pos_y + 4 * Y_PADDING,
+        bottom = box_pos_y + box_height - Y_PADDING,
+    }
+
+    if draw_content_fn then
+        draw_content_fn(content)
+    end
+
+    return content
+end

@@ -156,11 +156,11 @@ function Mission:getShortTypeLabel()
     if self.type == MISSION_TYPE.CARGO then
         return "Cargo"
     elseif self.type == MISSION_TYPE.PASSENGER then
-        return "Pax"
+        return "Passengers"
     elseif self.type == MISSION_TYPE.CONTRABAND_CARGO then
         return "Contra Cargo"
     elseif self.type == MISSION_TYPE.CONTRABAND_PASSENGER then
-        return "Contra Pax"
+        return "Contra Pass."
     end
 
     return tostring(self.type)
