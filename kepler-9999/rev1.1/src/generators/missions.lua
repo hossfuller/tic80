@@ -19,11 +19,9 @@ local MISSION_TYPE = {
 }
 
 local MISSION_STATUS = {
-    IN_PROGRESS = "in-progress",
-    COMPLETED   = "completed",
-    FAILED      = "failed",
+    ACTIVE    = "active",
+    COMPLETED = "completed",
 }
-
 -- ==========================================
 -- MISSIONS CREATION
 -- ==========================================
@@ -74,10 +72,10 @@ function createRandomMission(source)
     local mission_type = getRandomMissionType()
 
     local params = {
-        source = source,
+        source      = source,
         destination = destination,
-        type = mission_type,
-        status = MISSION_STATUS.IN_PROGRESS,
+        type        = mission_type,
+        status      = MISSION_STATUS.ACTIVE,
     }
 
     if mission_type == MISSION_TYPE.PASSENGER or
@@ -273,7 +271,6 @@ function deliverMissionCargoAtDock(ship, mission)
     end
 
     local hold_type = getMissionDeliveryHoldType(mission)
-
     if not hold_type then
         return 0
     end
@@ -283,39 +280,35 @@ function deliverMissionCargoAtDock(ship, mission)
     end
 
     local hold = ship.holds[hold_type]
-
     if hold.cur <= 0 then
         return 0
     end
 
     local rate = getMissionDeliveryRatePerTick(mission)
-
     local requested_amount = math.min(
         rate,
         hold.cur,
         mission.mass.active or 0
     )
-
     if requested_amount <= 0 then
         return 0
     end
 
     -- First remove from the ship hold.
     local removed_from_ship = ship:updateHoldMass(hold_type, -requested_amount)
-
     if not removed_from_ship then
         return 0
     end
 
     -- Then update mission progress.
     local delivered = mission:deliverMass(requested_amount)
-
     if delivered <= 0 then
         -- Should not normally happen, but restore the ship hold if mission
         -- delivery failed.
         ship:updateHoldMass(hold_type, requested_amount)
         return 0
     end
+    removeShipMissionManifestAmount(ship, mission, delivered)
 
     -- Mission delivery counts toward score/mass delivered.
     ship:updateMassDelivered(delivered)
@@ -346,29 +339,24 @@ function deliverMissionPassengersAtDock(ship, mission)
     end
 
     local passenger_hold = ship.holds.passengers
-
     if passenger_hold.cur <= 0 then
         return 0
     end
 
     local active_passengers = mission.passengers.active or 0
-
     if active_passengers <= 0 then
         return 0
     end
 
     local passenger_rate = getMissionDeliveryRatePerTick(mission)
-
     local available_passengers_on_ship = math.floor(
         passenger_hold.cur / PASSENGER_TOTAL_MASS
     )
-
     local passenger_count = math.min(
         passenger_rate,
         available_passengers_on_ship,
         active_passengers
     )
-
     if passenger_count <= 0 then
         return 0
     end
@@ -390,6 +378,7 @@ function deliverMissionPassengersAtDock(ship, mission)
         ship:updateHoldMass("passengers", passenger_mass)
         return 0
     end
+    removeShipMissionManifestAmount(ship, mission, delivered_passengers)
 
     local delivered_mass = delivered_passengers * PASSENGER_TOTAL_MASS
 
@@ -424,6 +413,117 @@ function deliverMissionManifestAtDock(ship, dock)
     end
 
     return total_delivered_mass
+end
+
+-- ==========================================
+-- MISSION MANIFEST HELPERS
+-- ==========================================
+
+function getShipMissionManifestBucket(ship, mission)
+    if not ship or not mission then
+        return nil
+    end
+
+    if not ship.mission_manifest then
+        ship.mission_manifest = {
+            cargo = {},
+            passengers = {},
+            smuggled = {},
+        }
+    end
+
+    if mission.type == MISSION_TYPE.CARGO then
+        return ship.mission_manifest.cargo
+    elseif mission.type == MISSION_TYPE.CONTRABAND_CARGO then
+        return ship.mission_manifest.smuggled
+    elseif mission.type == MISSION_TYPE.PASSENGER or
+        mission.type == MISSION_TYPE.CONTRABAND_PASSENGER
+    then
+        return ship.mission_manifest.passengers
+    end
+
+    return nil
+end
+
+function getShipMissionManifestAmount(ship, mission)
+    local bucket = getShipMissionManifestBucket(ship, mission)
+
+    if not bucket or not mission or not mission.id then
+        return 0
+    end
+
+    return bucket[mission.id] or 0
+end
+
+function addShipMissionManifestAmount(ship, mission, amount)
+    local bucket = getShipMissionManifestBucket(ship, mission)
+
+    if not bucket or not mission or not mission.id then
+        return false
+    end
+
+    amount = math.floor(amount or 0)
+
+    if amount <= 0 then
+        return false
+    end
+
+    bucket[mission.id] = (bucket[mission.id] or 0) + amount
+
+    return true
+end
+
+function removeShipMissionManifestAmount(ship, mission, amount)
+    local bucket = getShipMissionManifestBucket(ship, mission)
+
+    if not bucket or not mission or not mission.id then
+        return 0
+    end
+
+    amount = math.floor(amount or 0)
+
+    if amount <= 0 then
+        return 0
+    end
+
+    local current = bucket[mission.id] or 0
+    local removed = math.min(current, amount)
+
+    current = current - removed
+
+    if current <= 0 then
+        bucket[mission.id] = nil
+    else
+        bucket[mission.id] = current
+    end
+
+    return removed
+end
+
+function clearShipMissionManifest(ship)
+    if not ship then
+        return
+    end
+
+    ship.mission_manifest = {
+        cargo = {},
+        passengers = {},
+        smuggled = {},
+    }
+end
+
+function clearCarriedMissionManifestForDestroyedShip(ship)
+    if not ship then
+        return
+    end
+
+    for _, mission in ipairs(game.play.missions or {}) do
+        if mission and mission.onShipDestroyed then
+            mission:onShipDestroyed()
+        end
+    end
+
+    clearShipMissionManifest(ship)
 end
 
 -- ==========================================

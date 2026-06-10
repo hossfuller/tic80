@@ -1762,11 +1762,9 @@ local MISSION_TYPE = {
 }
 
 local MISSION_STATUS = {
-    IN_PROGRESS = "in-progress",
-    COMPLETED   = "completed",
-    FAILED      = "failed",
+    ACTIVE    = "active",
+    COMPLETED = "completed",
 }
-
 -- ==========================================
 -- MISSIONS CREATION
 -- ==========================================
@@ -1817,10 +1815,10 @@ function createRandomMission(source)
     local mission_type = getRandomMissionType()
 
     local params = {
-        source = source,
+        source      = source,
         destination = destination,
-        type = mission_type,
-        status = MISSION_STATUS.IN_PROGRESS,
+        type        = mission_type,
+        status      = MISSION_STATUS.ACTIVE,
     }
 
     if mission_type == MISSION_TYPE.PASSENGER or
@@ -2016,7 +2014,6 @@ function deliverMissionCargoAtDock(ship, mission)
     end
 
     local hold_type = getMissionDeliveryHoldType(mission)
-
     if not hold_type then
         return 0
     end
@@ -2026,39 +2023,35 @@ function deliverMissionCargoAtDock(ship, mission)
     end
 
     local hold = ship.holds[hold_type]
-
     if hold.cur <= 0 then
         return 0
     end
 
     local rate = getMissionDeliveryRatePerTick(mission)
-
     local requested_amount = math.min(
         rate,
         hold.cur,
         mission.mass.active or 0
     )
-
     if requested_amount <= 0 then
         return 0
     end
 
     -- First remove from the ship hold.
     local removed_from_ship = ship:updateHoldMass(hold_type, -requested_amount)
-
     if not removed_from_ship then
         return 0
     end
 
     -- Then update mission progress.
     local delivered = mission:deliverMass(requested_amount)
-
     if delivered <= 0 then
         -- Should not normally happen, but restore the ship hold if mission
         -- delivery failed.
         ship:updateHoldMass(hold_type, requested_amount)
         return 0
     end
+    removeShipMissionManifestAmount(ship, mission, delivered)
 
     -- Mission delivery counts toward score/mass delivered.
     ship:updateMassDelivered(delivered)
@@ -2089,29 +2082,24 @@ function deliverMissionPassengersAtDock(ship, mission)
     end
 
     local passenger_hold = ship.holds.passengers
-
     if passenger_hold.cur <= 0 then
         return 0
     end
 
     local active_passengers = mission.passengers.active or 0
-
     if active_passengers <= 0 then
         return 0
     end
 
     local passenger_rate = getMissionDeliveryRatePerTick(mission)
-
     local available_passengers_on_ship = math.floor(
         passenger_hold.cur / PASSENGER_TOTAL_MASS
     )
-
     local passenger_count = math.min(
         passenger_rate,
         available_passengers_on_ship,
         active_passengers
     )
-
     if passenger_count <= 0 then
         return 0
     end
@@ -2133,6 +2121,7 @@ function deliverMissionPassengersAtDock(ship, mission)
         ship:updateHoldMass("passengers", passenger_mass)
         return 0
     end
+    removeShipMissionManifestAmount(ship, mission, delivered_passengers)
 
     local delivered_mass = delivered_passengers * PASSENGER_TOTAL_MASS
 
@@ -2167,6 +2156,117 @@ function deliverMissionManifestAtDock(ship, dock)
     end
 
     return total_delivered_mass
+end
+
+-- ==========================================
+-- MISSION MANIFEST HELPERS
+-- ==========================================
+
+function getShipMissionManifestBucket(ship, mission)
+    if not ship or not mission then
+        return nil
+    end
+
+    if not ship.mission_manifest then
+        ship.mission_manifest = {
+            cargo = {},
+            passengers = {},
+            smuggled = {},
+        }
+    end
+
+    if mission.type == MISSION_TYPE.CARGO then
+        return ship.mission_manifest.cargo
+    elseif mission.type == MISSION_TYPE.CONTRABAND_CARGO then
+        return ship.mission_manifest.smuggled
+    elseif mission.type == MISSION_TYPE.PASSENGER or
+        mission.type == MISSION_TYPE.CONTRABAND_PASSENGER
+    then
+        return ship.mission_manifest.passengers
+    end
+
+    return nil
+end
+
+function getShipMissionManifestAmount(ship, mission)
+    local bucket = getShipMissionManifestBucket(ship, mission)
+
+    if not bucket or not mission or not mission.id then
+        return 0
+    end
+
+    return bucket[mission.id] or 0
+end
+
+function addShipMissionManifestAmount(ship, mission, amount)
+    local bucket = getShipMissionManifestBucket(ship, mission)
+
+    if not bucket or not mission or not mission.id then
+        return false
+    end
+
+    amount = math.floor(amount or 0)
+
+    if amount <= 0 then
+        return false
+    end
+
+    bucket[mission.id] = (bucket[mission.id] or 0) + amount
+
+    return true
+end
+
+function removeShipMissionManifestAmount(ship, mission, amount)
+    local bucket = getShipMissionManifestBucket(ship, mission)
+
+    if not bucket or not mission or not mission.id then
+        return 0
+    end
+
+    amount = math.floor(amount or 0)
+
+    if amount <= 0 then
+        return 0
+    end
+
+    local current = bucket[mission.id] or 0
+    local removed = math.min(current, amount)
+
+    current = current - removed
+
+    if current <= 0 then
+        bucket[mission.id] = nil
+    else
+        bucket[mission.id] = current
+    end
+
+    return removed
+end
+
+function clearShipMissionManifest(ship)
+    if not ship then
+        return
+    end
+
+    ship.mission_manifest = {
+        cargo = {},
+        passengers = {},
+        smuggled = {},
+    }
+end
+
+function clearCarriedMissionManifestForDestroyedShip(ship)
+    if not ship then
+        return
+    end
+
+    for _, mission in ipairs(game.play.missions or {}) do
+        if mission and mission.onShipDestroyed then
+            mission:onShipDestroyed()
+        end
+    end
+
+    clearShipMissionManifest(ship)
 end
 
 -- ==========================================
@@ -4801,21 +4901,16 @@ function acceptMissionManifest(ship, mission)
         local loaded = mission:loadPassengers(passenger_count)
         if loaded <= 0 then
             -- Restore passenger mass if the mission did not accept the load.
-            ship:updateHoldMass(
-                "passengers",
-                -(passenger_count * PASSENGER_TOTAL_MASS)
-            )
+            ship:updateHoldMass("passengers", -(passenger_count * PASSENGER_TOTAL_MASS))
             return false
         end
+        addShipMissionManifestAmount(ship, mission, loaded)
 
         -- If for some reason fewer passengers loaded than requested, restore
         -- the difference.
         if loaded < passenger_count then
             local unloaded_count = passenger_count - loaded
-            ship:updateHoldMass(
-                "passengers",
-                -(unloaded_count * PASSENGER_TOTAL_MASS)
-            )
+            ship:updateHoldMass("passengers", -(unloaded_count * PASSENGER_TOTAL_MASS))
         end
 
         return true
@@ -4866,6 +4961,7 @@ function acceptMissionManifest(ship, mission)
 
         return false
     end
+    addShipMissionManifestAmount(ship, mission, loaded)
 
     -- If for some reason less mass loaded than requested, restore the difference.
     if loaded < cargo_mass then
@@ -5053,10 +5149,6 @@ function drawMissionBoardList(missions, dock)
 
             if mission.status == MISSION_STATUS.COMPLETED then
                 color = GREEN_MED
-            elseif mission.status == MISSION_STATUS.FAILED then
-                color = RED
-            elseif mission.status == MISSION_STATUS.IN_PROGRESS then
-                color = WHITE
             end
 
             if i == selected then
@@ -5948,6 +6040,11 @@ function SpaceShip:new(params)
             cur = params.holds.smuggled.cur or 0,   -- (kg)
             max = params.holds.smuggled.max or 100, -- (kg)
         },
+    }
+    self.mission_manifest = {
+        cargo      = {},
+        passengers = {},
+        smuggled   = {},
     }
     self.cargo_has_ore = params.cargo_has_ore or false
 
@@ -7690,6 +7787,10 @@ function SpaceShip:kill()
             self.mortality.respawn_timer = 0
         end
     end
+
+    -- Losing a life destroys carried mission cargo/passengers, but missions
+    -- remain active and can be re-loaded from their source docks.
+    clearCarriedMissionManifestForDestroyedShip(self)
 
     -- Losing a life destroys all carried cargo/passengers/smuggled goods.
     if self.holds then
@@ -10837,7 +10938,7 @@ function Mission:new(params)
     self.destination = params.destination or nil
 
     self.type   = params.type   or MISSION_TYPE.CARGO
-    self.status = params.status or MISSION_STATUS.IN_PROGRESS
+    self.status = params.status or MISSION_STATUS.ACTIVE
 
     self.deadline = params.deadline or nil
 
@@ -10987,12 +11088,10 @@ function Mission:getShortTypeLabel()
 end
 
 function Mission:getStatusLabel()
-    if self.status == MISSION_STATUS.IN_PROGRESS then
-        return "In Progress"
+    if self.status == MISSION_STATUS.ACTIVE then
+        return "Active"
     elseif self.status == MISSION_STATUS.COMPLETED then
         return "Completed"
-    elseif self.status == MISSION_STATUS.FAILED then
-        return "Failed"
     end
 
     return tostring(self.status)
@@ -11016,42 +11115,24 @@ end
 -- MISSION STATUS
 -- ==========================================
 
-function Mission:isInProgress()
-    return self.status == MISSION_STATUS.IN_PROGRESS
+function Mission:isActive()
+    return self.status == MISSION_STATUS.ACTIVE
 end
 
 function Mission:isCompleted()
     return self.status == MISSION_STATUS.COMPLETED
 end
 
-function Mission:isFailed()
-    return self.status == MISSION_STATUS.FAILED
-end
-
 function Mission:isTerminal()
-    return self:isCompleted() or self:isFailed()
+    return self:isCompleted()
 end
 
 function Mission:canAct()
-    return self:isInProgress()
-end
-
-function Mission:fail()
-    if self:isTerminal() then
-        return false
-    end
-
-    self.status = MISSION_STATUS.FAILED
-
-    -- Mission cargo/passengers are no longer considered recoverable.
-    self.mass.active = 0
-    self.passengers.active = 0
-
-    return true
+    return self:isActive()
 end
 
 function Mission:canComplete()
-    if self.status ~= MISSION_STATUS.IN_PROGRESS then
+    if self.status ~= MISSION_STATUS.ACTIVE then
         return false
     end
 
@@ -11076,15 +11157,17 @@ function Mission:complete()
 end
 
 function Mission:onShipDestroyed()
-    if self:isTerminal() then
+    if self:isCompleted() then
         return false
     end
 
-    if (self.mass.active or 0) > 0 then
-        return self:fail()
-    end
+    -- Only cargo/passengers currently aboard the destroyed ship are lost.
+    self.mass.active       = 0
+    self.passengers.active = 0
 
-    return false
+    self:clampProgress()
+
+    return true
 end
 
 -- ==========================================
@@ -11106,14 +11189,6 @@ function Mission:isExpired(current_timestamp)
 end
 
 function Mission:updateDeadline(current_timestamp)
-    if self:isTerminal() then
-        return false
-    end
-
-    if self:isExpired(current_timestamp) then
-        return self:fail()
-    end
-
     return false
 end
 

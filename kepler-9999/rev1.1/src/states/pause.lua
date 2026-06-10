@@ -283,21 +283,16 @@ function acceptMissionManifest(ship, mission)
         local loaded = mission:loadPassengers(passenger_count)
         if loaded <= 0 then
             -- Restore passenger mass if the mission did not accept the load.
-            ship:updateHoldMass(
-                "passengers",
-                -(passenger_count * PASSENGER_TOTAL_MASS)
-            )
+            ship:updateHoldMass("passengers", -(passenger_count * PASSENGER_TOTAL_MASS))
             return false
         end
+        addShipMissionManifestAmount(ship, mission, loaded)
 
         -- If for some reason fewer passengers loaded than requested, restore
         -- the difference.
         if loaded < passenger_count then
             local unloaded_count = passenger_count - loaded
-            ship:updateHoldMass(
-                "passengers",
-                -(unloaded_count * PASSENGER_TOTAL_MASS)
-            )
+            ship:updateHoldMass("passengers", -(unloaded_count * PASSENGER_TOTAL_MASS))
         end
 
         return true
@@ -348,6 +343,7 @@ function acceptMissionManifest(ship, mission)
 
         return false
     end
+    addShipMissionManifestAmount(ship, mission, loaded)
 
     -- If for some reason less mass loaded than requested, restore the difference.
     if loaded < cargo_mass then
@@ -535,10 +531,6 @@ function drawMissionBoardList(missions, dock)
 
             if mission.status == MISSION_STATUS.COMPLETED then
                 color = GREEN_MED
-            elseif mission.status == MISSION_STATUS.FAILED then
-                color = RED
-            elseif mission.status == MISSION_STATUS.IN_PROGRESS then
-                color = WHITE
             end
 
             if i == selected then

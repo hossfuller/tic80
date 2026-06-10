@@ -82,17 +82,17 @@ The different revisions implement separate features. This list is ever changing.
     - [x] A player's score is the amount of mass they deliver (mass of ore, cargo, contraband, and passengers)
     - [x] Track date, mass delivered, and engine levels.
 - [ ] **REV1.1**: Missions
-    - [ ] While docked at the space station or any of the planets' space docks, pick up cargo/passengers/contraband for delivery.
-    - [ ] Use the `pickup`/`deliver` functions to meddle with the ship's mass.
-    - [ ] Mission type: deliver cargo
-    - [ ] Mission type: deliver contraband (to/from a specific NPC smuggler ship?)
-    - [ ] Mission type: carry passengers to different destinations
+    - [x] While docked at the space station or any of the planets' space docks, pick up cargo/passengers/contraband for delivery.
+    - [x] Use the `pickup`/`deliver` functions to meddle with the ship's mass.
+    - [x] Mission type: deliver cargo
+    - [x] Mission type: carry passengers to different destinations
     - [ ] Mission type: mining contracts
 - [ ] **REV1.2**: NPC Ships
     - [ ] A freighter travels from dock to dock collecting ore deposits and transferring them to the space station.
     - [ ] The freighter can be lost, and if so, that ore is gone but also a new freighter spawns somewhere else.
     - [ ] A passenger ship travels from dock to dock delivering passengers.
     - [ ] A smuggler ship that doles out smuggling contracts.
+    - [ ] Mission type: deliver contraband (to/from a specific NPC smuggler ship?)
 - [ ] **REV1.3**: Sound effects and music
     - [ ] Sound effects for everything.
 - [ ] **REV1.4**: tbd

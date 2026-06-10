@@ -49,6 +49,11 @@ function SpaceShip:new(params)
             max = params.holds.smuggled.max or 100, -- (kg)
         },
     }
+    self.mission_manifest = {
+        cargo      = {},
+        passengers = {},
+        smuggled   = {},
+    }
     self.cargo_has_ore = params.cargo_has_ore or false
 
     self.mass       = params.mass       or 100   -- (kg)
@@ -1790,6 +1795,10 @@ function SpaceShip:kill()
             self.mortality.respawn_timer = 0
         end
     end
+
+    -- Losing a life destroys carried mission cargo/passengers, but missions
+    -- remain active and can be re-loaded from their source docks.
+    clearCarriedMissionManifestForDestroyedShip(self)
 
     -- Losing a life destroys all carried cargo/passengers/smuggled goods.
     if self.holds then

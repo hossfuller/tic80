@@ -17,7 +17,7 @@ function Mission:new(params)
     self.destination = params.destination or nil
 
     self.type   = params.type   or MISSION_TYPE.CARGO
-    self.status = params.status or MISSION_STATUS.IN_PROGRESS
+    self.status = params.status or MISSION_STATUS.ACTIVE
 
     self.deadline = params.deadline or nil
 
@@ -167,12 +167,10 @@ function Mission:getShortTypeLabel()
 end
 
 function Mission:getStatusLabel()
-    if self.status == MISSION_STATUS.IN_PROGRESS then
-        return "In Progress"
+    if self.status == MISSION_STATUS.ACTIVE then
+        return "Active"
     elseif self.status == MISSION_STATUS.COMPLETED then
         return "Completed"
-    elseif self.status == MISSION_STATUS.FAILED then
-        return "Failed"
     end
 
     return tostring(self.status)
@@ -196,42 +194,24 @@ end
 -- MISSION STATUS
 -- ==========================================
 
-function Mission:isInProgress()
-    return self.status == MISSION_STATUS.IN_PROGRESS
+function Mission:isActive()
+    return self.status == MISSION_STATUS.ACTIVE
 end
 
 function Mission:isCompleted()
     return self.status == MISSION_STATUS.COMPLETED
 end
 
-function Mission:isFailed()
-    return self.status == MISSION_STATUS.FAILED
-end
-
 function Mission:isTerminal()
-    return self:isCompleted() or self:isFailed()
+    return self:isCompleted()
 end
 
 function Mission:canAct()
-    return self:isInProgress()
-end
-
-function Mission:fail()
-    if self:isTerminal() then
-        return false
-    end
-
-    self.status = MISSION_STATUS.FAILED
-
-    -- Mission cargo/passengers are no longer considered recoverable.
-    self.mass.active = 0
-    self.passengers.active = 0
-
-    return true
+    return self:isActive()
 end
 
 function Mission:canComplete()
-    if self.status ~= MISSION_STATUS.IN_PROGRESS then
+    if self.status ~= MISSION_STATUS.ACTIVE then
         return false
     end
 
@@ -256,15 +236,17 @@ function Mission:complete()
 end
 
 function Mission:onShipDestroyed()
-    if self:isTerminal() then
+    if self:isCompleted() then
         return false
     end
 
-    if (self.mass.active or 0) > 0 then
-        return self:fail()
-    end
+    -- Only cargo/passengers currently aboard the destroyed ship are lost.
+    self.mass.active       = 0
+    self.passengers.active = 0
 
-    return false
+    self:clampProgress()
+
+    return true
 end
 
 -- ==========================================
@@ -286,14 +268,6 @@ function Mission:isExpired(current_timestamp)
 end
 
 function Mission:updateDeadline(current_timestamp)
-    if self:isTerminal() then
-        return false
-    end
-
-    if self:isExpired(current_timestamp) then
-        return self:fail()
-    end
-
     return false
 end
 
