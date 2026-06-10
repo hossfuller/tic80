@@ -24,6 +24,10 @@ local MISSION_STATUS = {
     FAILED      = "failed",
 }
 
+-- ==========================================
+-- MISSIONS CREATION
+-- ==========================================
+
 function generateMissionId(length)
     length = length or 6
 
@@ -39,14 +43,24 @@ function generateMissionId(length)
 end
 
 function getRandomMissionType()
-    local types = {
-        MISSION_TYPE.CARGO,
-        MISSION_TYPE.PASSENGER,
-        MISSION_TYPE.CONTRABAND_CARGO,
-        MISSION_TYPE.CONTRABAND_PASSENGER,
-    }
+    -- Around 10% total contraband chance.
+    local contraband_chance = 0.10
+    local is_contraband     = math.random() < contraband_chance
+    local is_passenger      = math.random() < 0.5
 
-    return types[math.random(1, #types)]
+    if is_contraband then
+        if is_passenger then
+            return MISSION_TYPE.CONTRABAND_PASSENGER
+        else
+            return MISSION_TYPE.CONTRABAND_CARGO
+        end
+    end
+
+    if is_passenger then
+        return MISSION_TYPE.PASSENGER
+    end
+
+    return MISSION_TYPE.CARGO
 end
 
 function createRandomMission(source)
@@ -175,6 +189,241 @@ function maintainMissionGeneration()
     if allMissionsAreTerminal() then
         generateInitialMissions()
     end
+end
+
+-- ==========================================
+-- MISSION UNLOADING WHILE DOCKED
+-- ==========================================
+
+function getMissionDestinationForDock(dock)
+    if not dock then
+        return nil
+    end
+
+    -- Dock attached to a SpaceStation represents the SpaceStation destination.
+    if isStationDock(dock) then
+        return dock.host
+    end
+
+    -- Planet SpaceDock represents itself.
+    if isPlanetDock(dock) then
+        return dock
+    end
+
+    return dock
+end
+
+function missionIsDestinedForDock(mission, dock)
+    if not mission or not dock then
+        return false
+    end
+
+    local destination = getMissionDestinationForDock(dock)
+
+    return mission.destination == destination
+end
+
+function getActiveMissionsDestinedForDock(dock)
+    local missions = {}
+
+    if not dock then
+        return missions
+    end
+
+    for _, mission in ipairs(game.play.missions or {}) do
+        if mission and
+            mission:canAct() and
+            missionIsDestinedForDock(mission, dock)
+        then
+            local has_active_manifest = false
+
+            if mission:isPassengerMission() then
+                has_active_manifest = (mission.passengers.active or 0) > 0
+            else
+                has_active_manifest = (mission.mass.active or 0) > 0
+            end
+
+            if has_active_manifest then
+                table.insert(missions, mission)
+            end
+        end
+    end
+
+    return missions
+end
+
+function getMissionDeliveryHoldType(mission)
+    return getMissionManifestHoldType(mission)
+end
+
+function getMissionDeliveryRatePerTick(mission)
+    -- Same general feel as ore unloading: gradual automatic unloading.
+    -- Cargo/smuggled goods unload 1 kg per TIC.
+    -- Passengers unload 1 passenger per TIC.
+    return 1
+end
+
+function deliverMissionCargoAtDock(ship, mission)
+    if not ship or not mission then
+        return 0
+    end
+
+    if not mission:canAct() or not mission:isCargoMission() then
+        return 0
+    end
+
+    local hold_type = getMissionDeliveryHoldType(mission)
+
+    if not hold_type then
+        return 0
+    end
+
+    if not ship.holds or not ship.holds[hold_type] then
+        return 0
+    end
+
+    local hold = ship.holds[hold_type]
+
+    if hold.cur <= 0 then
+        return 0
+    end
+
+    local rate = getMissionDeliveryRatePerTick(mission)
+
+    local requested_amount = math.min(
+        rate,
+        hold.cur,
+        mission.mass.active or 0
+    )
+
+    if requested_amount <= 0 then
+        return 0
+    end
+
+    -- First remove from the ship hold.
+    local removed_from_ship = ship:updateHoldMass(hold_type, -requested_amount)
+
+    if not removed_from_ship then
+        return 0
+    end
+
+    -- Then update mission progress.
+    local delivered = mission:deliverMass(requested_amount)
+
+    if delivered <= 0 then
+        -- Should not normally happen, but restore the ship hold if mission
+        -- delivery failed.
+        ship:updateHoldMass(hold_type, requested_amount)
+        return 0
+    end
+
+    -- Mission delivery counts toward score/mass delivered.
+    ship:updateMassDelivered(delivered)
+
+    -- Normal cargo hold is no longer ore if emptied.
+    if hold_type == "cargo" and ship:getCargoMass() <= 0 then
+        ship.cargo_has_ore = false
+    end
+
+    if notifyMassDelivered then
+        notifyMassDelivered()
+    end
+
+    return delivered
+end
+
+function deliverMissionPassengersAtDock(ship, mission)
+    if not ship or not mission then
+        return 0
+    end
+
+    if not mission:canAct() or not mission:isPassengerMission() then
+        return 0
+    end
+
+    if not ship.holds or not ship.holds.passengers then
+        return 0
+    end
+
+    local passenger_hold = ship.holds.passengers
+
+    if passenger_hold.cur <= 0 then
+        return 0
+    end
+
+    local active_passengers = mission.passengers.active or 0
+
+    if active_passengers <= 0 then
+        return 0
+    end
+
+    local passenger_rate = getMissionDeliveryRatePerTick(mission)
+
+    local available_passengers_on_ship = math.floor(
+        passenger_hold.cur / PASSENGER_TOTAL_MASS
+    )
+
+    local passenger_count = math.min(
+        passenger_rate,
+        available_passengers_on_ship,
+        active_passengers
+    )
+
+    if passenger_count <= 0 then
+        return 0
+    end
+
+    local passenger_mass = passenger_count * PASSENGER_TOTAL_MASS
+
+    -- First remove passenger mass from the ship.
+    local removed_from_ship = ship:updateHoldMass("passengers", -passenger_mass)
+
+    if not removed_from_ship then
+        return 0
+    end
+
+    -- Then update mission progress.
+    local delivered_passengers = mission:deliverPassengers(passenger_count)
+
+    if delivered_passengers <= 0 then
+        -- Restore if mission delivery failed.
+        ship:updateHoldMass("passengers", passenger_mass)
+        return 0
+    end
+
+    local delivered_mass = delivered_passengers * PASSENGER_TOTAL_MASS
+
+    -- Passenger delivery also counts as delivered mass/score.
+    ship:updateMassDelivered(delivered_mass)
+
+    if notifyMassDelivered then
+        notifyMassDelivered()
+    end
+
+    return delivered_mass
+end
+
+function deliverMissionManifestAtDock(ship, dock)
+    if not ship or not dock then
+        return 0
+    end
+
+    local total_delivered_mass = 0
+    local missions = getActiveMissionsDestinedForDock(dock)
+
+    for _, mission in ipairs(missions) do
+        local delivered_mass = 0
+
+        if mission:isPassengerMission() then
+            delivered_mass = deliverMissionPassengersAtDock(ship, mission)
+        else
+            delivered_mass = deliverMissionCargoAtDock(ship, mission)
+        end
+
+        total_delivered_mass = total_delivered_mass + delivered_mass
+    end
+
+    return total_delivered_mass
 end
 
 -- ==========================================

@@ -1570,7 +1570,13 @@ function SpaceShip:updateDocking()
     end
 
     self:replenishEnginesWhileDocked()
+
+    -- Ore unloads to the dock/station ore bank.
     self:depositOreToDock(dock)
+
+    -- Mission cargo/passengers unload automatically when docked at their
+    -- destination dock/station.
+    deliverMissionManifestAtDock(self, dock)
 end
 
 function SpaceShip:drawDockingHud()

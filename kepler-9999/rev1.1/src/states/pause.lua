@@ -91,37 +91,53 @@ function getMissionCompletionPercent(mission)
     return math.floor(fraction * 100)
 end
 
+function getPlanetSuffixUpper(planet)
+    if not planet or not planet.name then
+        return "?"
+    end
+
+    local suffix = string.sub(planet.name, -1)
+    if suffix == "" then
+        suffix = "?"
+    end
+
+    return string.upper(suffix)
+end
+
+function getPlanetDockMissionLabel(dock)
+    if not dock or not dock.host then
+        return "Pl Dock ?"
+    end
+
+    local suffix = getPlanetSuffixUpper(dock.host)
+
+    return "Pl Dock " .. suffix
+end
+
 function getMissionLocationName(obj)
     if not obj then
         return "?"
     end
 
-    -- If the object is a SpaceDock, display the host planet/station name.
-    if isSpaceDock(obj) then
-        if obj.host then
-            if obj.host.name then
-                return obj.host.name
-            end
-
-            -- Fallback labels if host has no name field.
-            if isPlanet(obj.host) then
-                return "Planet"
-            elseif isSpaceStation(obj.host) then
-                return "Station"
-            end
-        end
-
-        return "Dock"
-    end
-
-    -- If the object is a SpaceStation, display its name.
+    -- Missions to/from the SpaceStation itself display as "Station".
     if isSpaceStation(obj) then
-        return obj.name or "Station"
+        return "Station"
     end
 
-    -- If the object is a Planet, display its name.
-    if isPlanet(obj) then
-        return obj.name or "Planet"
+    -- Planet SpaceDocks display as "Pl. X Dock", where X is the final
+    -- character of the host planet's name.
+    if isPlanetDock(obj) then
+        return getPlanetDockMissionLabel(obj)
+    end
+
+    -- A SpaceDock attached to a SpaceStation still displays as "Station".
+    if isStationDock(obj) then
+        return "Station"
+    end
+
+    -- Fallback SpaceDock label.
+    if isSpaceDock(obj) then
+        return "Dock"
     end
 
     return obj.name or "?"
@@ -133,14 +149,12 @@ function getMissionTransportText(mission)
     end
 
     if mission:isPassengerMission() then
-        return tostring(math.floor(mission.passengers.transported or 0)) ..
-            "/" ..
-            tostring(math.floor(mission.passengers.total or 0))
+        return tostring(math.floor(mission.passengers.transported or 0)) .. "/" ..
+            tostring(math.floor(mission.passengers.total or 0)) .. " pass."
     end
 
-    return tostring(math.floor(mission.mass.transported or 0)) ..
-        "/" ..
-        tostring(math.floor(mission.mass.total or 0))
+    return tostring(math.floor(mission.mass.transported or 0)) .. "/" ..
+        tostring(math.floor(mission.mass.total or 0)) .. "kg"
 end
 
 function getMissionDoneText(mission)
@@ -169,24 +183,229 @@ function getMissionDoneText(mission)
     return tostring(math.ceil(fraction * 100)) .. "%"
 end
 
+function getMissionManifestHoldType(mission)
+    if not mission then
+        return nil
+    end
+
+    if mission.type == MISSION_TYPE.CARGO then
+        return "cargo"
+    elseif mission.type == MISSION_TYPE.CONTRABAND_CARGO then
+        return "smuggled"
+    elseif mission.type == MISSION_TYPE.PASSENGER or
+        mission.type == MISSION_TYPE.CONTRABAND_PASSENGER
+    then
+        return "passengers"
+    end
+
+    return nil
+end
+
+function getMissionManifestLoadAmount(mission)
+    if not mission then
+        return 0
+    end
+
+    if mission:isPassengerMission() then
+        return mission:getRemainingPassengerCount()
+    end
+
+    return mission:getRemainingMass()
+end
+
+function getMissionManifestLoadMass(mission)
+    if not mission then
+        return 0
+    end
+
+    if mission:isPassengerMission() then
+        return mission:getRemainingPassengerCount() * PASSENGER_TOTAL_MASS
+    end
+
+    return mission:getRemainingMass()
+end
+
+function acceptMissionManifest(ship, mission)
+    if not ship or not mission then
+        return false
+    end
+
+    if not mission:canAct() then
+        return false
+    end
+
+    local hold_type = getMissionManifestHoldType(mission)
+    if not hold_type then
+        return false
+    end
+    if not ship.holds or not ship.holds[hold_type] then
+        return false
+    end
+
+    local hold = ship.holds[hold_type]
+    local free_mass = math.max(0, hold.max - hold.cur)
+    if free_mass <= 0 then
+        return false
+    end
+
+    -- Normal cargo cannot mix with mined ore.
+    -- If the cargo hold currently contains ore, do not load normal mission cargo.
+    if hold_type == "cargo" then
+        if ship.cargo_has_ore == true and ship:getCargoMass() > 0 then
+            return false
+        end
+    end
+
+    if mission:isPassengerMission() then
+        local remaining_passengers = mission:getRemainingPassengerCount()
+        if remaining_passengers <= 0 then
+            return false
+        end
+
+        local passenger_capacity = math.floor(free_mass / PASSENGER_TOTAL_MASS)
+        if passenger_capacity <= 0 then
+            return false
+        end
+
+        local passenger_count = math.min(
+            remaining_passengers,
+            passenger_capacity
+        )
+        if passenger_count <= 0 then
+            return false
+        end
+
+        local picked_up = ship:pickupPassengers(passenger_count)
+        if not picked_up then
+            return false
+        end
+
+        local loaded = mission:loadPassengers(passenger_count)
+        if loaded <= 0 then
+            -- Restore passenger mass if the mission did not accept the load.
+            ship:updateHoldMass(
+                "passengers",
+                -(passenger_count * PASSENGER_TOTAL_MASS)
+            )
+            return false
+        end
+
+        -- If for some reason fewer passengers loaded than requested, restore
+        -- the difference.
+        if loaded < passenger_count then
+            local unloaded_count = passenger_count - loaded
+            ship:updateHoldMass(
+                "passengers",
+                -(unloaded_count * PASSENGER_TOTAL_MASS)
+            )
+        end
+
+        return true
+    end
+
+    local remaining_mass = mission:getRemainingMass()
+    if remaining_mass <= 0 then
+        return false
+    end
+
+    local cargo_mass = math.min(
+        remaining_mass,
+        free_mass
+    )
+
+    cargo_mass = math.floor(cargo_mass)
+    if cargo_mass <= 0 then
+        return false
+    end
+
+    if mission.type == MISSION_TYPE.CONTRABAND_CARGO then
+        local picked_up = ship:pickupSmuggledGoods(cargo_mass)
+        if not picked_up then
+            return false
+        end
+    else
+        local picked_up = ship:pickupCargo(cargo_mass)
+        if not picked_up then
+            return false
+        end
+
+        -- Normal mission cargo is not ore.
+        ship.cargo_has_ore = false
+    end
+
+    local loaded = mission:loadMass(cargo_mass)
+    if loaded <= 0 then
+        -- Restore cargo if the mission did not accept the load.
+        if mission.type == MISSION_TYPE.CONTRABAND_CARGO then
+            ship:updateHoldMass("smuggled", -cargo_mass)
+        else
+            ship:updateHoldMass("cargo", -cargo_mass)
+
+            if ship:getCargoMass() <= 0 then
+                ship.cargo_has_ore = false
+            end
+        end
+
+        return false
+    end
+
+    -- If for some reason less mass loaded than requested, restore the difference.
+    if loaded < cargo_mass then
+        local unloaded_mass = cargo_mass - loaded
+
+        if mission.type == MISSION_TYPE.CONTRABAND_CARGO then
+            ship:updateHoldMass("smuggled", -unloaded_mass)
+        else
+            ship:updateHoldMass("cargo", -unloaded_mass)
+
+            if ship:getCargoMass() <= 0 then
+                ship.cargo_has_ore = false
+            end
+        end
+    end
+
+    return true
+end
+
+function getSelectedMission()
+    local missions = getMissionBoardMissions()
+
+    if not missions or #missions <= 0 then
+        return nil
+    end
+
+    local selected = game.pause.selected_mission or 1
+    selected = clamp(selected, 1, #missions)
+
+    return missions[selected]
+end
+
+function getMissionBoardDockSubtitle(dock)
+    if not dock then
+        return "Active Mission Progress"
+    end
+
+    if isPlanetDock(dock) then
+        local planet_name = dock.host and dock.host.name or "?"
+        local short_label = getPlanetDockMissionLabel(dock)
+
+        return "Planet " .. planet_name .. " Dock (" .. short_label .. ") Missions"
+    end
+
+    if isStationDock(dock) then
+        return "Station Missions"
+    end
+
+    return "Dock Missions"
+end
+
 function inputPause()
     if btnp(BTN_P1_START) then
         changeState(STATE.PLAY)
         return
     end
 
-    if btnp(BTN_P1_SELECT) then
-        if not game.play.high_score_saved then
-            saveCurrentScore(game.play.player)
-            game.play.high_score_saved = true
-        end
-
-        changeState(STATE.GAMEOVER)
-        return
-    end
-
-    local missions = getMissionBoardMissions()
-
+    local missions, dock = getMissionBoardMissions()
     if #missions > 0 then
         if btnp(BTN_P1_UP) then
             game.pause.selected_mission = math.max(
@@ -203,6 +422,19 @@ function inputPause()
         end
     else
         game.pause.selected_mission = 1
+    end
+
+    -- Z / Button A: accept selected mission manifest while docked.
+    if dock and btnp(BTN_P1_A) then
+        local selected = game.pause.selected_mission or 1
+        selected = clamp(selected, 1, #missions)
+
+        local mission = missions[selected]
+        local player = game.play.player
+
+        if mission and player then
+            acceptMissionManifest(player, mission)
+        end
     end
 end
 
@@ -252,18 +484,10 @@ function drawMissionBoardList(missions, dock)
         local trans_x  = box_x + 138
         local done_x   = box_x + 190
 
-        local subtitle = nil
-
-        if dock then
-            subtitle = "Dock Missions"
-        else
-            subtitle = "Active Mission Progress"
-        end
-
+        local subtitle = getMissionBoardDockSubtitle(dock)
         print(subtitle, box_x, box_y - 8, GRAY_LITE, false, 1, true)
 
         local header_y = box_y + 4
-
         print("TYPE", type_x, header_y, YELLOW, false, 1, true)
         print("SRC", src_x, header_y, YELLOW, false, 1, true)
         print("DEST", dest_x, header_y, YELLOW, false, 1, true)
@@ -353,21 +577,25 @@ function drawMissionBoardList(missions, dock)
 
         drawCenteredText(
             "UP/DOWN: Select",
-            -- content.bottom - 3 * Y_PADDING,
             content.bottom - 2 * Y_PADDING,
             WHITE, false, 1, true, GRAY_MED
         )
 
+        local accept_text = nil
+        if dock then
+            accept_text = "Z: Accept manifest"
+        else
+            accept_text = "Dock to accept missions"
+        end
+
         drawCenteredText(
-            "Z: Accept manifest",
-            -- content.bottom - 2 * Y_PADDING,
+            accept_text,
             content.bottom - Y_PADDING,
             WHITE, false, 1, true, GRAY_MED
         )
 
         drawCenteredText(
             "Press 'START' (S) to Resume",
-            -- content.bottom - Y_PADDING,
             content.bottom,
             WHITE, false, 1, true, GRAY_MED
         )

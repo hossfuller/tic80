@@ -104,7 +104,7 @@ function Mission:clampProgress()
                 self.passengers.total
             )
         )
-        self.passengers.active      = math.max(
+        self.passengers.active = math.max(
             0,
             math.min(
                 math.floor(self.passengers.active or 0),
@@ -112,23 +112,23 @@ function Mission:clampProgress()
             )
         )
 
-        self.mass.total             = self.passengers.total * PASSENGER_TOTAL_MASS
-        self.mass.transported       = self.passengers.transported * PASSENGER_TOTAL_MASS
-        self.mass.active            = self.passengers.active * PASSENGER_TOTAL_MASS
+        self.mass.total       = self.passengers.total * PASSENGER_TOTAL_MASS
+        self.mass.transported = self.passengers.transported * PASSENGER_TOTAL_MASS
+        self.mass.active      = self.passengers.active * PASSENGER_TOTAL_MASS
     else
         self.passengers.total       = 0
         self.passengers.transported = 0
         self.passengers.active      = 0
 
-        self.mass.total             = math.max(0, math.floor(self.mass.total or 0))
-        self.mass.transported       = math.max(
+        self.mass.total       = math.max(0, math.floor(self.mass.total or 0))
+        self.mass.transported = math.max(
             0,
             math.min(
                 math.floor(self.mass.transported or 0),
                 self.mass.total
             )
         )
-        self.mass.active            = math.max(
+        self.mass.active = math.max(
             0,
             math.min(
                 math.floor(self.mass.active or 0),
@@ -306,12 +306,7 @@ function Mission:getRemainingPassengerCount()
         return 0
     end
 
-    return math.max(
-        0,
-        self.passengers.total -
-        self.passengers.transported -
-        self.passengers.active
-    )
+    return math.max(0, self.passengers.total - self.passengers.transported - self.passengers.active)
 end
 
 function Mission:getRemainingMass()
@@ -319,12 +314,7 @@ function Mission:getRemainingMass()
         return self:getRemainingPassengerCount() * PASSENGER_TOTAL_MASS
     end
 
-    return math.max(
-        0,
-        self.mass.total -
-        self.mass.transported -
-        self.mass.active
-    )
+    return math.max(0, self.mass.total - self.mass.transported - self.mass.active)
 end
 
 function Mission:loadPassengers(count)
