@@ -102,14 +102,16 @@ game = {
 
     -- Gameplay state
     play = {
-        player         = {},
-        star           = {},
-        planets        = {},
-        comets         = {},
-        asteroids      = {},
-        comet_count    = 0,
-        space_stations = {},
-        missions       = {},
+        player                 = {},
+        star                   = {},
+        planets                = {},
+        comets                 = {},
+        asteroids              = {},
+        comet_count            = 0,
+        space_stations         = {},
+        missions               = {},
+        delivered_notification = nil,
+        reward_notification    = nil,
     },
 }
 
@@ -125,11 +127,13 @@ function changeState(newState)
     if newState == STATE.READY then
         generateBackgroundMap()
 
-        game.play.player         = generatePlayer()
-        game.play.star           = generateStar()
-        game.play.planets        = generatePlanets()
-        game.play.asteroids      = spawnAsteroids()
-        game.play.space_stations = generateSpaceStations(game.play.planets)
+        game.play.player                 = generatePlayer()
+        game.play.star                   = generateStar()
+        game.play.planets                = generatePlanets()
+        game.play.asteroids              = spawnAsteroids()
+        game.play.space_stations         = generateSpaceStations(game.play.planets)
+        game.play.delivered_notification = nil
+        game.play.reward_notification    = nil
 
         generateMoons()
         generateComets()

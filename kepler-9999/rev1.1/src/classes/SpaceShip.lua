@@ -62,6 +62,9 @@ function SpaceShip:new(params)
     self.max_mass   = params.max_mass   or 1300  -- (kg)
     self.max_speed  = params.max_speed  or 2.5
 
+    self.base_max_speed = self.max_speed
+    self.base_max_mass  = self.max_mass
+
     self.mass_delivered = 0  -- (kg) this is basically the score
 
     -- The default SpaceShip shape
@@ -539,6 +542,74 @@ function SpaceShip:drainLifeSupportForPassengers()
     for i = 1, passenger_count do
         self:drainLifeSupport()
     end
+end
+
+-- ==========================================
+-- SPACESHIP LEVEL-COMPLETE UPGRADE MANAGEMENT
+-- ==========================================
+
+function SpaceShip:canUpgradeEngine(type)
+    if not self.engines or not self.engines[type] then
+        return false
+    end
+
+    return (self.engines[type].mul or 1) < 9
+end
+
+function SpaceShip:upgradeEngine(type)
+    if not self:canUpgradeEngine(type) then
+        return false
+    end
+
+    self.engines[type].mul = self.engines[type].mul + 1
+
+    local max_chunk = math.floor(self.engines[type].max / (self.engines[type].mul - 1))
+    self.engines[type].max = max_chunk * self.engines[type].mul
+
+    return true
+end
+
+function SpaceShip:canUpgradeMaxSpeed()
+    if not self.base_max_speed then
+        return false
+    end
+
+    return self.max_speed < (self.base_max_speed * 1.2)
+end
+
+function SpaceShip:upgradeMaxSpeed()
+    if not self:canUpgradeMaxSpeed() then
+        return false
+    end
+
+    local multiplier = randomFloat(1.02, 1.1)
+    self.max_speed = math.min(self.max_speed * multiplier, self.base_max_speed * 1.2)
+
+    return true
+end
+
+function SpaceShip:canUpgradeHold(hold_type)
+    if not self.holds or not self.holds[hold_type] then
+        return false
+    end
+
+    if not self.base_max_mass then
+        return false
+    end
+
+    return self.max_mass < (self.base_max_mass * 1.4)
+end
+
+function SpaceShip:upgradeHold(hold_type)
+    if not self:canUpgradeHold(hold_type) then
+        return false
+    end
+
+    local hold = self.holds[hold_type]
+    hold.max = hold.max + 100
+    self.max_mass = math.min(self.max_mass + 100, math.floor(self.base_max_mass * 1.4))
+
+    return true
 end
 
 -- ==========================================

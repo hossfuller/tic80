@@ -2,8 +2,8 @@
 -- MISSIONS
 -- ==========================================
 
-local MISSION_PLANET_DOCK_COUNT = 0
-local MISSION_SPACE_STATION_COUNT = 1
+local MISSION_PLANET_DOCK_COUNT = 3
+local MISSION_SPACE_STATION_COUNT = 5
 
 local MISSION_CARGO_MASS_MIN = 50
 local MISSION_CARGO_MASS_MAX = 1000
@@ -231,9 +231,115 @@ function allMissionsAreTerminal()
 end
 
 function maintainMissionGeneration()
+    local had_missions = game.play.missions and #game.play.missions > 0
+
     if allMissionsAreTerminal() then
+        if had_missions then
+            local reward_text = rewardShipWithRandomUpgrade(game.play.player)
+
+            if notifyMissionReward then
+                notifyMissionReward(reward_text)
+            end
+        end
+
         generateInitialMissions()
     end
+end
+
+-- ==========================================
+-- MISSION LEVEL-COMPLETE UPGRADES
+-- ==========================================
+
+function getAvailableMissionRewardUpgrades(ship)
+    local upgrades = {}
+
+    if ship:canUpgradeEngine("energy") then
+        table.insert(upgrades, {
+            label = "Energy Generator Upgraded",
+            apply = function()
+                return ship:upgradeEngine("energy")
+            end,
+        })
+    end
+
+    if ship:canUpgradeEngine("life_support") then
+        table.insert(upgrades, {
+            label = "Life Support Upgraded",
+            apply = function()
+                return ship:upgradeEngine("life_support")
+            end,
+        })
+    end
+
+    if ship:canUpgradeEngine("shield") then
+        table.insert(upgrades, {
+            label = "Shields Upgraded",
+            apply = function()
+                return ship:upgradeEngine("shield")
+            end,
+        })
+    end
+
+    if ship:canUpgradeMaxSpeed() then
+        table.insert(upgrades, {
+            label = "Engine Tuning Improved",
+            apply = function()
+                return ship:upgradeMaxSpeed()
+            end,
+        })
+    end
+
+    if ship:canUpgradeHold("cargo") then
+        table.insert(upgrades, {
+            label = "Cargo Hold Expanded",
+            apply = function()
+                return ship:upgradeHold("cargo")
+            end,
+        })
+    end
+
+    if ship:canUpgradeHold("passengers") then
+        table.insert(upgrades, {
+            label = "Passenger Hold Expanded",
+            apply = function()
+                return ship:upgradeHold("passengers")
+            end,
+        })
+    end
+
+    if ship:canUpgradeHold("smuggled") then
+        table.insert(upgrades, {
+            label = "Smuggled Hold Expanded",
+            apply = function()
+                return ship:upgradeHold("smuggled")
+            end,
+        })
+    end
+
+    return upgrades
+end
+
+function rewardShipWithRandomUpgrade(ship)
+    if not ship then
+        return nil
+    end
+
+    local upgrades = getAvailableMissionRewardUpgrades(ship)
+
+    if #upgrades <= 0 then
+        return nil
+    end
+
+    local reward = upgrades[math.random(1, #upgrades)]
+
+    if reward and reward.apply then
+        local ok = reward.apply()
+        if ok then
+            return reward.label
+        end
+    end
+
+    return nil
 end
 
 -- ==========================================

@@ -90,12 +90,22 @@ function updatePlay()
     end
 
     -- Update mass-delivered notification.
-    if game.play.mass_delivered_notification then
-        game.play.mass_delivered_notification.timer =
-            game.play.mass_delivered_notification.timer - 1
+    if game.play.delivered_notification then
+        game.play.delivered_notification.timer =
+            game.play.delivered_notification.timer - 1
 
-        if game.play.mass_delivered_notification.timer <= 0 then
-            game.play.mass_delivered_notification = nil
+        if game.play.delivered_notification.timer <= 0 then
+            game.play.delivered_notification = nil
+        end
+    end
+
+    -- Update mission reward notification.
+    if game.play.reward_notification then
+        game.play.reward_notification.timer =
+            game.play.reward_notification.timer - 1
+
+        if game.play.reward_notification.timer <= 0 then
+            game.play.reward_notification = nil
         end
     end
 
@@ -107,9 +117,26 @@ function notifyMassDelivered()
         return
     end
 
-    game.play.mass_delivered_notification = {
+    game.play.delivered_notification = {
         timer = 180, -- 3 seconds at 60 FPS
         score = game.play.player:getMassDelivered()
+    }
+end
+
+function notifyMissionReward(reward_text)
+    if not game or not game.play then
+        return
+    end
+
+    local text = "All missions completed!"
+
+    if reward_text and reward_text ~= "" then
+        text = text .. " " .. reward_text
+    end
+
+    game.play.reward_notification = {
+        timer = 180, -- 3 seconds at 60 FPS
+        text = text
     }
 end
 
@@ -340,8 +367,8 @@ function drawShipLivesHud()
 end
 
 function drawMassDeliveredNotification()
-    local notification = game.play.mass_delivered_notification
-    if not notification then
+    local notification = game.play.delivered_notification
+    if not notification or not notification.timer then
         return
     end
 
@@ -371,6 +398,45 @@ function drawMassDeliveredNotification()
 
     -- Optional fade/blink near the end.
     local color = WHITE
+    if notification.timer < 45 then
+        color = GRAY_LITE
+    end
+
+    -- Shadow.
+    print(text, x + 1, y + 1, BLACK, true, 1, true)
+
+    -- Text.
+    print(text, x, y, color, true, 1, true)
+end
+
+function drawMissionRewardNotification()
+    local notification = game.play.reward_notification
+    if not notification or not notification.timer then
+        return
+    end
+
+    -- Same fixed-small-font character width used by the HUD bars.
+    local bar_w = print("E", -100, -100, WHITE, true, 1, true) + 1
+
+    -- Same baseline as drawShipCargoHoldHud(), drawShipStatusHud(), and drawShipLivesHud().
+    local bottom_y = EDGE_Y_BOTTOM - 8
+
+    -- Same layout math as drawShipLivesHud() and drawMassDeliveredNotification().
+    local cargo_bar_x = EDGE_X_LEFT + 3
+    local status_start_x = cargo_bar_x + bar_w
+    local status_bar_count = 4
+    local lives_x = status_start_x + status_bar_count * bar_w
+
+    -- Notification goes immediately to the right of the lives column.
+    local x = lives_x + bar_w + 3
+
+    -- One line above the Total Mass Delivered notification.
+    local line_h = FIXED_CHAR_HEIGHT + 1
+    local y = bottom_y - line_h
+
+    local text = notification.text or "All missions completed!"
+
+    local color = YELLOW
     if notification.timer < 45 then
         color = GRAY_LITE
     end
@@ -416,6 +482,7 @@ function drawGame()
         drawShipCargoHoldHud()
         drawShipStatusHud()
         drawShipLivesHud()
+        drawMissionRewardNotification()
         drawMassDeliveredNotification()
     end
 end

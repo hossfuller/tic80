@@ -1746,8 +1746,8 @@ end
 -- MISSIONS
 -- ==========================================
 
-local MISSION_PLANET_DOCK_COUNT = 0
-local MISSION_SPACE_STATION_COUNT = 1
+local MISSION_PLANET_DOCK_COUNT = 3
+local MISSION_SPACE_STATION_COUNT = 5
 
 local MISSION_CARGO_MASS_MIN = 50
 local MISSION_CARGO_MASS_MAX = 1000
@@ -1975,9 +1975,115 @@ function allMissionsAreTerminal()
 end
 
 function maintainMissionGeneration()
+    local had_missions = game.play.missions and #game.play.missions > 0
+
     if allMissionsAreTerminal() then
+        if had_missions then
+            local reward_text = rewardShipWithRandomUpgrade(game.play.player)
+
+            if notifyMissionReward then
+                notifyMissionReward(reward_text)
+            end
+        end
+
         generateInitialMissions()
     end
+end
+
+-- ==========================================
+-- MISSION LEVEL-COMPLETE UPGRADES
+-- ==========================================
+
+function getAvailableMissionRewardUpgrades(ship)
+    local upgrades = {}
+
+    if ship:canUpgradeEngine("energy") then
+        table.insert(upgrades, {
+            label = "Energy Generator Upgraded",
+            apply = function()
+                return ship:upgradeEngine("energy")
+            end,
+        })
+    end
+
+    if ship:canUpgradeEngine("life_support") then
+        table.insert(upgrades, {
+            label = "Life Support Upgraded",
+            apply = function()
+                return ship:upgradeEngine("life_support")
+            end,
+        })
+    end
+
+    if ship:canUpgradeEngine("shield") then
+        table.insert(upgrades, {
+            label = "Shields Upgraded",
+            apply = function()
+                return ship:upgradeEngine("shield")
+            end,
+        })
+    end
+
+    if ship:canUpgradeMaxSpeed() then
+        table.insert(upgrades, {
+            label = "Engine Tuning Improved",
+            apply = function()
+                return ship:upgradeMaxSpeed()
+            end,
+        })
+    end
+
+    if ship:canUpgradeHold("cargo") then
+        table.insert(upgrades, {
+            label = "Cargo Hold Expanded",
+            apply = function()
+                return ship:upgradeHold("cargo")
+            end,
+        })
+    end
+
+    if ship:canUpgradeHold("passengers") then
+        table.insert(upgrades, {
+            label = "Passenger Hold Expanded",
+            apply = function()
+                return ship:upgradeHold("passengers")
+            end,
+        })
+    end
+
+    if ship:canUpgradeHold("smuggled") then
+        table.insert(upgrades, {
+            label = "Smuggled Hold Expanded",
+            apply = function()
+                return ship:upgradeHold("smuggled")
+            end,
+        })
+    end
+
+    return upgrades
+end
+
+function rewardShipWithRandomUpgrade(ship)
+    if not ship then
+        return nil
+    end
+
+    local upgrades = getAvailableMissionRewardUpgrades(ship)
+
+    if #upgrades <= 0 then
+        return nil
+    end
+
+    local reward = upgrades[math.random(1, #upgrades)]
+
+    if reward and reward.apply then
+        local ok = reward.apply()
+        if ok then
+            return reward.label
+        end
+    end
+
+    return nil
 end
 
 -- ==========================================
@@ -3393,14 +3499,16 @@ game = {
 
     -- Gameplay state
     play = {
-        player         = {},
-        star           = {},
-        planets        = {},
-        comets         = {},
-        asteroids      = {},
-        comet_count    = 0,
-        space_stations = {},
-        missions       = {},
+        player                 = {},
+        star                   = {},
+        planets                = {},
+        comets                 = {},
+        asteroids              = {},
+        comet_count            = 0,
+        space_stations         = {},
+        missions               = {},
+        delivered_notification = nil,
+        reward_notification    = nil,
     },
 }
 
@@ -3416,11 +3524,13 @@ function changeState(newState)
     if newState == STATE.READY then
         generateBackgroundMap()
 
-        game.play.player         = generatePlayer()
-        game.play.star           = generateStar()
-        game.play.planets        = generatePlanets()
-        game.play.asteroids      = spawnAsteroids()
-        game.play.space_stations = generateSpaceStations(game.play.planets)
+        game.play.player                 = generatePlayer()
+        game.play.star                   = generateStar()
+        game.play.planets                = generatePlanets()
+        game.play.asteroids              = spawnAsteroids()
+        game.play.space_stations         = generateSpaceStations(game.play.planets)
+        game.play.delivered_notification = nil
+        game.play.reward_notification    = nil
 
         generateMoons()
         generateComets()
@@ -4280,12 +4390,22 @@ function updatePlay()
     end
 
     -- Update mass-delivered notification.
-    if game.play.mass_delivered_notification then
-        game.play.mass_delivered_notification.timer =
-            game.play.mass_delivered_notification.timer - 1
+    if game.play.delivered_notification then
+        game.play.delivered_notification.timer =
+            game.play.delivered_notification.timer - 1
 
-        if game.play.mass_delivered_notification.timer <= 0 then
-            game.play.mass_delivered_notification = nil
+        if game.play.delivered_notification.timer <= 0 then
+            game.play.delivered_notification = nil
+        end
+    end
+
+    -- Update mission reward notification.
+    if game.play.reward_notification then
+        game.play.reward_notification.timer =
+            game.play.reward_notification.timer - 1
+
+        if game.play.reward_notification.timer <= 0 then
+            game.play.reward_notification = nil
         end
     end
 
@@ -4297,9 +4417,26 @@ function notifyMassDelivered()
         return
     end
 
-    game.play.mass_delivered_notification = {
+    game.play.delivered_notification = {
         timer = 180, -- 3 seconds at 60 FPS
         score = game.play.player:getMassDelivered()
+    }
+end
+
+function notifyMissionReward(reward_text)
+    if not game or not game.play then
+        return
+    end
+
+    local text = "All missions completed!"
+
+    if reward_text and reward_text ~= "" then
+        text = text .. " " .. reward_text
+    end
+
+    game.play.reward_notification = {
+        timer = 180, -- 3 seconds at 60 FPS
+        text = text
     }
 end
 
@@ -4530,8 +4667,8 @@ function drawShipLivesHud()
 end
 
 function drawMassDeliveredNotification()
-    local notification = game.play.mass_delivered_notification
-    if not notification then
+    local notification = game.play.delivered_notification
+    if not notification or not notification.timer then
         return
     end
 
@@ -4561,6 +4698,45 @@ function drawMassDeliveredNotification()
 
     -- Optional fade/blink near the end.
     local color = WHITE
+    if notification.timer < 45 then
+        color = GRAY_LITE
+    end
+
+    -- Shadow.
+    print(text, x + 1, y + 1, BLACK, true, 1, true)
+
+    -- Text.
+    print(text, x, y, color, true, 1, true)
+end
+
+function drawMissionRewardNotification()
+    local notification = game.play.reward_notification
+    if not notification or not notification.timer then
+        return
+    end
+
+    -- Same fixed-small-font character width used by the HUD bars.
+    local bar_w = print("E", -100, -100, WHITE, true, 1, true) + 1
+
+    -- Same baseline as drawShipCargoHoldHud(), drawShipStatusHud(), and drawShipLivesHud().
+    local bottom_y = EDGE_Y_BOTTOM - 8
+
+    -- Same layout math as drawShipLivesHud() and drawMassDeliveredNotification().
+    local cargo_bar_x = EDGE_X_LEFT + 3
+    local status_start_x = cargo_bar_x + bar_w
+    local status_bar_count = 4
+    local lives_x = status_start_x + status_bar_count * bar_w
+
+    -- Notification goes immediately to the right of the lives column.
+    local x = lives_x + bar_w + 3
+
+    -- One line above the Total Mass Delivered notification.
+    local line_h = FIXED_CHAR_HEIGHT + 1
+    local y = bottom_y - line_h
+
+    local text = notification.text or "All missions completed!"
+
+    local color = YELLOW
     if notification.timer < 45 then
         color = GRAY_LITE
     end
@@ -4606,6 +4782,7 @@ function drawGame()
         drawShipCargoHoldHud()
         drawShipStatusHud()
         drawShipLivesHud()
+        drawMissionRewardNotification()
         drawMassDeliveredNotification()
     end
 end
@@ -6106,6 +6283,9 @@ function SpaceShip:new(params)
     self.max_mass   = params.max_mass   or 1300  -- (kg)
     self.max_speed  = params.max_speed  or 2.5
 
+    self.base_max_speed = self.max_speed
+    self.base_max_mass  = self.max_mass
+
     self.mass_delivered = 0  -- (kg) this is basically the score
 
     -- The default SpaceShip shape
@@ -6583,6 +6763,74 @@ function SpaceShip:drainLifeSupportForPassengers()
     for i = 1, passenger_count do
         self:drainLifeSupport()
     end
+end
+
+-- ==========================================
+-- SPACESHIP LEVEL-COMPLETE UPGRADE MANAGEMENT
+-- ==========================================
+
+function SpaceShip:canUpgradeEngine(type)
+    if not self.engines or not self.engines[type] then
+        return false
+    end
+
+    return (self.engines[type].mul or 1) < 9
+end
+
+function SpaceShip:upgradeEngine(type)
+    if not self:canUpgradeEngine(type) then
+        return false
+    end
+
+    self.engines[type].mul = self.engines[type].mul + 1
+
+    local max_chunk = math.floor(self.engines[type].max / (self.engines[type].mul - 1))
+    self.engines[type].max = max_chunk * self.engines[type].mul
+
+    return true
+end
+
+function SpaceShip:canUpgradeMaxSpeed()
+    if not self.base_max_speed then
+        return false
+    end
+
+    return self.max_speed < (self.base_max_speed * 1.2)
+end
+
+function SpaceShip:upgradeMaxSpeed()
+    if not self:canUpgradeMaxSpeed() then
+        return false
+    end
+
+    local multiplier = randomFloat(1.02, 1.1)
+    self.max_speed = math.min(self.max_speed * multiplier, self.base_max_speed * 1.2)
+
+    return true
+end
+
+function SpaceShip:canUpgradeHold(hold_type)
+    if not self.holds or not self.holds[hold_type] then
+        return false
+    end
+
+    if not self.base_max_mass then
+        return false
+    end
+
+    return self.max_mass < (self.base_max_mass * 1.4)
+end
+
+function SpaceShip:upgradeHold(hold_type)
+    if not self:canUpgradeHold(hold_type) then
+        return false
+    end
+
+    local hold = self.holds[hold_type]
+    hold.max = hold.max + 100
+    self.max_mass = math.min(self.max_mass + 100, math.floor(self.base_max_mass * 1.4))
+
+    return true
 end
 
 -- ==========================================
