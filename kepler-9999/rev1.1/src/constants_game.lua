@@ -23,7 +23,8 @@ local COLLISION_DAMAGE_SCALE = 1
 
 -- local GRAVITATIONAL_CONSTANT = 0.000000000001 -- very subtle
 -- local GRAVITATIONAL_CONSTANT = 0.00000000001  -- noticeable
-local GRAVITATIONAL_CONSTANT = 0.000000000025 -- middle
+local GRAVITATIONAL_CONSTANT = 0.00000000002 -- middle
+-- local GRAVITATIONAL_CONSTANT = 0.000000000025 -- middle
 -- local GRAVITATIONAL_CONSTANT = 0.00000000005 -- strong
 
 -- Quick constants to set passenger masses.

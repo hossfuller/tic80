@@ -367,7 +367,7 @@ function drawMassDeliveredNotification()
     local y = bottom_y
 
     local score = math.floor(notification.score or player:getMassDelivered() or 0)
-    local text = "Mass Delivered: " .. tostring(score) .. "kg"
+    local text = "Total Mass Delivered: " .. tostring(score) .. "kg"
 
     -- Optional fade/blink near the end.
     local color = WHITE

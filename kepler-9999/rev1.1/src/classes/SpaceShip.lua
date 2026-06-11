@@ -520,6 +520,27 @@ function SpaceShip:regenerateEnginesOnTimer()
     end
 end
 
+function SpaceShip:drainLifeSupportForPassengers()
+    if not self.holds or not self.holds.passengers then
+        return
+    end
+
+    -- Once per second.
+    if not self:everyNTicks(60) then
+        return
+    end
+
+    local passenger_count = math.floor(self.holds.passengers.cur / PASSENGER_TOTAL_MASS)
+    if passenger_count <= 0 then
+        return
+    end
+
+    -- Drain 1 life support per passenger.
+    for i = 1, passenger_count do
+        self:drainLifeSupport()
+    end
+end
+
 -- ==========================================
 -- SPACESHIP MASS MANAGEMENT
 -- ==========================================
@@ -1747,6 +1768,8 @@ end
 
 function SpaceShip:move()
     self:updateTimer()
+
+    self:drainLifeSupportForPassengers()
 
     -- Particles continue moving even after the ship dies.
     self:updateParticles()

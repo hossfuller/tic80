@@ -2,8 +2,8 @@
 -- MISSIONS
 -- ==========================================
 
-local MISSION_PLANET_DOCK_COUNT = 3
-local MISSION_SPACE_STATION_COUNT = 5
+local MISSION_PLANET_DOCK_COUNT = 0
+local MISSION_SPACE_STATION_COUNT = 1
 
 local MISSION_CARGO_MASS_MIN = 50
 local MISSION_CARGO_MASS_MAX = 1000
@@ -22,9 +22,57 @@ local MISSION_STATUS = {
     ACTIVE    = "active",
     COMPLETED = "completed",
 }
+
+local MISSION_PROFILE = {
+    [1] = { -- Cruiser
+        cargo_weight = 0.45,
+        passenger_weight = 0.45,
+        contraband_weight = 0.10,
+        cargo_mass_min = MISSION_CARGO_MASS_MIN,
+        cargo_mass_max = MISSION_CARGO_MASS_MAX,
+        passenger_min = MISSION_PASSENGER_MIN,
+        passenger_max = MISSION_PASSENGER_MAX,
+    },
+
+    [2] = { -- Freighter
+        cargo_weight = 0.70,
+        passenger_weight = 0.20,
+        contraband_weight = 0.10,
+        cargo_mass_min = 300,
+        cargo_mass_max = 1800,
+        passenger_min = 1,
+        passenger_max = 2 * 4, -- 2x freighter passenger capacity (4 * PASSENGER_TOTAL_MASS)
+    },
+
+    [3] = { -- Passenger
+        cargo_weight = 0.20,
+        passenger_weight = 0.70,
+        contraband_weight = 0.10,
+        cargo_mass_min = 2 * 350, -- > 2x passenger ship cargo max
+        cargo_mass_max = 2500,
+        passenger_min = 6,
+        passenger_max = 30,
+    },
+
+    [4] = { -- Smuggler
+        cargo_weight = 0.20,
+        passenger_weight = 0.20,
+        contraband_weight = 0.60,
+        cargo_mass_min = 50,
+        cargo_mass_max = 900,
+        passenger_min = 1,
+        passenger_max = 8,
+    },
+}
+
 -- ==========================================
 -- MISSIONS CREATION
 -- ==========================================
+
+function getMissionProfileForCurrentShip()
+    local ship_type = game.params.ship_type or 1
+    return MISSION_PROFILE[ship_type] or MISSION_PROFILE[1]
+end
 
 function generateMissionId(length)
     length = length or 6
@@ -41,34 +89,33 @@ function generateMissionId(length)
 end
 
 function getRandomMissionType()
-    -- Around 10% total contraband chance.
-    local contraband_chance = 0.10
-    local is_contraband     = math.random() < contraband_chance
-    local is_passenger      = math.random() < 0.5
+    local profile = getMissionProfileForCurrentShip()
 
-    if is_contraband then
-        if is_passenger then
-            return MISSION_TYPE.CONTRABAND_PASSENGER
-        else
+    local roll = math.random()
+    local contraband_cutoff = profile.contraband_weight or 0.10
+    local passenger_cutoff = contraband_cutoff + (profile.passenger_weight or 0.45)
+
+    if roll < contraband_cutoff then
+        if math.random() < 0.5 then
             return MISSION_TYPE.CONTRABAND_CARGO
+        else
+            return MISSION_TYPE.CONTRABAND_PASSENGER
         end
-    end
-
-    if is_passenger then
+    elseif roll < passenger_cutoff then
         return MISSION_TYPE.PASSENGER
+    else
+        return MISSION_TYPE.CARGO
     end
-
-    return MISSION_TYPE.CARGO
 end
 
 function createRandomMission(source)
     local destinations = getMissionDestinationsForSource(source)
-
     if #destinations <= 0 then
         return nil
     end
 
-    local destination = destinations[math.random(1, #destinations)]
+    local profile      = getMissionProfileForCurrentShip()
+    local destination  = destinations[math.random(1, #destinations)]
     local mission_type = getRandomMissionType()
 
     local params = {
@@ -82,13 +129,13 @@ function createRandomMission(source)
         mission_type == MISSION_TYPE.CONTRABAND_PASSENGER
     then
         params.passengers_total = math.random(
-            MISSION_PASSENGER_MIN,
-            MISSION_PASSENGER_MAX
+            profile.passenger_min or MISSION_PASSENGER_MIN,
+            profile.passenger_max or MISSION_PASSENGER_MAX
         )
     else
         params.mass_total = math.random(
-            MISSION_CARGO_MASS_MIN,
-            MISSION_CARGO_MASS_MAX
+            profile.cargo_mass_min or MISSION_CARGO_MASS_MIN,
+            profile.cargo_mass_max or MISSION_CARGO_MASS_MAX
         )
     end
 
