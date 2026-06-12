@@ -1,0 +1,48 @@
+-- ==========================================
+-- GAME CONSTANTS
+-- ==========================================
+
+local DEBUG = false
+
+local TILE_EMPTY       = 0
+local TILE_STAR_DIM    = 1
+local TILE_STAR_MED    = 2
+local TILE_STAR_BRIGHT = 3
+
+local SPRITESHEET_TILES_W = 16
+
+local TILE_BLACK_HOLE_ID = 16
+local TILE_BLACK_HOLE_W  = 4
+local TILE_BLACK_HOLE_H  = 4
+
+local TILE_GALAXY_ID = 80
+local TILE_GALAXY_W  = 4
+local TILE_GALAXY_H  = 4
+
+local COLLISION_DAMAGE_SCALE = 1
+
+-- local GRAVITATIONAL_CONSTANT = 0.000000000001 -- very subtle
+-- local GRAVITATIONAL_CONSTANT = 0.00000000001  -- noticeable
+local GRAVITATIONAL_CONSTANT = 0.00000000002 -- middle
+-- local GRAVITATIONAL_CONSTANT = 0.000000000025 -- middle
+-- local GRAVITATIONAL_CONSTANT = 0.00000000005 -- strong
+
+-- Quick constants to set passenger masses.
+local PASSENGER_MASS         = 75
+local PASSENGER_LUGGAGE_MASS = 25
+local PASSENGER_TOTAL_MASS   = PASSENGER_MASS + PASSENGER_LUGGAGE_MASS
+
+local HARPOON_RANGE        = 140
+local HARPOON_LOCK_OFFSET  = 18
+local HARPOON_REEL_SPEED   = 0.35
+local HARPOON_REEL_PADDING = 6
+local HARPOON_RELEASE_PUSH = 0.4
+local HARPOON_MINE_RATE    = 2.0
+
+local SHOP_ENGINE_MAX_MULTIPLIER = 9
+
+local MISSION_INDICATOR_MARGIN       = 8
+local MISSION_INDICATOR_ARROW_SIZE   = 7
+local MISSION_INDICATOR_TEXT_COLOR   = YELLOW or 10
+local MISSION_INDICATOR_ARROW_COLOR  = YELLOW or 10
+local MISSION_INDICATOR_SHADOW_COLOR = BLACK or 0
