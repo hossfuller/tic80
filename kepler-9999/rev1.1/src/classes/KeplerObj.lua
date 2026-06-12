@@ -19,8 +19,9 @@ function KeplerObj:new(params)
     }
     self.color = self.colors.primary    -- In case it's a one-color object.
 
-    self.mass   = params.mass or 100   -- (kg)
-    self.radius = params.radius or 10  -- (m)
+    self.mass     = params.mass or 100                 -- (kg)
+    self.max_mass = params.max_mass or self.mass or 1  -- (kg)
+    self.radius   = params.radius or 10                -- (m)
 
     self.position = {
         x = params.x or math.floor(EDGE_X_RIGHT / 2),

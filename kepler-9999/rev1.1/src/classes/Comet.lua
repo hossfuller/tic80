@@ -8,7 +8,8 @@ Comet.__index = Comet
 function Comet:new(params)
     params = params or {}
 
-    params.mass = params.mass or randomFloat(COMET_MIN_MASS, COMET_MAX_MASS)
+    params.mass     = params.mass or randomFloat(COMET_MIN_MASS, COMET_MAX_MASS)
+    params.max_mass = params.max_mass or params.mass
 
     params.radius_real = params.radius_real or randomFloat(
         COMET_RADIUS_REAL_MIN,

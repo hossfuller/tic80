@@ -12,10 +12,11 @@ Asteroid.__index = Asteroid
 function Asteroid:new(params)
     params = params or {}
 
-    params.mass   = params.mass or randomFloat(ASTEROID_MIN_MASS, ASTEROID_MAX_MASS)
-    params.radius = params.radius or randomFloat(ASTEROID_RADIUS_MIN, ASTEROID_RADIUS_MAX)
-    params.colors = params.colors or shuffledAsteroidColors()
-    params.color  = params.color or params.colors.primary
+    params.mass     = params.mass or randomFloat(ASTEROID_MIN_MASS, ASTEROID_MAX_MASS)
+    params.max_mass = params.max_mass or params.mass
+    params.radius   = params.radius or randomFloat(ASTEROID_RADIUS_MIN, ASTEROID_RADIUS_MAX)
+    params.colors   = params.colors or shuffledAsteroidColors()
+    params.color    = params.color or params.colors.primary
 
     local direction     = params.direction or randomFloat(0, math.pi * 2)
     local speed         = params.speed or randomFloat(ASTEROID_SPEED_MIN, ASTEROID_SPEED_MAX)
@@ -462,6 +463,7 @@ function Asteroid:explode()
                 end
             end
 
+            local fragment_mass = math.max(1, (self.max_mass or self.mass or ASTEROID_MIN_MASS) / 2)
             local asteroid = Asteroid:new({
                 name           = "Asteroid Fragment",
                 colors         = self.colors,
@@ -480,6 +482,8 @@ function Asteroid:explode()
                 radius_plus    = self.radius_plus,
                 num_vertices   = self.num_vertices,
                 clumpiness     = self.clumpiness,
+                mass           = fragment_mass,
+                max_mass       = fragment_mass,
             })
             table.insert(asteroid_fragments, asteroid)
         end

@@ -1677,39 +1677,42 @@ function SpaceShip:updateDocking()
 end
 
 function SpaceShip:drawDockingHud()
-    local dock = self:getDockedSpaceDock()
-
-    if not dock or not dock.ore_bank then
-        return
-    end
-
     local lines = {}
 
-    table.insert(
-        lines,
-        "Dock Ore: " ..
-        tostring(math.floor(dock.ore_bank.cur)) ..
-        "/" ..
-        tostring(math.floor(dock.ore_bank.max))
-    )
-
-    -- If this SpaceDock is attached to a SpaceStation, also show the station's
-    -- total ore deposits.
-    local station = dock.host
-
-    if (
-        station and
-        SpaceStation ~= nil and
-        getmetatable(station) == SpaceStation and
-        station.ore_bank
-    ) then
+    local mining_target = self:getMiningTarget()
+    if mining_target then
         table.insert(
             lines,
-            "Station Ore: " ..
-            tostring(math.floor(station.ore_bank.cur)) ..
-            "/" ..
-            tostring(math.floor(station.ore_bank.max))
+            "Mass: " .. tostring(math.floor(mining_target.mass)) ..
+            "/" .. tostring(math.floor(mining_target.max_mass))
         )
+    end
+
+    local dock = self:getDockedSpaceDock()
+    if dock then
+        local station = dock.host
+        if (
+            station and
+            SpaceStation ~= nil and
+            getmetatable(station) == SpaceStation and
+            station.ore_bank
+        ) then
+            table.insert(
+                lines,
+                "Station Ore: " .. tostring(math.floor(station.ore_bank.cur)) ..
+                "/" .. tostring(math.floor(station.ore_bank.max))
+            )
+        elseif dock.ore_bank then
+            table.insert(
+                lines,
+                "Dock Ore: " .. tostring(math.floor(dock.ore_bank.cur)) ..
+                "/" .. tostring(math.floor(dock.ore_bank.max))
+            )
+        end
+    end
+
+    if #lines <= 0 then
+        return
     end
 
     local x_padding = 4
@@ -1721,10 +1724,7 @@ function SpaceShip:drawDockingHud()
         local text_w = print(text, 0, -100, WHITE, true, 1, true)
         local line_x = SCREEN_W - text_w - x_padding
 
-        -- Shadow.
         print(text, line_x + 1, line_y + 1, BLACK, true, 1, true)
-
-        -- Text.
         print(text, line_x, line_y, WHITE, true, 1, true)
     end
 end

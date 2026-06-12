@@ -5914,8 +5914,9 @@ function KeplerObj:new(params)
     }
     self.color = self.colors.primary    -- In case it's a one-color object.
 
-    self.mass   = params.mass or 100   -- (kg)
-    self.radius = params.radius or 10  -- (m)
+    self.mass     = params.mass or 100                 -- (kg)
+    self.max_mass = params.max_mass or self.mass or 1  -- (kg)
+    self.radius   = params.radius or 10                -- (m)
 
     self.position = {
         x = params.x or math.floor(EDGE_X_RIGHT / 2),
@@ -7898,39 +7899,42 @@ function SpaceShip:updateDocking()
 end
 
 function SpaceShip:drawDockingHud()
-    local dock = self:getDockedSpaceDock()
-
-    if not dock or not dock.ore_bank then
-        return
-    end
-
     local lines = {}
 
-    table.insert(
-        lines,
-        "Dock Ore: " ..
-        tostring(math.floor(dock.ore_bank.cur)) ..
-        "/" ..
-        tostring(math.floor(dock.ore_bank.max))
-    )
-
-    -- If this SpaceDock is attached to a SpaceStation, also show the station's
-    -- total ore deposits.
-    local station = dock.host
-
-    if (
-        station and
-        SpaceStation ~= nil and
-        getmetatable(station) == SpaceStation and
-        station.ore_bank
-    ) then
+    local mining_target = self:getMiningTarget()
+    if mining_target then
         table.insert(
             lines,
-            "Station Ore: " ..
-            tostring(math.floor(station.ore_bank.cur)) ..
-            "/" ..
-            tostring(math.floor(station.ore_bank.max))
+            "Mass: " .. tostring(math.floor(mining_target.mass)) ..
+            "/" .. tostring(math.floor(mining_target.max_mass))
         )
+    end
+
+    local dock = self:getDockedSpaceDock()
+    if dock then
+        local station = dock.host
+        if (
+            station and
+            SpaceStation ~= nil and
+            getmetatable(station) == SpaceStation and
+            station.ore_bank
+        ) then
+            table.insert(
+                lines,
+                "Station Ore: " .. tostring(math.floor(station.ore_bank.cur)) ..
+                "/" .. tostring(math.floor(station.ore_bank.max))
+            )
+        elseif dock.ore_bank then
+            table.insert(
+                lines,
+                "Dock Ore: " .. tostring(math.floor(dock.ore_bank.cur)) ..
+                "/" .. tostring(math.floor(dock.ore_bank.max))
+            )
+        end
+    end
+
+    if #lines <= 0 then
+        return
     end
 
     local x_padding = 4
@@ -7942,10 +7946,7 @@ function SpaceShip:drawDockingHud()
         local text_w = print(text, 0, -100, WHITE, true, 1, true)
         local line_x = SCREEN_W - text_w - x_padding
 
-        -- Shadow.
         print(text, line_x + 1, line_y + 1, BLACK, true, 1, true)
-
-        -- Text.
         print(text, line_x, line_y, WHITE, true, 1, true)
     end
 end
@@ -9059,12 +9060,11 @@ function Moon:new(params)
     params.has_ring = false
     params.num_rings = 0
 
-    params.mass = params.mass or randomFloat(MOON_MIN_MASS, MOON_MASS)
-
+    params.mass        = params.mass or randomFloat(MOON_MIN_MASS, MOON_MASS)
+    params.max_mass    = params.max_mass or params.mass
     params.radius_real = params.radius_real or randomFloat(100, 900)
-    params.radius = params.radius or Moon:getDrawRadiusFromRealRadius(params.radius_real)
-
-    params.colors = params.colors or randomMoonColorSet()
+    params.radius      = params.radius or Moon:getDrawRadiusFromRealRadius(params.radius_real)
+    params.colors      = params.colors or randomMoonColorSet()
 
     -- Important:
     local self = Planet:new(params)
@@ -9366,7 +9366,8 @@ Comet.__index = Comet
 function Comet:new(params)
     params = params or {}
 
-    params.mass = params.mass or randomFloat(COMET_MIN_MASS, COMET_MAX_MASS)
+    params.mass     = params.mass or randomFloat(COMET_MIN_MASS, COMET_MAX_MASS)
+    params.max_mass = params.max_mass or params.mass
 
     params.radius_real = params.radius_real or randomFloat(
         COMET_RADIUS_REAL_MIN,
@@ -9747,10 +9748,11 @@ Asteroid.__index = Asteroid
 function Asteroid:new(params)
     params = params or {}
 
-    params.mass   = params.mass or randomFloat(ASTEROID_MIN_MASS, ASTEROID_MAX_MASS)
-    params.radius = params.radius or randomFloat(ASTEROID_RADIUS_MIN, ASTEROID_RADIUS_MAX)
-    params.colors = params.colors or shuffledAsteroidColors()
-    params.color  = params.color or params.colors.primary
+    params.mass     = params.mass or randomFloat(ASTEROID_MIN_MASS, ASTEROID_MAX_MASS)
+    params.max_mass = params.max_mass or params.mass
+    params.radius   = params.radius or randomFloat(ASTEROID_RADIUS_MIN, ASTEROID_RADIUS_MAX)
+    params.colors   = params.colors or shuffledAsteroidColors()
+    params.color    = params.color or params.colors.primary
 
     local direction     = params.direction or randomFloat(0, math.pi * 2)
     local speed         = params.speed or randomFloat(ASTEROID_SPEED_MIN, ASTEROID_SPEED_MAX)
@@ -10197,6 +10199,7 @@ function Asteroid:explode()
                 end
             end
 
+            local fragment_mass = math.max(1, (self.max_mass or self.mass or ASTEROID_MIN_MASS) / 2)
             local asteroid = Asteroid:new({
                 name           = "Asteroid Fragment",
                 colors         = self.colors,
@@ -10215,6 +10218,8 @@ function Asteroid:explode()
                 radius_plus    = self.radius_plus,
                 num_vertices   = self.num_vertices,
                 clumpiness     = self.clumpiness,
+                mass           = fragment_mass,
+                max_mass       = fragment_mass,
             })
             table.insert(asteroid_fragments, asteroid)
         end

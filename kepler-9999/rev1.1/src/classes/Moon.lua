@@ -12,12 +12,11 @@ function Moon:new(params)
     params.has_ring = false
     params.num_rings = 0
 
-    params.mass = params.mass or randomFloat(MOON_MIN_MASS, MOON_MASS)
-
+    params.mass        = params.mass or randomFloat(MOON_MIN_MASS, MOON_MASS)
+    params.max_mass    = params.max_mass or params.mass
     params.radius_real = params.radius_real or randomFloat(100, 900)
-    params.radius = params.radius or Moon:getDrawRadiusFromRealRadius(params.radius_real)
-
-    params.colors = params.colors or randomMoonColorSet()
+    params.radius      = params.radius or Moon:getDrawRadiusFromRealRadius(params.radius_real)
+    params.colors      = params.colors or randomMoonColorSet()
 
     -- Important:
     local self = Planet:new(params)
