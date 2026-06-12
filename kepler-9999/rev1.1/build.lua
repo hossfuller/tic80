@@ -126,6 +126,13 @@ local HARPOON_MINE_RATE    = 2.0
 
 local SHOP_ENGINE_MAX_MULTIPLIER = 9
 
+local MISSION_INDICATOR_MARGIN       = 8
+local MISSION_INDICATOR_ARROW_SIZE   = 7
+local MISSION_INDICATOR_TEXT_COLOR   = YELLOW or 10
+local MISSION_INDICATOR_ARROW_COLOR  = YELLOW or 10
+local MISSION_INDICATOR_SHADOW_COLOR = BLACK or 0
+
+
 -- [/TQ-Bundler: src.constants_game]
 
 -- [TQ-Bundler: src.generators.backgroundmap]
@@ -2316,6 +2323,27 @@ end
 -- MISSION MANIFEST HELPERS
 -- ==========================================
 
+function getCarriedMissionsForShip(ship)
+    local carried = {}
+
+    if not ship or not game or not game.play or not game.play.missions then
+        return carried
+    end
+
+    for _, mission in ipairs(game.play.missions) do
+        if (
+                mission and
+                mission.canAct and
+                mission:canAct() and
+                getShipMissionManifestAmount(ship, mission) > 0
+            ) then
+            table.insert(carried, mission)
+        end
+    end
+
+    return carried
+end
+
 function getShipMissionManifestBucket(ship, mission)
     if not ship or not mission then
         return nil
@@ -3433,6 +3461,14 @@ game = {
                 end,
             },
             {
+                name = "Mission Indicators",
+                values = { "On", "Off" },
+                current = 1,
+                apply = function(current)
+                    game.params.mission_indicators_enabled = current == 1
+                end,
+            },
+            {
                 name = "Back",
                 values = nil, -- No values means this is an action, not a setting.
                 current = 1,
@@ -3483,6 +3519,7 @@ game = {
     -- Game Parameters
     params = {
         ship_type = 1, -- default ship by default
+        mission_indicators_enabled = true,
     },
 
     -- The top-down camera
@@ -4440,6 +4477,180 @@ function notifyMissionReward(reward_text)
     }
 end
 
+function getMissionDestinationPosition(mission)
+    if not mission or not mission.destination or not mission.destination.position then
+        return nil
+    end
+
+    return mission.destination.position
+end
+
+function isWorldPositionOnScreen(x, y)
+    local sx, sy = worldToScreen(x, y)
+
+    return (
+        sx >= 0 and
+        sx < SCREEN_W and
+        sy >= 0 and
+        sy < SCREEN_H
+    )
+end
+
+function getScreenEdgePointTowardWorldPosition(world_x, world_y, margin)
+    margin = margin or MISSION_INDICATOR_MARGIN
+
+    local sx, sy = worldToScreen(world_x, world_y)
+
+    local cx = SCREEN_W / 2
+    local cy = SCREEN_H / 2
+
+    local dx = sx - cx
+    local dy = sy - cy
+
+    if dx == 0 and dy == 0 then
+        dy = -1
+    end
+
+    local t_x = 999999
+    local t_y = 999999
+
+    if dx > 0 then
+        t_x = ((SCREEN_W - margin) - cx) / dx
+    elseif dx < 0 then
+        t_x = (margin - cx) / dx
+    end
+
+    if dy > 0 then
+        t_y = ((SCREEN_H - margin) - cy) / dy
+    elseif dy < 0 then
+        t_y = (margin - cy) / dy
+    end
+
+    local t = math.min(t_x, t_y)
+
+    local x = cx + dx * t
+    local y = cy + dy * t
+
+    local len = math.sqrt(dx * dx + dy * dy)
+
+    if len == 0 then
+        len = 1
+    end
+
+    return x, y, dx / len, dy / len
+end
+
+function drawMissionDestinationIndicator(ship, mission, stack_index)
+    if not ship or not mission then
+        return
+    end
+
+    local destination_position = getMissionDestinationPosition(mission)
+    if not destination_position then
+        return
+    end
+    if isWorldPositionOnScreen(destination_position.x, destination_position.y) then
+        return
+    end
+
+    local x, y, nx, ny = getScreenEdgePointTowardWorldPosition(
+        destination_position.x,
+        destination_position.y,
+        MISSION_INDICATOR_MARGIN
+    )
+
+    -- Offset overlapping mission indicators slightly along the edge tangent.
+    stack_index = stack_index or 1
+
+    local offset = (stack_index - 1) * 9
+    local tx = -ny
+    local ty = nx
+
+    x = x + tx * offset
+    y = y + ty * offset
+
+    x = math.max(MISSION_INDICATOR_MARGIN, math.min(SCREEN_W - MISSION_INDICATOR_MARGIN, x))
+    y = math.max(MISSION_INDICATOR_MARGIN, math.min(SCREEN_H - MISSION_INDICATOR_MARGIN, y))
+
+    local size = MISSION_INDICATOR_ARROW_SIZE
+
+    local tip_x = x
+    local tip_y = y
+
+    local back_x = x - nx * size
+    local back_y = y - ny * size
+
+    local wing_x = -ny * size * 0.55
+    local wing_y = nx * size * 0.55
+
+    tri(
+        tip_x,
+        tip_y,
+        back_x + wing_x,
+        back_y + wing_y,
+        back_x - wing_x,
+        back_y - wing_y,
+        MISSION_INDICATOR_ARROW_COLOR
+    )
+
+    local dx = destination_position.x - ship.position.x
+    local dy = destination_position.y - ship.position.y
+    local distance = math.floor(math.sqrt(dx * dx + dy * dy))
+
+    local text   = tostring(distance)
+    local text_w = print(text, -1000, -1000)
+    local text_x = x - text_w / 2
+    local text_y = y + 7
+    if y > SCREEN_H - 18 then
+        text_y = y - 13
+    end
+
+    text_x = math.max(1, math.min(SCREEN_W - text_w - 1, text_x))
+
+    print(text, text_x + 1, text_y + 1, MISSION_INDICATOR_SHADOW_COLOR)
+    print(text, text_x, text_y, MISSION_INDICATOR_TEXT_COLOR)
+end
+
+function drawMissionDestinationIndicators()
+    if not game or not game.play or not game.play.player then
+        return
+    end
+
+    if game.params and game.params.mission_indicators_enabled == false then
+        return
+    end
+
+    local ship = game.play.player
+    if ship.dead then
+        return
+    end
+
+    local carried_missions = getCarriedMissionsForShip(ship)
+    local destinations = {}
+    for _, mission in ipairs(carried_missions) do
+        local destination_position = getMissionDestinationPosition(mission)
+
+        if destination_position and not isWorldPositionOnScreen(destination_position.x, destination_position.y) then
+            local destination = mission.destination
+            local key = tostring(destination)
+
+            if not destinations[key] then
+                destinations[key] = {
+                    mission = mission,
+                    destination = destination,
+                    position = destination_position,
+                }
+            end
+        end
+    end
+
+    local drawn_count = 0
+    for _, destination_info in pairs(destinations) do
+        drawn_count = drawn_count + 1
+        drawMissionDestinationIndicator(ship, destination_info.mission, drawn_count)
+    end
+end
+
 function drawStarMap()
     local camera = game.camera
     local zoom = camera.zoom or 1
@@ -4777,6 +4988,8 @@ function drawGame()
 
     local player = game.play.player
     player:draw()
+
+    drawMissionDestinationIndicators()
 
     if game.camera.zoom >= 0.5 then
         drawShipCargoHoldHud()

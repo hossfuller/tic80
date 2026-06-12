@@ -572,6 +572,27 @@ end
 -- MISSION MANIFEST HELPERS
 -- ==========================================
 
+function getCarriedMissionsForShip(ship)
+    local carried = {}
+
+    if not ship or not game or not game.play or not game.play.missions then
+        return carried
+    end
+
+    for _, mission in ipairs(game.play.missions) do
+        if (
+                mission and
+                mission.canAct and
+                mission:canAct() and
+                getShipMissionManifestAmount(ship, mission) > 0
+            ) then
+            table.insert(carried, mission)
+        end
+    end
+
+    return carried
+end
+
 function getShipMissionManifestBucket(ship, mission)
     if not ship or not mission then
         return nil

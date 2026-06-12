@@ -36,6 +36,14 @@ game = {
                 end,
             },
             {
+                name = "Mission Indicators",
+                values = { "On", "Off" },
+                current = 1,
+                apply = function(current)
+                    game.params.mission_indicators_enabled = current == 1
+                end,
+            },
+            {
                 name = "Back",
                 values = nil, -- No values means this is an action, not a setting.
                 current = 1,
@@ -86,6 +94,7 @@ game = {
     -- Game Parameters
     params = {
         ship_type = 1, -- default ship by default
+        mission_indicators_enabled = true,
     },
 
     -- The top-down camera
