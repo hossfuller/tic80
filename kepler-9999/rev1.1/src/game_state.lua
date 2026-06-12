@@ -121,6 +121,7 @@ game = {
         missions               = {},
         delivered_notification = nil,
         reward_notification    = nil,
+        mineable_notification  = nil,
     },
 }
 
@@ -140,12 +141,13 @@ function changeState(newState)
         game.play.star                   = generateStar()
         game.play.planets                = generatePlanets()
         game.play.asteroids              = spawnAsteroids()
+        game.play.comets                 = generateComets()
         game.play.space_stations         = generateSpaceStations(game.play.planets)
         game.play.delivered_notification = nil
         game.play.reward_notification    = nil
+        game.play.mineable_notification  = nil
 
         generateMoons()
-        generateComets()
 
         addSpaceDocksToPlanets(game.play.planets)
         addSpaceDocksToStations(game.play.space_stations)

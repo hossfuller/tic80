@@ -149,8 +149,6 @@ function generateComets()
     for i = 1, comet_count do
         table.insert(comets, generateComet(i))
     end
-
-    game.play.comets = comets
 end
 
 function respawnComet(index)

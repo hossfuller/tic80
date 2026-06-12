@@ -758,12 +758,14 @@ end
 
 function SpaceShip:mineHarpoonTarget()
     local target = self:getMiningTarget()
-
     if not target then
         return false
     end
 
     if not self:canMineHarpoonTarget() then
+        if self:hasNonOreCargoForMining() and notifyMineable then
+            notifyMineable("Can't mix ORE with cargo.")
+        end
         return false
     end
 
@@ -802,6 +804,23 @@ function SpaceShip:mineHarpoonTarget()
     end
 
     return true
+end
+
+function SpaceShip:hasNonOreCargoForMining()
+    local cargo_cur = 0
+    local smuggled_cur = 0
+
+    if self.holds then
+        if self.holds.cargo then
+            cargo_cur = self.holds.cargo.cur or 0
+        end
+
+        if self.holds.smuggled then
+            smuggled_cur = self.holds.smuggled.cur or 0
+        end
+    end
+
+    return (cargo_cur > 0 or smuggled_cur > 0) and self.cargo_has_ore == false
 end
 
 -- ==========================================

@@ -109,6 +109,15 @@ function updatePlay()
         end
     end
 
+    -- Update mineable notification.
+    if game.play.mineable_notification and game.play.mineable_notification.timer then
+        game.play.mineable_notification.timer = game.play.mineable_notification.timer - 1
+
+        if game.play.mineable_notification.timer <= 0 then
+            game.play.mineable_notification = nil
+        end
+    end
+
     maintainMissionGeneration()
 end
 
@@ -137,6 +146,17 @@ function notifyMissionReward(reward_text)
     game.play.reward_notification = {
         timer = 180, -- 3 seconds at 60 FPS
         text = text
+    }
+end
+
+function notifyMineable(text)
+    if not game or not game.play then
+        return
+    end
+
+    game.play.mineable_notification = {
+        timer = 120,
+        text = text or "Can't mix ORE with cargo."
     }
 end
 
@@ -622,6 +642,22 @@ function drawMissionRewardNotification()
     print(text, x, y, color, true, 1, true)
 end
 
+function drawMineableNotification()
+    local notification = game.play.mineable_notification
+    if not notification or not notification.timer then
+        return
+    end
+
+    local text = notification.text or "Can't mix ORE with cargo."
+    local line_h = 8
+    local bottom_y = SCREEN_H - 16
+    local y = bottom_y - 2 * line_h
+    local x = math.floor((SCREEN_W - print(text, 0, -100, ORANGE, false, 1, true)) / 2)
+
+    print(text, x + 1, y + 1, BLACK)
+    print(text, x, y, ORANGE)
+end
+
 function drawGame()
     cls(BLACK)
 
@@ -660,6 +696,7 @@ function drawGame()
         drawShipLivesHud()
         drawMissionRewardNotification()
         drawMassDeliveredNotification()
+        drawMineableNotification()
     end
 end
 

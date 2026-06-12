@@ -1433,8 +1433,6 @@ function generateComets()
     for i = 1, comet_count do
         table.insert(comets, generateComet(i))
     end
-
-    game.play.comets = comets
 end
 
 function respawnComet(index)
@@ -3546,6 +3544,7 @@ game = {
         missions               = {},
         delivered_notification = nil,
         reward_notification    = nil,
+        mineable_notification  = nil,
     },
 }
 
@@ -3565,12 +3564,13 @@ function changeState(newState)
         game.play.star                   = generateStar()
         game.play.planets                = generatePlanets()
         game.play.asteroids              = spawnAsteroids()
+        game.play.comets                 = generateComets()
         game.play.space_stations         = generateSpaceStations(game.play.planets)
         game.play.delivered_notification = nil
         game.play.reward_notification    = nil
+        game.play.mineable_notification  = nil
 
         generateMoons()
-        generateComets()
 
         addSpaceDocksToPlanets(game.play.planets)
         addSpaceDocksToStations(game.play.space_stations)
@@ -4446,6 +4446,15 @@ function updatePlay()
         end
     end
 
+    -- Update mineable notification.
+    if game.play.mineable_notification and game.play.mineable_notification.timer then
+        game.play.mineable_notification.timer = game.play.mineable_notification.timer - 1
+
+        if game.play.mineable_notification.timer <= 0 then
+            game.play.mineable_notification = nil
+        end
+    end
+
     maintainMissionGeneration()
 end
 
@@ -4474,6 +4483,17 @@ function notifyMissionReward(reward_text)
     game.play.reward_notification = {
         timer = 180, -- 3 seconds at 60 FPS
         text = text
+    }
+end
+
+function notifyMineable(text)
+    if not game or not game.play then
+        return
+    end
+
+    game.play.mineable_notification = {
+        timer = 120,
+        text = text or "Can't mix ORE with cargo."
     }
 end
 
@@ -4959,6 +4979,22 @@ function drawMissionRewardNotification()
     print(text, x, y, color, true, 1, true)
 end
 
+function drawMineableNotification()
+    local notification = game.play.mineable_notification
+    if not notification or not notification.timer then
+        return
+    end
+
+    local text = notification.text or "Can't mix ORE with cargo."
+    local line_h = 8
+    local bottom_y = SCREEN_H - 16
+    local y = bottom_y - 2 * line_h
+    local x = math.floor((SCREEN_W - print(text, 0, -100, ORANGE, false, 1, true)) / 2)
+
+    print(text, x + 1, y + 1, BLACK)
+    print(text, x, y, ORANGE)
+end
+
 function drawGame()
     cls(BLACK)
 
@@ -4997,6 +5033,7 @@ function drawGame()
         drawShipLivesHud()
         drawMissionRewardNotification()
         drawMassDeliveredNotification()
+        drawMineableNotification()
     end
 end
 
@@ -7193,12 +7230,14 @@ end
 
 function SpaceShip:mineHarpoonTarget()
     local target = self:getMiningTarget()
-
     if not target then
         return false
     end
 
     if not self:canMineHarpoonTarget() then
+        if self:hasNonOreCargoForMining() and notifyMineable then
+            notifyMineable("Can't mix ORE with cargo.")
+        end
         return false
     end
 
@@ -7237,6 +7276,23 @@ function SpaceShip:mineHarpoonTarget()
     end
 
     return true
+end
+
+function SpaceShip:hasNonOreCargoForMining()
+    local cargo_cur = 0
+    local smuggled_cur = 0
+
+    if self.holds then
+        if self.holds.cargo then
+            cargo_cur = self.holds.cargo.cur or 0
+        end
+
+        if self.holds.smuggled then
+            smuggled_cur = self.holds.smuggled.cur or 0
+        end
+    end
+
+    return (cargo_cur > 0 or smuggled_cur > 0) and self.cargo_has_ore == false
 end
 
 -- ==========================================
