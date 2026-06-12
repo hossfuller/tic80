@@ -141,7 +141,7 @@ function changeState(newState)
         game.play.star                   = generateStar()
         game.play.planets                = generatePlanets()
         game.play.asteroids              = spawnAsteroids()
-        game.play.comets                 = generateComets()
+        game.play.comets                 = generateComets() -- comet_count is set in this function
         game.play.space_stations         = generateSpaceStations(game.play.planets)
         game.play.delivered_notification = nil
         game.play.reward_notification    = nil

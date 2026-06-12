@@ -1570,7 +1570,8 @@ end
 -- ==========================================
 
 local STATION_MASS        = 10000
-local DOCK_MASS           = 2000  -- definitely destructable, watch your flying!
+-- local DOCK_MASS            = 2000 -- definitely destructable, watch your flying!
+local DOCK_MASS            = 20 -- definitely destructable, watch your flying!
 local STATION_RADIUS      = 100
 local STATION_REAL_RADIUS = 25
 local DOCK_RADIUS         = 10
@@ -1765,6 +1766,8 @@ local MISSION_TYPE = {
     PASSENGER            = "passenger",
     CONTRABAND_CARGO     = "contraband_cargo",
     CONTRABAND_PASSENGER = "contraband_passenger",
+    COLLECT_ORE          = "collect_ore",
+    REPAIR_DOCK          = "repair_dock",
 }
 
 local MISSION_STATUS = {
@@ -1774,43 +1777,47 @@ local MISSION_STATUS = {
 
 local MISSION_PROFILE = {
     [1] = { -- Cruiser
-        cargo_weight = 0.45,
-        passenger_weight = 0.45,
+        cargo_weight      = 0.40,
+        passenger_weight  = 0.40,
         contraband_weight = 0.10,
-        cargo_mass_min = MISSION_CARGO_MASS_MIN,
-        cargo_mass_max = MISSION_CARGO_MASS_MAX,
-        passenger_min = MISSION_PASSENGER_MIN,
-        passenger_max = MISSION_PASSENGER_MAX,
+        ore_weight        = 0.10,
+        cargo_mass_min    = MISSION_CARGO_MASS_MIN,
+        cargo_mass_max    = MISSION_CARGO_MASS_MAX,
+        passenger_min     = MISSION_PASSENGER_MIN,
+        passenger_max     = MISSION_PASSENGER_MAX,
     },
 
     [2] = { -- Freighter
-        cargo_weight = 0.70,
-        passenger_weight = 0.20,
+        cargo_weight      = 0.60,
+        passenger_weight  = 0.15,
         contraband_weight = 0.10,
-        cargo_mass_min = 300,
-        cargo_mass_max = 1800,
-        passenger_min = 1,
-        passenger_max = 2 * 4, -- 2x freighter passenger capacity (4 * PASSENGER_TOTAL_MASS)
+        ore_weight        = 0.15,
+        cargo_mass_min    = 300,
+        cargo_mass_max    = 1800,
+        passenger_min     = 1,
+        passenger_max     = 2 * 4,
     },
 
     [3] = { -- Passenger
-        cargo_weight = 0.20,
-        passenger_weight = 0.70,
+        cargo_weight      = 0.15,
+        passenger_weight  = 0.65,
         contraband_weight = 0.10,
-        cargo_mass_min = 2 * 350, -- > 2x passenger ship cargo max
-        cargo_mass_max = 2500,
-        passenger_min = 6,
-        passenger_max = 30,
+        ore_weight        = 0.10,
+        cargo_mass_min    = 2 * 350,
+        cargo_mass_max    = 2500,
+        passenger_min     = 6,
+        passenger_max     = 30,
     },
 
     [4] = { -- Smuggler
-        cargo_weight = 0.20,
-        passenger_weight = 0.20,
-        contraband_weight = 0.60,
-        cargo_mass_min = 50,
-        cargo_mass_max = 900,
-        passenger_min = 1,
-        passenger_max = 8,
+        cargo_weight      = 0.15,
+        passenger_weight  = 0.15,
+        contraband_weight = 0.55,
+        ore_weight        = 0.15,
+        cargo_mass_min    = 50,
+        cargo_mass_max    = 900,
+        passenger_min     = 1,
+        passenger_max     = 8,
     },
 }
 
@@ -1838,11 +1845,14 @@ function generateMissionId(length)
 end
 
 function getRandomMissionType()
-    local profile = getMissionProfileForCurrentShip()
-
-    local roll = math.random()
-    local contraband_cutoff = profile.contraband_weight or 0.10
-    local passenger_cutoff = contraband_cutoff + (profile.passenger_weight or 0.45)
+    local profile           = getMissionProfileForCurrentShip()
+    local contraband_weight = profile.contraband_weight or 0.10
+    local passenger_weight  = profile.passenger_weight or 0.45
+    local ore_weight        = profile.ore_weight or 0.00
+    local contraband_cutoff = contraband_weight
+    local passenger_cutoff  = contraband_cutoff + passenger_weight
+    local ore_cutoff        = passenger_cutoff + ore_weight
+    local roll              = math.random()
 
     if roll < contraband_cutoff then
         if math.random() < 0.5 then
@@ -1852,20 +1862,32 @@ function getRandomMissionType()
         end
     elseif roll < passenger_cutoff then
         return MISSION_TYPE.PASSENGER
+    elseif roll < ore_cutoff then
+        return MISSION_TYPE.COLLECT_ORE
     else
         return MISSION_TYPE.CARGO
     end
 end
 
 function createRandomMission(source)
-    local destinations = getMissionDestinationsForSource(source)
-    if #destinations <= 0 then
+    if not source then
         return nil
     end
 
     local profile      = getMissionProfileForCurrentShip()
-    local destination  = destinations[math.random(1, #destinations)]
     local mission_type = getRandomMissionType()
+    local destination  = nil
+
+    if mission_type == MISSION_TYPE.COLLECT_ORE then
+        -- ORE collection happens at the same dock/station that requested it.
+        destination = source
+    else
+        local destinations = getMissionDestinationsForSource(source)
+        if #destinations <= 0 then
+            return nil
+        end
+        destination = destinations[math.random(1, #destinations)]
+    end
 
     local params = {
         source      = source,
@@ -1882,6 +1904,7 @@ function createRandomMission(source)
             profile.passenger_max or MISSION_PASSENGER_MAX
         )
     else
+        -- Regular cargo, contraband cargo, and ORE collection all use cargo mass sizing.
         params.mass_total = math.random(
             profile.cargo_mass_min or MISSION_CARGO_MASS_MIN,
             profile.cargo_mass_max or MISSION_CARGO_MASS_MAX
@@ -1980,6 +2003,8 @@ function allMissionsAreTerminal()
 end
 
 function maintainMissionGeneration()
+    removeCompletedRepairMissions()
+
     local had_missions = game.play.missions and #game.play.missions > 0
 
     if allMissionsAreTerminal() then
@@ -1992,6 +2017,182 @@ function maintainMissionGeneration()
         end
 
         generateInitialMissions()
+    end
+end
+
+-- ==========================================
+-- MISSION DOCK REPAIR CODE
+-- ==========================================
+
+function removeCompletedRepairMissions()
+    if not game.play.missions then
+        return
+    end
+
+    for i = #game.play.missions, 1, -1 do
+        local mission = game.play.missions[i]
+
+        if mission and
+            mission:isDockRepairMission() and
+            mission:isCompleted()
+        then
+            table.remove(game.play.missions, i)
+        end
+    end
+end
+
+function getPrimarySpaceStation()
+    for _, station in ipairs(game.play.space_stations or {}) do
+        if isSpaceStation(station) then
+            return station
+        end
+    end
+
+    return nil
+end
+
+function hasActiveRepairMissionForDock(dock)
+    if not dock then
+        return false
+    end
+
+    for _, mission in ipairs(game.play.missions or {}) do
+        if mission and
+            mission:canAct() and
+            mission:isDockRepairMission() and
+            mission.repair_target == dock
+        then
+            return true
+        end
+    end
+
+    return false
+end
+
+function createDockRepairMission(dock, station)
+    if not dock or not station then
+        return nil
+    end
+
+    if hasActiveRepairMissionForDock(dock) then
+        return nil
+    end
+
+    local mission = Mission:new({
+        source        = station,
+        destination   = station,
+        type          = MISSION_TYPE.REPAIR_DOCK,
+        status        = MISSION_STATUS.ACTIVE,
+        mass_total    = DOCK_MASS,
+        repair_target = dock,
+    })
+
+    table.insert(game.play.missions, mission)
+
+    return mission
+end
+
+function removeMissionsInvolvingDock(dock)
+    if not dock or not game.play.missions then
+        return
+    end
+
+    for i = #game.play.missions, 1, -1 do
+        local mission = game.play.missions[i]
+
+        if mission and
+            not mission:isDockRepairMission() and
+            (
+                mission.source == dock or
+                mission.destination == dock
+            )
+        then
+            table.remove(game.play.missions, i)
+        end
+    end
+end
+
+function clearShipManifestForDockMissions(ship, dock)
+    if not ship or not dock or not game.play.missions then
+        return
+    end
+
+    for _, mission in ipairs(game.play.missions or {}) do
+        if mission and
+            (
+                mission.source == dock or
+                mission.destination == dock
+            )
+        then
+            removeShipMissionManifestAmount(ship, mission, 999999999)
+        end
+    end
+end
+
+function onSpaceDockDestroyed(dock)
+    if not dock then
+        return
+    end
+
+    -- Clear carried manifest entries before removing the missions from the
+    -- global mission list.
+    if game.play.player then
+        clearShipManifestForDockMissions(game.play.player, dock)
+    end
+
+    -- Remove stale missions sourced from or destined to the destroyed dock.
+    removeMissionsInvolvingDock(dock)
+
+    -- Repair missions are issued by the SpaceStation.
+    -- If this is a station-attached dock, use its host station.
+    -- If this is a planet dock, use the primary station.
+    local station = nil
+
+    if isStationDock(dock) then
+        station = dock.host
+    else
+        station = getPrimarySpaceStation()
+    end
+
+    createDockRepairMission(dock, station)
+end
+
+function shouldDeferSpaceDockRestore(dock)
+    if not dock then
+        return false
+    end
+
+    -- Only station-attached docks need delayed restore.
+    if not isStationDock(dock) then
+        return false
+    end
+
+    local ship = game
+        and game.play
+        and game.play.player
+
+    if not ship or not ship.getDockedSpaceDock then
+        return false
+    end
+
+    -- Station-attached repaired docks regenerate only after undocking from the
+    -- station/dock interaction.
+    return ship:getDockedSpaceDock() ~= nil
+end
+
+function restorePendingStationSpaceDocks()
+    if not game or not game.play or not game.play.space_stations then
+        return
+    end
+
+    for _, station in ipairs(game.play.space_stations) do
+        if station.docks then
+            for _, dock in ipairs(station.docks) do
+                if dock.pending_restore and dock.restore then
+                    dock:restore()
+                end
+            end
+        end
     end
 end
 
@@ -2135,15 +2336,20 @@ function getActiveMissionsDestinedForDock(dock)
             mission:canAct() and
             missionIsDestinedForDock(mission, dock)
         then
-            local has_active_manifest = false
+            local can_deliver_here = false
 
-            if mission:isPassengerMission() then
-                has_active_manifest = (mission.passengers.active or 0) > 0
+            -- ORE delivery missions, including dock repair missions, are
+            -- delivered directly from generic mined ORE in the cargo hold.
+            -- They do not need mission.mass.active > 0.
+            if mission:isOreDeliveryMission() then
+                can_deliver_here = true
+            elseif mission:isPassengerMission() then
+                can_deliver_here = (mission.passengers.active or 0) > 0
             else
-                has_active_manifest = (mission.mass.active or 0) > 0
+                can_deliver_here = (mission.mass.active or 0) > 0
             end
 
-            if has_active_manifest then
+            if can_deliver_here then
                 table.insert(missions, mission)
             end
         end
@@ -2172,6 +2378,61 @@ function deliverMissionCargoAtDock(ship, mission)
         return 0
     end
 
+    -- ORE delivery missions consume mined ORE directly from the normal cargo
+    -- hold. This includes:
+    -- - MISSION_TYPE.COLLECT_ORE
+    -- - MISSION_TYPE.REPAIR_DOCK
+    -- They do not use mission.mass.active and do not use ship.mission_manifest.
+    if mission:isOreDeliveryMission() then
+        if ship.cargo_has_ore ~= true then
+            return 0
+        end
+
+        if not ship.holds or not ship.holds.cargo then
+            return 0
+        end
+
+        local cargo_hold = ship.holds.cargo
+        if cargo_hold.cur <= 0 then
+            return 0
+        end
+
+        local rate = getMissionDeliveryRatePerTick(mission)
+        local remaining = math.max(0, mission.mass.total - mission.mass.transported)
+        local requested_amount = math.min(
+            rate,
+            cargo_hold.cur,
+            remaining
+        )
+        requested_amount = math.floor(requested_amount)
+        if requested_amount <= 0 then
+            return 0
+        end
+
+        local removed_from_ship = ship:updateHoldMass("cargo", -requested_amount)
+        if not removed_from_ship then
+            return 0
+        end
+
+        local delivered = mission:deliverOreMass(requested_amount)
+        if delivered <= 0 then
+            ship:updateHoldMass("cargo", requested_amount)
+            return 0
+        end
+
+        ship:updateMassDelivered(delivered)
+
+        if ship:getCargoMass() <= 0 then
+            ship.cargo_has_ore = false
+        end
+
+        if notifyMassDelivered then
+            notifyMassDelivered()
+        end
+
+        return delivered
+    end
+
     local hold_type = getMissionDeliveryHoldType(mission)
     if not hold_type then
         return 0
@@ -2192,6 +2453,8 @@ function deliverMissionCargoAtDock(ship, mission)
         hold.cur,
         mission.mass.active or 0
     )
+
+    requested_amount = math.floor(requested_amount)
     if requested_amount <= 0 then
         return 0
     end
@@ -2210,6 +2473,7 @@ function deliverMissionCargoAtDock(ship, mission)
         ship:updateHoldMass(hold_type, requested_amount)
         return 0
     end
+
     removeShipMissionManifestAmount(ship, mission, delivered)
 
     -- Mission delivery counts toward score/mass delivered.
@@ -2353,6 +2617,12 @@ function getShipMissionManifestBucket(ship, mission)
             passengers = {},
             smuggled = {},
         }
+    end
+
+    -- ORE delivery missions do not use the ship mission manifest. The cargo
+    -- hold contains generic mined ORE, not mission-owned cargo.
+    if mission:isOreDeliveryMission() then
+        return nil
     end
 
     if mission.type == MISSION_TYPE.CARGO then
@@ -3564,7 +3834,7 @@ function changeState(newState)
         game.play.star                   = generateStar()
         game.play.planets                = generatePlanets()
         game.play.asteroids              = spawnAsteroids()
-        game.play.comets                 = generateComets()
+        game.play.comets                 = generateComets() -- comet_count is set in this function
         game.play.space_stations         = generateSpaceStations(game.play.planets)
         game.play.delivered_notification = nil
         game.play.reward_notification    = nil
@@ -5136,12 +5406,29 @@ function getMissionsForDock(dock)
 end
 
 function missionHasProgressUnderway(mission)
-    if not mission or not mission.mass then
+    if not mission then
         return false
     end
 
-    return (mission.mass.active or 0) > 0 or
-        (mission.mass.transported or 0) > 0
+    if mission.mass then
+        if (mission.mass.active or 0) > 0 then
+            return true
+        end
+        if (mission.mass.transported or 0) > 0 then
+            return true
+        end
+    end
+
+    if mission.passengers then
+        if (mission.passengers.active or 0) > 0 then
+            return true
+        end
+        if (mission.passengers.transported or 0) > 0 then
+            return true
+        end
+    end
+
+    return false
 end
 
 function getMissionsWithProgressUnderway()
@@ -5281,6 +5568,12 @@ function getMissionManifestHoldType(mission)
         return nil
     end
 
+    -- ORE delivery missions are fulfilled from generic mined ORE in the
+    -- player's cargo hold. They are never loaded as mission-owned manifest cargo.
+    if mission:isOreDeliveryMission() then
+        return nil
+    end
+
     if mission.type == MISSION_TYPE.CARGO then
         return "cargo"
     elseif mission.type == MISSION_TYPE.CONTRABAND_CARGO then
@@ -5327,6 +5620,15 @@ function acceptMissionManifest(ship, mission)
         return false
     end
 
+    -- ORE delivery missions are fulfilled by mining ORE and returning it to the
+    -- destination dock/station. They are not loaded from the mission board.
+    -- This includes:
+    -- - COLLECT_ORE
+    -- - REPAIR_DOCK
+    if mission:isOreDeliveryMission() then
+        return false
+    end
+
     local hold_type = getMissionManifestHoldType(mission)
     if not hold_type then
         return false
@@ -5360,10 +5662,7 @@ function acceptMissionManifest(ship, mission)
             return false
         end
 
-        local passenger_count = math.min(
-            remaining_passengers,
-            passenger_capacity
-        )
+        local passenger_count = math.min(remaining_passengers, passenger_capacity)
         if passenger_count <= 0 then
             return false
         end
@@ -5545,21 +5844,36 @@ function drawSelectedMissionDetails(missions, content)
     end
 
     local type_text = mission:getTypeLabel()
+    local text = nil
 
-    local active_text = nil
-    if mission:isPassengerMission() then
-        active_text = tostring(math.floor(mission.passengers.active or 0)) ..
-            "/" .. tostring(math.floor(mission.passengers.total or 0)) .. " pass."
+    if mission:isOreDeliveryMission() then
+        local transported = 0
+        local total = 0
+
+        if mission.mass then
+            transported = mission.mass.transported or 0
+            total = mission.mass.total or 0
+        end
+
+        text = type_text .. " | ORE delivered " .. tostring(math.floor(transported)) ..
+            "/" ..  tostring(math.floor(total)) .. "kg"
     else
-        active_text = tostring(math.floor(mission.mass.active or 0)) ..
-            "/" .. tostring(math.floor(mission.mass.total or 0)) .. "kg"
-    end
+        local active_text = nil
 
-    local text = mission.id ..
-        ": " ..
-        type_text ..
-        " | currently carrying " ..
-        active_text
+        if mission:isPassengerMission() then
+            active_text = tostring(math.floor(mission.passengers.active or 0)) ..
+                "/" .. tostring(math.floor(mission.passengers.total or 0)) .. " pass."
+        else
+            active_text = tostring(math.floor(mission.mass.active or 0)) ..
+                "/" .. tostring(math.floor(mission.mass.total or 0)) .. "kg"
+        end
+
+        text = mission.id ..
+            ": " ..
+            type_text ..
+            " | currently carrying " ..
+            active_text
+    end
 
     print(text, content.left, content.bottom - 4 * Y_PADDING, GRAY_LITE, false, 1, true)
 end
@@ -5672,11 +5986,26 @@ function drawMissionBoardList(missions, dock)
         )
 
         local accept_text = nil
+        local selected_mission = nil
+
+        if missions and #missions > 0 then
+            local selected = game.pause.selected_mission or 1
+            selected = clamp(selected, 1, #missions)
+            selected_mission = missions[selected]
+        end
+
         if dock then
-            accept_text = "Z: Accept manifest"
+            if selected_mission and selected_mission:isDockRepairMission() then
+                accept_text = "Mine ORE to repair dock"
+            elseif selected_mission and selected_mission:isOreDeliveryMission() then
+                accept_text = "Mine ORE and return here"
+            else
+                accept_text = "Z: Accept manifest"
+            end
         else
             accept_text = "Dock to accept missions"
         end
+
         drawCenteredText(
             accept_text,
             content.bottom - Y_PADDING,
@@ -7718,6 +8047,7 @@ function SpaceShip:takeDamage(damage, other)
 
     return false
 end
+
 -- ==========================================
 -- SPACESHIP HARPOON
 -- ==========================================
@@ -7807,6 +8137,10 @@ function SpaceShip:clearHarpoon()
     self.harpoon.target   = nil
     self.harpoon.offset_x = 0
     self.harpoon.offset_y = 0
+
+    -- If any station-attached SpaceDock repair completed while the ship was
+    -- docked, regenerate those docks now that the ship has undocked.
+    restorePendingStationSpaceDocks()
 end
 
 function SpaceShip:canHarpoonTarget(obj)
@@ -11073,6 +11407,8 @@ function SpaceDock:new(params)
     -- transport to the station.
     self.mineable = false
 
+    self.pending_restore = false
+
     self.ore_bank = {
         cur = 0,
         max = DOCK_ORE_BANK_MAX,
@@ -11346,6 +11682,65 @@ end
 -- SPACEDOCK UPDATE
 -- ==========================================
 
+function SpaceDock:kill()
+    if self.dead then
+        return
+    end
+
+    self.dead = true
+    self:explosionEffect()
+
+    onSpaceDockDestroyed(self)
+end
+
+function SpaceDock:restore()
+    if not self.dead then
+        self.pending_restore = false
+        return
+    end
+
+    self.pending_restore = false
+
+    self.dead            = false
+    self.mass            = DOCK_MASS
+    self.max_mass        = DOCK_MASS
+
+    self.ore_bank        = {
+        cur = 0,
+        max = DOCK_ORE_BANK_MAX,
+    }
+
+    if self.particles
+        and self.particles.explosion
+        and self.particles.explosion.particles
+    then
+        self.particles.explosion.particles = {}
+    end
+
+    local focus = nil
+
+    if self.host then
+        focus = self.host.barycenter or self.host.position
+    elseif self.planet then
+        focus = self.planet.barycenter or self.planet.position
+    end
+
+    if focus and focus.x and focus.y and self.updateOrbitPosition then
+        self:updateOrbitPosition(focus)
+    end
+
+    if not isStationDock(self) then
+        local missions = generateMissionsForSource(
+            self,
+            MISSION_PLANET_DOCK_COUNT
+        )
+
+        for _, mission in ipairs(missions) do
+            table.insert(game.play.missions, mission)
+        end
+    end
+end
+
 function SpaceDock:update()
     self:updateTimer()
 
@@ -11587,6 +11982,8 @@ function Mission:new(params)
         end
     end
 
+    self.repair_target = params.repair_target or nil
+
     -- Clamp transported values.
     self:clampProgress()
 
@@ -11598,8 +11995,10 @@ end
 -- ==========================================
 
 function Mission:isCargoMission()
-    return self.type == MISSION_TYPE.CARGO or
-        self.type == MISSION_TYPE.CONTRABAND_CARGO
+    return self.type == MISSION_TYPE.CARGO
+        or self.type == MISSION_TYPE.CONTRABAND_CARGO
+        or self.type == MISSION_TYPE.COLLECT_ORE
+        or self.type == MISSION_TYPE.REPAIR_DOCK
 end
 
 function Mission:isPassengerMission()
@@ -11610,6 +12009,19 @@ end
 function Mission:isContrabandMission()
     return self.type == MISSION_TYPE.CONTRABAND_CARGO or
         self.type == MISSION_TYPE.CONTRABAND_PASSENGER
+end
+
+function Mission:isOreCollectionMission()
+    return self.type == MISSION_TYPE.COLLECT_ORE
+end
+
+function Mission:isDockRepairMission()
+    return self.type == MISSION_TYPE.REPAIR_DOCK
+end
+
+function Mission:isOreDeliveryMission()
+    return self.type == MISSION_TYPE.COLLECT_ORE
+        or self.type == MISSION_TYPE.REPAIR_DOCK
 end
 
 function Mission:clampProgress()
@@ -11665,6 +12077,10 @@ function Mission:getTypeLabel()
         return "Contraband Cargo"
     elseif self.type == MISSION_TYPE.CONTRABAND_PASSENGER then
         return "Contraband Passenger"
+    elseif self.type == MISSION_TYPE.COLLECT_ORE then
+        return "Collect ORE"
+    elseif self.type == MISSION_TYPE.REPAIR_DOCK then
+        return "Repair Dock"
     end
 
     return tostring(self.type)
@@ -11679,6 +12095,10 @@ function Mission:getShortTypeLabel()
         return "Contra Cargo"
     elseif self.type == MISSION_TYPE.CONTRABAND_PASSENGER then
         return "Contra Pass."
+    elseif self.type == MISSION_TYPE.COLLECT_ORE then
+        return "ORE"
+    elseif self.type == MISSION_TYPE.REPAIR_DOCK then
+        return "Repair"
     end
 
     return tostring(self.type)
@@ -11741,16 +12161,26 @@ function Mission:canComplete()
 end
 
 function Mission:complete()
-    if not self:canComplete() then
-        return false
+    if self.status == MISSION_STATUS.COMPLETED then
+        return
     end
 
     self.status = MISSION_STATUS.COMPLETED
 
-    self.mass.active = 0
-    self.passengers.active = 0
+    if self:isDockRepairMission()
+        and self.repair_target
+        and self.repair_target.restore
+    then
+        if shouldDeferSpaceDockRestore(self.repair_target) then
+            self.repair_target.pending_restore = true
+        else
+            self.repair_target:restore()
+        end
+    end
 
-    return true
+    if self.reward then
+        notifyMissionReward("Mission Reward: " .. self.reward .. "cr")
+    end
 end
 
 function Mission:onShipDestroyed()
@@ -11824,7 +12254,6 @@ function Mission:loadPassengers(count)
     end
 
     local loaded = math.min(count, self:getRemainingPassengerCount())
-
     self.passengers.active = self.passengers.active + loaded
     self.mass.active = self.passengers.active * PASSENGER_TOTAL_MASS
 
@@ -11848,7 +12277,6 @@ function Mission:loadMass(amount)
     end
 
     local loaded = math.min(amount, self:getRemainingMass())
-
     self.mass.active = self.mass.active + loaded
 
     self:clampProgress()
@@ -11871,7 +12299,6 @@ function Mission:deliverPassengers(count)
     end
 
     local delivered = math.min(count, self.passengers.active)
-
     self.passengers.active = self.passengers.active - delivered
     self.passengers.transported = self.passengers.transported + delivered
 
@@ -11899,7 +12326,6 @@ function Mission:deliverMass(amount)
     end
 
     local delivered = math.min(amount, self.mass.active)
-
     self.mass.active = self.mass.active - delivered
     self.mass.transported = self.mass.transported + delivered
 
@@ -11912,6 +12338,37 @@ function Mission:deliverMass(amount)
     return delivered
 end
 
+function Mission:deliverOreMass(amount)
+    if not self:canAct() then
+        return 0
+    end
+
+    -- ORE delivery includes both normal ORE collection and dock repair.
+    if not self:isOreDeliveryMission() then
+        return 0
+    end
+
+    amount = math.floor(amount or 0)
+    if amount <= 0 then
+        return 0
+    end
+
+    local remaining = math.max(0, self.mass.total - self.mass.transported)
+    local delivered = math.min(amount, remaining)
+    if delivered <= 0 then
+        return 0
+    end
+
+    self.mass.transported = self.mass.transported + delivered
+
+    self:clampProgress()
+
+    if self:canComplete() then
+        self:complete()
+    end
+
+    return delivered
+end
 
 
 -- [/TQ-Bundler: src.classes.Mission]

@@ -69,6 +69,8 @@ function Mission:new(params)
         end
     end
 
+    self.repair_target = params.repair_target or nil
+
     -- Clamp transported values.
     self:clampProgress()
 
@@ -80,8 +82,10 @@ end
 -- ==========================================
 
 function Mission:isCargoMission()
-    return self.type == MISSION_TYPE.CARGO or
-        self.type == MISSION_TYPE.CONTRABAND_CARGO
+    return self.type == MISSION_TYPE.CARGO
+        or self.type == MISSION_TYPE.CONTRABAND_CARGO
+        or self.type == MISSION_TYPE.COLLECT_ORE
+        or self.type == MISSION_TYPE.REPAIR_DOCK
 end
 
 function Mission:isPassengerMission()
@@ -92,6 +96,19 @@ end
 function Mission:isContrabandMission()
     return self.type == MISSION_TYPE.CONTRABAND_CARGO or
         self.type == MISSION_TYPE.CONTRABAND_PASSENGER
+end
+
+function Mission:isOreCollectionMission()
+    return self.type == MISSION_TYPE.COLLECT_ORE
+end
+
+function Mission:isDockRepairMission()
+    return self.type == MISSION_TYPE.REPAIR_DOCK
+end
+
+function Mission:isOreDeliveryMission()
+    return self.type == MISSION_TYPE.COLLECT_ORE
+        or self.type == MISSION_TYPE.REPAIR_DOCK
 end
 
 function Mission:clampProgress()
@@ -147,6 +164,10 @@ function Mission:getTypeLabel()
         return "Contraband Cargo"
     elseif self.type == MISSION_TYPE.CONTRABAND_PASSENGER then
         return "Contraband Passenger"
+    elseif self.type == MISSION_TYPE.COLLECT_ORE then
+        return "Collect ORE"
+    elseif self.type == MISSION_TYPE.REPAIR_DOCK then
+        return "Repair Dock"
     end
 
     return tostring(self.type)
@@ -161,6 +182,10 @@ function Mission:getShortTypeLabel()
         return "Contra Cargo"
     elseif self.type == MISSION_TYPE.CONTRABAND_PASSENGER then
         return "Contra Pass."
+    elseif self.type == MISSION_TYPE.COLLECT_ORE then
+        return "ORE"
+    elseif self.type == MISSION_TYPE.REPAIR_DOCK then
+        return "Repair"
     end
 
     return tostring(self.type)
@@ -223,16 +248,26 @@ function Mission:canComplete()
 end
 
 function Mission:complete()
-    if not self:canComplete() then
-        return false
+    if self.status == MISSION_STATUS.COMPLETED then
+        return
     end
 
     self.status = MISSION_STATUS.COMPLETED
 
-    self.mass.active = 0
-    self.passengers.active = 0
+    if self:isDockRepairMission()
+        and self.repair_target
+        and self.repair_target.restore
+    then
+        if shouldDeferSpaceDockRestore(self.repair_target) then
+            self.repair_target.pending_restore = true
+        else
+            self.repair_target:restore()
+        end
+    end
 
-    return true
+    if self.reward then
+        notifyMissionReward("Mission Reward: " .. self.reward .. "cr")
+    end
 end
 
 function Mission:onShipDestroyed()
@@ -306,7 +341,6 @@ function Mission:loadPassengers(count)
     end
 
     local loaded = math.min(count, self:getRemainingPassengerCount())
-
     self.passengers.active = self.passengers.active + loaded
     self.mass.active = self.passengers.active * PASSENGER_TOTAL_MASS
 
@@ -330,7 +364,6 @@ function Mission:loadMass(amount)
     end
 
     local loaded = math.min(amount, self:getRemainingMass())
-
     self.mass.active = self.mass.active + loaded
 
     self:clampProgress()
@@ -353,7 +386,6 @@ function Mission:deliverPassengers(count)
     end
 
     local delivered = math.min(count, self.passengers.active)
-
     self.passengers.active = self.passengers.active - delivered
     self.passengers.transported = self.passengers.transported + delivered
 
@@ -381,7 +413,6 @@ function Mission:deliverMass(amount)
     end
 
     local delivered = math.min(amount, self.mass.active)
-
     self.mass.active = self.mass.active - delivered
     self.mass.transported = self.mass.transported + delivered
 
@@ -394,3 +425,34 @@ function Mission:deliverMass(amount)
     return delivered
 end
 
+function Mission:deliverOreMass(amount)
+    if not self:canAct() then
+        return 0
+    end
+
+    -- ORE delivery includes both normal ORE collection and dock repair.
+    if not self:isOreDeliveryMission() then
+        return 0
+    end
+
+    amount = math.floor(amount or 0)
+    if amount <= 0 then
+        return 0
+    end
+
+    local remaining = math.max(0, self.mass.total - self.mass.transported)
+    local delivered = math.min(amount, remaining)
+    if delivered <= 0 then
+        return 0
+    end
+
+    self.mass.transported = self.mass.transported + delivered
+
+    self:clampProgress()
+
+    if self:canComplete() then
+        self:complete()
+    end
+
+    return delivered
+end

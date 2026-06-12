@@ -61,6 +61,8 @@ function SpaceDock:new(params)
     -- transport to the station.
     self.mineable = false
 
+    self.pending_restore = false
+
     self.ore_bank = {
         cur = 0,
         max = DOCK_ORE_BANK_MAX,
@@ -333,6 +335,65 @@ end
 -- ==========================================
 -- SPACEDOCK UPDATE
 -- ==========================================
+
+function SpaceDock:kill()
+    if self.dead then
+        return
+    end
+
+    self.dead = true
+    self:explosionEffect()
+
+    onSpaceDockDestroyed(self)
+end
+
+function SpaceDock:restore()
+    if not self.dead then
+        self.pending_restore = false
+        return
+    end
+
+    self.pending_restore = false
+
+    self.dead            = false
+    self.mass            = DOCK_MASS
+    self.max_mass        = DOCK_MASS
+
+    self.ore_bank        = {
+        cur = 0,
+        max = DOCK_ORE_BANK_MAX,
+    }
+
+    if self.particles
+        and self.particles.explosion
+        and self.particles.explosion.particles
+    then
+        self.particles.explosion.particles = {}
+    end
+
+    local focus = nil
+
+    if self.host then
+        focus = self.host.barycenter or self.host.position
+    elseif self.planet then
+        focus = self.planet.barycenter or self.planet.position
+    end
+
+    if focus and focus.x and focus.y and self.updateOrbitPosition then
+        self:updateOrbitPosition(focus)
+    end
+
+    if not isStationDock(self) then
+        local missions = generateMissionsForSource(
+            self,
+            MISSION_PLANET_DOCK_COUNT
+        )
+
+        for _, mission in ipairs(missions) do
+            table.insert(game.play.missions, mission)
+        end
+    end
+end
 
 function SpaceDock:update()
     self:updateTimer()

@@ -3,7 +3,8 @@
 -- ==========================================
 
 local STATION_MASS        = 10000
-local DOCK_MASS           = 2000  -- definitely destructable, watch your flying!
+-- local DOCK_MASS            = 2000 -- definitely destructable, watch your flying!
+local DOCK_MASS            = 20 -- definitely destructable, watch your flying!
 local STATION_RADIUS      = 100
 local STATION_REAL_RADIUS = 25
 local DOCK_RADIUS         = 10

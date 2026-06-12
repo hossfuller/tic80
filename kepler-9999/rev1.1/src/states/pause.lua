@@ -43,12 +43,29 @@ function getMissionsForDock(dock)
 end
 
 function missionHasProgressUnderway(mission)
-    if not mission or not mission.mass then
+    if not mission then
         return false
     end
 
-    return (mission.mass.active or 0) > 0 or
-        (mission.mass.transported or 0) > 0
+    if mission.mass then
+        if (mission.mass.active or 0) > 0 then
+            return true
+        end
+        if (mission.mass.transported or 0) > 0 then
+            return true
+        end
+    end
+
+    if mission.passengers then
+        if (mission.passengers.active or 0) > 0 then
+            return true
+        end
+        if (mission.passengers.transported or 0) > 0 then
+            return true
+        end
+    end
+
+    return false
 end
 
 function getMissionsWithProgressUnderway()
@@ -188,6 +205,12 @@ function getMissionManifestHoldType(mission)
         return nil
     end
 
+    -- ORE delivery missions are fulfilled from generic mined ORE in the
+    -- player's cargo hold. They are never loaded as mission-owned manifest cargo.
+    if mission:isOreDeliveryMission() then
+        return nil
+    end
+
     if mission.type == MISSION_TYPE.CARGO then
         return "cargo"
     elseif mission.type == MISSION_TYPE.CONTRABAND_CARGO then
@@ -234,6 +257,15 @@ function acceptMissionManifest(ship, mission)
         return false
     end
 
+    -- ORE delivery missions are fulfilled by mining ORE and returning it to the
+    -- destination dock/station. They are not loaded from the mission board.
+    -- This includes:
+    -- - COLLECT_ORE
+    -- - REPAIR_DOCK
+    if mission:isOreDeliveryMission() then
+        return false
+    end
+
     local hold_type = getMissionManifestHoldType(mission)
     if not hold_type then
         return false
@@ -267,10 +299,7 @@ function acceptMissionManifest(ship, mission)
             return false
         end
 
-        local passenger_count = math.min(
-            remaining_passengers,
-            passenger_capacity
-        )
+        local passenger_count = math.min(remaining_passengers, passenger_capacity)
         if passenger_count <= 0 then
             return false
         end
@@ -452,21 +481,36 @@ function drawSelectedMissionDetails(missions, content)
     end
 
     local type_text = mission:getTypeLabel()
+    local text = nil
 
-    local active_text = nil
-    if mission:isPassengerMission() then
-        active_text = tostring(math.floor(mission.passengers.active or 0)) ..
-            "/" .. tostring(math.floor(mission.passengers.total or 0)) .. " pass."
+    if mission:isOreDeliveryMission() then
+        local transported = 0
+        local total = 0
+
+        if mission.mass then
+            transported = mission.mass.transported or 0
+            total = mission.mass.total or 0
+        end
+
+        text = type_text .. " | ORE delivered " .. tostring(math.floor(transported)) ..
+            "/" ..  tostring(math.floor(total)) .. "kg"
     else
-        active_text = tostring(math.floor(mission.mass.active or 0)) ..
-            "/" .. tostring(math.floor(mission.mass.total or 0)) .. "kg"
-    end
+        local active_text = nil
 
-    local text = mission.id ..
-        ": " ..
-        type_text ..
-        " | currently carrying " ..
-        active_text
+        if mission:isPassengerMission() then
+            active_text = tostring(math.floor(mission.passengers.active or 0)) ..
+                "/" .. tostring(math.floor(mission.passengers.total or 0)) .. " pass."
+        else
+            active_text = tostring(math.floor(mission.mass.active or 0)) ..
+                "/" .. tostring(math.floor(mission.mass.total or 0)) .. "kg"
+        end
+
+        text = mission.id ..
+            ": " ..
+            type_text ..
+            " | currently carrying " ..
+            active_text
+    end
 
     print(text, content.left, content.bottom - 4 * Y_PADDING, GRAY_LITE, false, 1, true)
 end
@@ -579,11 +623,26 @@ function drawMissionBoardList(missions, dock)
         )
 
         local accept_text = nil
+        local selected_mission = nil
+
+        if missions and #missions > 0 then
+            local selected = game.pause.selected_mission or 1
+            selected = clamp(selected, 1, #missions)
+            selected_mission = missions[selected]
+        end
+
         if dock then
-            accept_text = "Z: Accept manifest"
+            if selected_mission and selected_mission:isDockRepairMission() then
+                accept_text = "Mine ORE to repair dock"
+            elseif selected_mission and selected_mission:isOreDeliveryMission() then
+                accept_text = "Mine ORE and return here"
+            else
+                accept_text = "Z: Accept manifest"
+            end
         else
             accept_text = "Dock to accept missions"
         end
+
         drawCenteredText(
             accept_text,
             content.bottom - Y_PADDING,

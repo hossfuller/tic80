@@ -1246,6 +1246,7 @@ function SpaceShip:takeDamage(damage, other)
 
     return false
 end
+
 -- ==========================================
 -- SPACESHIP HARPOON
 -- ==========================================
@@ -1335,6 +1336,10 @@ function SpaceShip:clearHarpoon()
     self.harpoon.target   = nil
     self.harpoon.offset_x = 0
     self.harpoon.offset_y = 0
+
+    -- If any station-attached SpaceDock repair completed while the ship was
+    -- docked, regenerate those docks now that the ship has undocked.
+    restorePendingStationSpaceDocks()
 end
 
 function SpaceShip:canHarpoonTarget(obj)
