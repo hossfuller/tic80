@@ -52,6 +52,18 @@ function objectsTooClose(a_x, a_y, a_radius, b_x, b_y, b_radius, padding)
 end
 
 -- ==========================================
+-- PARTICLE HELPERS
+-- ==========================================
+
+function makeParticleSystem(colors, params)
+    return {
+        colors = colors or { WHITE },
+        params = params or {},
+        particles = {},
+    }
+end
+
+-- ==========================================
 -- DRAWING HELPERS
 -- ==========================================
 

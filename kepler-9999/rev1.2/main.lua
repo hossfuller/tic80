@@ -39,6 +39,7 @@ include "src.states.shop"
 include "src.states.gameover"
 include "src.state_machine"
 
+include "src.classes.Particle"
 include "src.classes.KeplerObj"
 include "src.classes.SpaceShip"
 include "src.classes.Star"
