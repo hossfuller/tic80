@@ -88,6 +88,7 @@ The different revisions implement separate features. This list is ever changing.
     - [x] Mission type: carry passengers to different destinations
     - [x] Mission type: mining contracts
 - [ ] **REV1.2**: NPC Ships
+    - [x] Generalize particle effects? `SpaceShip`, `SpaceDock`, `Asteroid`, and `Moon` each implement similar particle update/draw logic. It works, but it is becoming duplicated.
     - [ ] A freighter travels from dock to dock collecting ore deposits and transferring them to the space station.
     - [ ] The freighter can be lost, and if so, that ore is gone but also a new freighter spawns somewhere else.
     - [ ] A passenger ship travels from dock to dock delivering passengers.
@@ -96,7 +97,7 @@ The different revisions implement separate features. This list is ever changing.
     - [ ] Mission type: Hazardous material transport (taking *any* damage while transporting causes the ship's life support to downgrade (if it's at 1, ship explodes)).
 - [ ] **REV1.3**: Sound effects and music
     - [ ] Sound effects for everything.
-    - [ ] Generalize particle effects? `SpaceShip`, `SpaceDock`, `Asteroid`, and `Moon` each implement similar particle update/draw logic. It works, but it is becoming duplicated.
+    - [ ] Start page graphics.
 - [ ] **REV1.4**: tbd
 - [ ] **REV1.5**: tbd
 

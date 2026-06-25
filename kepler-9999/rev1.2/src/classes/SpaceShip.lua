@@ -1642,6 +1642,17 @@ function SpaceShip:updateMassDelivered(delivered_mass)
     return self.mass_delivered
 end
 
+function SpaceShip:updateParticles()
+    if not self.fx then
+        return
+    end
+
+    self.fx:update("explosion")
+    self.fx:update("smoke")
+    self.fx:update("spark")
+    self.fx:update("thrust")
+end
+
 function SpaceShip:move()
     self:updateTimer()
 

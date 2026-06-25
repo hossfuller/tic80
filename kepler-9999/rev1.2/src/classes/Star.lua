@@ -59,41 +59,55 @@ function Star:new(params)
     self.acceleration       = 0
     self.deceleration       = 0
 
-    local particle_profile  = profile.particles or {}
-    local wind_profile      = particle_profile.wind or {}
-    local flare_profile     = particle_profile.flare or {}
-
-    self.particles = {
-        wind = {
-            particles               = {},
-            spawn_chance            = getOrDefault(wind_profile.spawn_chance, 0.30),
-            speed_min               = getOrDefault(wind_profile.speed_min, 0.15),
-            speed_max               = getOrDefault(wind_profile.speed_max, 0.45),
-            max_distance_multiplier = getOrDefault(wind_profile.max_distance_multiplier, 2),
-            colors                  = wind_profile.colors or {
-                self.colors.secondary,
-                self.colors.tertiary,
-            },
-        },
-        flare = {
-            particles               = {},
-            spawn_chance            = getOrDefault(flare_profile.spawn_chance, 0.015),
-            particles_per_flare_min = getOrDefault(flare_profile.particles_per_flare_min, 8),
-            particles_per_flare_max = getOrDefault(flare_profile.particles_per_flare_max, 18),
-            speed_min               = getOrDefault(flare_profile.speed_min, 0.55),
-            speed_max               = getOrDefault(flare_profile.speed_max, 1.25),
-            angle_spread            = getOrDefault(flare_profile.angle_spread, math.pi / 7),
-            max_distance_multiplier = getOrDefault(flare_profile.max_distance_multiplier, 4),
-            evaporate_chance_min    = getOrDefault(flare_profile.evaporate_chance_min, 0.005),
-            evaporate_chance_max    = getOrDefault( flare_profile.evaporate_chance_max, 0.025),
-            colors                  = flare_profile.colors or {
+    self.fx                 = Particle:new({
+        wind = makeParticleSystem(
+            params.wind_colors or {
                 self.colors.primary,
                 self.colors.secondary,
                 self.colors.tertiary,
+                YELLOW,
+                ORANGE,
                 WHITE,
             },
-        },
-    }
+            {
+                count_min    = params.wind_count_min or 1,
+                count_max    = params.wind_count_max or 2,
+                speed_min    = params.wind_speed_min or 0.15,
+                speed_max    = params.wind_speed_max or 0.85,
+                life_min     = params.wind_life_min or 35,
+                life_max     = params.wind_life_max or 90,
+                size_min     = params.wind_size_min or 1,
+                size_max     = params.wind_size_max or 2,
+                drag         = params.wind_drag or 0.985,
+                spread       = math.pi * 2,
+                spawn_radius = self.radius or 32,
+            }
+        ),
+
+        flare = makeParticleSystem(
+            params.flare_colors or {
+                WHITE,
+                YELLOW,
+                ORANGE,
+                RED,
+                self.colors.primary,
+                self.colors.secondary,
+            },
+            {
+                count_min    = params.flare_count_min or 8,
+                count_max    = params.flare_count_max or 18,
+                speed_min    = params.flare_speed_min or 0.35,
+                speed_max    = params.flare_speed_max or 1.8,
+                life_min     = params.flare_life_min or 20,
+                life_max     = params.flare_life_max or 55,
+                size_min     = params.flare_size_min or 1,
+                size_max     = params.flare_size_max or 3,
+                drag         = params.flare_drag or 0.96,
+                spread       = math.pi * 0.45,
+                spawn_radius = self.radius or 32,
+            }
+        ),
+    })
 
     return self
 end
@@ -115,14 +129,6 @@ end
 -- STAR COLLISION DETECTION
 -- ==========================================
 
--- Treat everything like a circle
-
--- Deflection only works on objects below a certain mass, with the object of the
--- lesser mass being deflected harder than the more massive object.
-
--- When there's a collision, calculate the energy of the collision and destroy
--- one or both objects depending on how massive the collision is.
-
 -- ==========================================
 -- STAR INPUT
 -- ==========================================
@@ -132,118 +138,67 @@ end
 -- ==========================================
 
 function Star:spawnWindParticle()
-    local system = self.particles.wind
+    if not self.fx then
+        return
+    end
 
-    local angle = randomFloat(0, math.pi * 2)
+    local angle        = randomFloat(0, math.pi * 2)
+    local spawn_radius = self.radius or 32
 
-    -- Start exactly on the star surface.
-    local start_x = self.position.x + math.cos(angle) * self.radius
-    local start_y = self.position.y + math.sin(angle) * self.radius
+    local x = self.position.x + math.cos(angle) * spawn_radius
+    local y = self.position.y + math.sin(angle) * spawn_radius
 
-    local speed = randomFloat(system.speed_min, system.speed_max)
-    local max_distance = self.radius * system.max_distance_multiplier
-
-    local particle = {
-        x            = start_x,
-        y            = start_y,
-        origin_x     = start_x,
-        origin_y     = start_y,
-        direction    = angle,
-        speed        = speed,
-        max_distance = max_distance,
-        color        = randomChoice(system.colors),
-        size         = 1,
-    }
-
-    table.insert(system.particles, particle)
+    self.fx:burst(
+        "wind",
+        x,
+        y,
+        {
+            count = 1,
+            direction = angle,
+            spread = 0.35,
+        }
+    )
 end
 
 function Star:spawnFlare()
-    local system = self.particles.flare
+    if not self.fx then
+        return
+    end
 
-    -- One surface location for the whole flare clump.
-    local base_angle = randomFloat(0, math.pi * 2)
+    local angle        = randomFloat(0, math.pi * 2)
+    local spawn_radius = self.radius or 32
 
-    local start_x = self.position.x + math.cos(base_angle) * self.radius
-    local start_y = self.position.y + math.sin(base_angle) * self.radius
+    local x = self.position.x + math.cos(angle) * spawn_radius
+    local y = self.position.y + math.sin(angle) * spawn_radius
 
-    local count = math.random(
-        system.particles_per_flare_min,
-        system.particles_per_flare_max
-    )
-
-    for i = 1, count do
-        local angle_offset = randomFloat(-system.angle_spread, system.angle_spread)
-        local direction = base_angle + angle_offset
-
-        local speed = randomFloat(system.speed_min, system.speed_max)
-
-        -- Each particle can die at a different range up to max_distance_multiplier.
-        local max_distance = randomFloat(
-            self.radius * 1.1,
-            self.radius * system.max_distance_multiplier
-        )
-        local particle = {
-            x                = start_x,
-            y                = start_y,
-            origin_x         = start_x,
-            origin_y         = start_y,
-            direction        = direction,
-            speed            = speed,
-            max_distance     = max_distance,
-            color            = randomChoice(system.colors),
-            size             = math.random(1, 2),
-            evaporate_chance = randomFloat(system.evaporate_chance_min, system.evaporate_chance_max),
+    self.fx:burst(
+        "flare",
+        x,
+        y,
+        {
+            direction = angle,
+            spread = math.pi * 0.35,
         }
-        table.insert(system.particles, particle)
-    end
-end
-
-function Star:updateParticleList(particles, evaporates)
-    for i = #particles, 1, -1 do
-        local particle = particles[i]
-
-        particle.x = particle.x + math.cos(particle.direction) * particle.speed
-        particle.y = particle.y + math.sin(particle.direction) * particle.speed
-
-        local dx = particle.x - particle.origin_x
-        local dy = particle.y - particle.origin_y
-        local distance = math.sqrt(dx * dx + dy * dy)
-
-        local remove_particle = false
-
-        if distance >= particle.max_distance then
-            remove_particle = true
-        end
-
-        -- Flares can randomly evaporate before reaching max distance.
-        if evaporates and particle.evaporate_chance then
-            if math.random() < particle.evaporate_chance then
-                remove_particle = true
-            end
-        end
-
-        if remove_particle then
-            table.remove(particles, i)
-        end
-    end
+    )
 end
 
 function Star:update()
     self:updateTimer()
 
-    -- Lazy stellar wind.
-    if math.random() < self.particles.wind.spawn_chance then
+    if self.fx then
+        self.fx:update("wind")
+        self.fx:update("flare")
+    end
+
+    -- Constant solar wind.
+    if self:everyNTicks(3) then
         self:spawnWindParticle()
     end
 
-    -- Occasional flare clump.
-    if math.random() < self.particles.flare.spawn_chance then
+    -- Occasional flare.
+    if self:everyNTicks(90) and math.random(1, 100) <= 35 then
         self:spawnFlare()
     end
-
-    self:updateParticleList(self.particles.wind.particles, false)
-    self:updateParticleList(self.particles.flare.particles, true)
 end
 
 -- ==========================================
@@ -288,27 +243,23 @@ function Star:drawBody()
 end
 
 
-function Star:drawParticleList(particles)
-    local zoom = game.camera.zoom or 1
-
-    for _, particle in ipairs(particles) do
-        local screen_x, screen_y = worldToScreen(particle.x, particle.y)
-
-        screen_x = math.floor(screen_x)
-        screen_y = math.floor(screen_y)
-
-        local size = math.max(1, math.floor(particle.size * zoom))
-
-        if size <= 1 then
-            pix(screen_x, screen_y, particle.color)
-        else
-            circ(screen_x, screen_y, size, particle.color)
-        end
+function Star:drawParticles()
+    if not self.fx then
+        return
     end
+
+    self.fx:draw("wind", {
+        offscreen_pad = 32,
+        shrink_when_fading = true,
+    })
+
+    self.fx:draw("flare", {
+        offscreen_pad = 48,
+        shrink_when_fading = true,
+    })
 end
 
 function Star:draw()
-    self:drawParticleList(self.particles.wind.particles)
+    self:drawParticles()
     self:drawBody()
-    self:drawParticleList(self.particles.flare.particles)
 end
